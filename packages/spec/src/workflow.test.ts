@@ -102,6 +102,15 @@ describe("resolveCurrentStep", () => {
       ),
     ).toBe("ship");
   });
+
+  it("returns done for shipped spec", () => {
+    expect(
+      resolveCurrentStep(
+        { status: "shipped" },
+        { hasContext: true, hasClarifications: true },
+      ),
+    ).toBe("done");
+  });
 });
 
 describe("computeProgress", () => {

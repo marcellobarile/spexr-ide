@@ -9,6 +9,7 @@ export type SpecStatus =
   | "in-progress"
   | "implemented"
   | "validated"
+  | "shipped"
   | "archived";
 
 export type WorkflowStep =

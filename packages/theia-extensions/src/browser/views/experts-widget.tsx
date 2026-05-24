@@ -24,6 +24,7 @@ interface ExpertsPanelProps {
   readonly onAdd: (expert: ExpertAgentDto) => void;
   readonly onRemove: (id: string) => void;
   readonly onStart: (expert: ExpertAgentDto) => void;
+  readonly onKickoff: (expert: ExpertAgentDto) => void;
   readonly onDeactivate: () => void;
   readonly onRefresh: () => void;
 }
@@ -156,6 +157,10 @@ export class SpexrExpertsWidget extends ReactWidget {
     void this.commands.executeCommand(SpexrCommands.EXPERT_START.id, expert).then(() => this.update());
   };
 
+  private readonly handleKickoff = (expert: ExpertAgentDto): void => {
+    void this.commands.executeCommand(SpexrCommands.EXPERT_KICKOFF.id, expert);
+  };
+
   private readonly handleDeactivate = (): void => {
     void this.commands.executeCommand(SpexrCommands.EXPERT_DEACTIVATE.id).then(() => this.update());
   };
@@ -174,6 +179,7 @@ export class SpexrExpertsWidget extends ReactWidget {
         onAdd={this.handleAdd}
         onRemove={this.handleRemove}
         onStart={this.handleStart}
+        onKickoff={this.handleKickoff}
         onDeactivate={this.handleDeactivate}
         onRefresh={this.handleRefresh}
       />
@@ -189,6 +195,7 @@ const ExpertsPanel: React.FC<ExpertsPanelProps> = ({
   onAdd,
   onRemove,
   onStart,
+  onKickoff,
   onDeactivate,
   onRefresh,
 }) => {
@@ -252,6 +259,19 @@ const ExpertsPanel: React.FC<ExpertsPanelProps> = ({
                         onClick={() => onStart(dto)}
                       >
                         {nls.localize("spexr/experts/start", "Start")}
+                      </button>
+                    ) : null}
+                    {isActive && dto?.kickoffPrompt ? (
+                      <button
+                        type="button"
+                        className="spexr-button spexr-button--compact"
+                        onClick={() => onKickoff(dto)}
+                        title={nls.localize(
+                          "spexr/experts/kickoffHint",
+                          "Re-run this expert's kickoff prompt",
+                        )}
+                      >
+                        {nls.localize("spexr/experts/kickoff", "Run kickoff")}
                       </button>
                     ) : null}
                     {isActive ? (

@@ -1,7 +1,7 @@
 ---
 slug: 0003-terminal-agent-surface
 title: Embedded Claude TUI terminal as the agent surface
-status: done
+status: shipped
 createdAt: 2026-05-22
 relatedSpecs:
   - 0002-agent-transport

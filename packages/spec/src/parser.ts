@@ -15,6 +15,7 @@ const VALID_STATUSES: ReadonlySet<SpecStatus> = new Set([
   "in-progress",
   "implemented",
   "validated",
+  "shipped",
   "archived",
 ]);
 

@@ -1,7 +1,7 @@
 ---
 slug: 0001-bootstrap
 title: Bootstrap SPEXR skeleton
-status: in-progress
+status: shipped
 owner: marcello.barile@gmail.com
 createdAt: 2026-05-09
 ---

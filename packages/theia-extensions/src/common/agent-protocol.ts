@@ -56,6 +56,7 @@ export interface ExpertAgentDto {
   readonly description: string;
   readonly systemPrompt: string;
   readonly model?: string;
+  readonly kickoffPrompt?: string;
 }
 
 /**

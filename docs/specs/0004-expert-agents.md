@@ -37,7 +37,7 @@ interface ExpertAgent {
 }
 ```
 
-**Marketplace (built-in source):** `packages/agent/src/experts/catalog.ts` exports a frozen array of 4 presets — **brainstorming** (includes analysis/exploration), **design**, **review**, **marketing** — each with a curated `systemPrompt`.
+**Marketplace (built-in source):** `packages/agent/src/experts/catalog.ts` exports a readonly array of 5 presets — **brainstorming** (includes analysis/exploration), **design**, **review**, **marketing**, **dri** (tracks implementation progress against specs and reports to the user) — each with a curated `systemPrompt`.
 
 **Installed experts (project source of truth):** one markdown file per installed expert at `docs/agents/<id>.md`, consistent with `docs/memory` and `docs/specs`. Frontmatter holds `id/name/icon/color/model?`, the body is the `systemPrompt`. Parsed with `gray-matter` (already a `@spexr/memory` dep). "+ Aggiungi" copies a marketplace preset into `docs/agents/<id>.md`; "Rimuovi" deletes the file. A hand-written file in `docs/agents/` is a valid expert too — this unifies built-in and future custom experts from day one.
 

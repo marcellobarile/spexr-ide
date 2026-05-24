@@ -1,4 +1,6 @@
 import { injectable, inject, optional } from "@theia/core/shared/inversify";
+import { Disposable, DisposableCollection } from "@theia/core";
+import { Deferred } from "@theia/core/lib/common/promise-util";
 import { ApplicationShell } from "@theia/core/lib/browser";
 import { MessageService } from "@theia/core/lib/common/message-service";
 import { QuickInputService } from "@theia/core/lib/common/quick-pick-service";
@@ -11,6 +13,7 @@ import type { TerminalWidget } from "@theia/terminal/lib/browser/base/terminal-w
 import type { ClaudeProfileDto, MemoryLinkStatus } from "../../common/agent-protocol.js";
 import { SpexrAgentServiceProxy } from "./agent-service-proxy.js";
 import type { SpexrAgentService } from "./agent-service-proxy.js";
+import { isClaudeReady } from "./claude-readiness.js";
 import {
   SPEXR_CLAUDE_EXECUTABLE_PREFERENCE,
   SPEXR_CLAUDE_CONFIG_DIR_PREFERENCE,
@@ -19,6 +22,12 @@ import {
 } from "../preferences/spexr-preferences.js";
 
 const CLAUDE_TERMINAL_ID = "spexr-claude";
+
+/** Quiet period after the last PTY output that signals the TUI finished rendering. */
+const READY_IDLE_MS = 1_200;
+
+/** Hard cap so a kickoff prompt is sent even if output never goes quiet. */
+const READY_TIMEOUT_MS = 15_000;
 
 /**
  * Owns the lifecycle and placement of the embedded `claude` terminal widget.
@@ -53,6 +62,9 @@ export class ClaudeTerminalManager {
   private readonly agentService!: SpexrAgentService | undefined;
 
   private widget: TerminalWidget | undefined;
+
+  /** Resolves when the launched CLI is ready to accept typed input. */
+  private readyPromise: Promise<void> = Promise.resolve();
 
   /** Tracks where the widget currently lives ("left" or "main"). */
   private placement: "left" | "main" = "left";
@@ -302,12 +314,58 @@ export class ClaudeTerminalManager {
       env,
       destroyTermOnClose: false,
     });
+    this.armReadiness(term);
     await term.start();
 
     this.widget = term;
     this.placement = "left";
     await this.shell.addWidget(term, { area: "left", rank: 1 });
     await this.reveal();
+  }
+
+  /**
+   * Arm `readyPromise` to resolve once the CLI is ready for input.
+   *
+   * Subscribes before `term.start()` so no early output is missed, then resolves
+   * on the first of: the claude ready marker in the output (fast path), the PTY
+   * output going quiet for {@link READY_IDLE_MS} after the TUI finished rendering,
+   * terminal close, or a hard timeout — so a kickoff prompt is delivered even if
+   * the marker text changes between CLI versions.
+   */
+  private armReadiness(term: TerminalWidget): void {
+    const deferred = new Deferred<void>();
+    this.readyPromise = deferred.promise;
+    const disposables = new DisposableCollection();
+    let idleTimer: ReturnType<typeof setTimeout> | undefined;
+    const settle = (): void => {
+      if (deferred.state === "unresolved") deferred.resolve();
+      disposables.dispose();
+    };
+    let tail = "";
+    disposables.push(
+      term.onOutput((chunk) => {
+        tail = (tail + chunk).slice(-4000);
+        if (isClaudeReady(tail)) {
+          settle();
+          return;
+        }
+        if (idleTimer) clearTimeout(idleTimer);
+        idleTimer = setTimeout(settle, READY_IDLE_MS);
+      }),
+    );
+    disposables.push(term.onTerminalDidClose(() => settle()));
+    const hardTimer = setTimeout(settle, READY_TIMEOUT_MS);
+    disposables.push(
+      Disposable.create(() => {
+        clearTimeout(hardTimer);
+        if (idleTimer) clearTimeout(idleTimer);
+      }),
+    );
+  }
+
+  /** Resolves when the running session is ready to accept typed input. */
+  async whenReady(): Promise<void> {
+    return this.readyPromise;
   }
 
   /** Returns the current terminal widget, or `undefined` before launch. */

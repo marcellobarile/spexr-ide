@@ -7,9 +7,9 @@ describe("EXPERT_CATALOG", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("includes the four v1 presets", () => {
+  it("includes the built-in presets", () => {
     expect(EXPERT_CATALOG.map((e) => e.id).sort()).toEqual(
-      ["brainstorming", "design", "marketing", "review"],
+      ["brainstorming", "design", "dri", "marketing", "review"],
     );
   });
 

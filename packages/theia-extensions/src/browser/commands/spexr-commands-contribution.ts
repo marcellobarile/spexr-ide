@@ -111,6 +111,10 @@ export const SpexrCommands = {
     id: "spexr.experts.deactivate",
     label: "Spexr: Deactivate expert",
   } satisfies Command,
+  EXPERT_KICKOFF: {
+    id: "spexr.experts.kickoff",
+    label: "Spexr: Run expert kickoff prompt",
+  } satisfies Command,
 } as const;
 
 const MEMORY_TYPES = ["user", "feedback", "project", "reference"] as const;
@@ -276,6 +280,9 @@ export class SpexrCommandsContribution implements CommandContribution, MenuContr
     commands.registerCommand(SpexrCommands.EXPERT_DEACTIVATE, {
       execute: () => this.deactivateExpert(),
     });
+    commands.registerCommand(SpexrCommands.EXPERT_KICKOFF, {
+      execute: (raw: unknown) => this.kickoffExpert(raw),
+    });
   }
 
   private coerceWorkflowStep(raw: unknown): WorkflowStep | undefined {
@@ -333,7 +340,7 @@ export class SpexrCommandsContribution implements CommandContribution, MenuContr
   private warnDependency(target: WorkflowStep, currentStep: WorkflowStep | "done"): void {
     const targetLabel = WORKFLOW_STEP_LABEL[target];
     if (currentStep === "done") {
-      this.messages.warn(`Cannot start "${targetLabel}" — spec is already archived.`);
+      this.messages.warn(`Cannot start "${targetLabel}" — spec is already complete.`);
       return;
     }
     const targetIdx = WORKFLOW_STEP_ORDER.indexOf(target);
@@ -624,12 +631,44 @@ export class SpexrCommandsContribution implements CommandContribution, MenuContr
     try {
       await this.claudeTerminal.startWithExpert({ id: raw.id, name: raw.name, icon: raw.icon });
       this.messages.info(`Started session as ${raw.name}.`);
+      if (raw.kickoffPrompt) await this.sendKickoff(raw.kickoffPrompt);
     } catch (err) {
       console.error("[spexr] startExpert failed", err);
       this.messages.error(
         `Start expert failed: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
+  }
+
+  /** Re-run an expert's kickoff prompt against the already-running session. */
+  private async kickoffExpert(raw: unknown): Promise<void> {
+    if (!this.isExpertDto(raw) || !raw.kickoffPrompt) {
+      this.messages.warn("This expert has no kickoff prompt.");
+      return;
+    }
+    try {
+      await this.claudeTerminal.reveal();
+      await this.sendKickoff(raw.kickoffPrompt);
+    } catch (err) {
+      console.error("[spexr] kickoffExpert failed", err);
+      this.messages.error(
+        `Run kickoff failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
+  /**
+   * Type a kickoff prompt into the running session and submit it.
+   *
+   * The claude TUI treats a single stdin chunk as a paste, so a trailing "\r"
+   * only inserts a newline. Send the text, then the Enter keystroke separately
+   * once the paste has been processed, so it submits.
+   */
+  private async sendKickoff(prompt: string): Promise<void> {
+    await this.claudeTerminal.whenReady();
+    this.claudeTerminal.send(prompt);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    this.claudeTerminal.send("\r");
   }
 
   private async deactivateExpert(): Promise<void> {

@@ -1,7 +1,7 @@
 ---
 slug: 0002-agent-transport
 title: Wire Claude Agent SDK transport
-status: in-progress
+status: archived
 createdAt: 2026-05-09
 relatedSpecs:
   - 0001-bootstrap

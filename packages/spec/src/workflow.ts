@@ -32,7 +32,8 @@ const STATUS_AT_OR_AFTER: Record<SpecStatus, number> = {
   "in-progress": 2,
   implemented: 3,
   validated: 4,
-  archived: 5,
+  shipped: 5,
+  archived: 6,
 };
 
 /**
@@ -44,7 +45,7 @@ export function resolveCurrentStep(
   frontmatter: Pick<SpecFrontmatter, "status" | "workflowStep">,
   signals: WorkflowSignals,
 ): WorkflowStep | "done" {
-  if (frontmatter.status === "archived") return "done";
+  if (frontmatter.status === "shipped" || frontmatter.status === "archived") return "done";
   if (frontmatter.workflowStep) return frontmatter.workflowStep;
 
   const statusLevel = STATUS_AT_OR_AFTER[frontmatter.status];

@@ -16,7 +16,7 @@ export const SPEXR_TIPS: readonly SpexrTip[] = [
     id: "spec-status",
     category: "spec",
     title: "Spec status drives the workflow",
-    body: "Move a spec from draft → ready → in-progress → implemented → validated. The drift detector checks structural completeness on transition.",
+    body: "Move a spec from draft → ready → in-progress → implemented → validated → shipped. The drift detector checks structural completeness on transition.",
   },
   {
     id: "spec-ac-ids",

@@ -14,4 +14,10 @@ export interface ExpertAgent {
   readonly description: string;
   readonly systemPrompt: string;
   readonly model?: string;
+  /**
+   * Optional prompt typed into the session automatically right after the
+   * expert is launched, once the CLI is ready for input. Lets an expert kick
+   * off its work (e.g. produce a report) without the user typing anything.
+   */
+  readonly kickoffPrompt?: string;
 }
