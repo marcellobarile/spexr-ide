@@ -167,6 +167,27 @@ Conventions: TypeScript strict, no dead code or speculative abstractions, commen
 
 ---
 
+## Roadmap
+
+The core scaffold (specs `0001`–`0004`) is implemented. Open specs in `docs/specs/` are the live roadmap — good first contributions.
+
+**Next — close the spec → PR loop** (these finish what the pillars promise):
+
+| Spec | What | Why it matters |
+|---|---|---|
+| [`0005`](docs/specs/0005-drift-detector.md) | Real drift detector | Tells you when the code has stopped matching what the spec asked for, instead of just checking the spec is well-formed. |
+| [`0006`](docs/specs/0006-spec-context-fan-in.md) | Spec-context fan-in | The notes and files you attach to a spec are handed to the agent automatically, so it starts with the full picture. |
+| [`0007`](docs/specs/0007-ship-to-pr.md) | Ship → PR | One action takes a finished spec to an opened pull request, instead of doing the git steps by hand. |
+| [`0008`](docs/specs/0008-plan-task-artifacts.md) | Plan & task artifacts | Breaks a spec into a saved checklist you can tick off, so progress is visible and survives restarts. |
+
+**Exploration — net-new directions** (not yet specced):
+
+- **MCP / tool-use registration** — per-project MCP servers exposed to the spawned CLI (named as a separate spec in `0002`).
+- **Custom & shareable experts** — author/import experts beyond the built-in catalog (extends `0004`).
+- **Cost & usage tracking** — token/cost per spec and session from the local CLI.
+- **Localization packs** — languages beyond English via Theia `LocalizationContribution`.
+- **Concurrent expert sessions** — more than one agent terminal side by side (e.g. Design + Review).
+
 ## License
 
 MIT. See [`LICENSE`](LICENSE).
