@@ -1,0 +1,46 @@
+{
+  "name": "spexr-ide",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Agent-centric, spec-based IDE built on Theia + Theia AI",
+  "license": "MIT",
+  "packageManager": "pnpm@9.12.0",
+  "engines": {
+    "node": ">=22.17.0",
+    "pnpm": ">=9.0.0"
+  },
+  "scripts": {
+    "setup": "bash scripts/bootstrap.sh",
+    "build": "turbo run build",
+    "build:dev": "pnpm -r --filter './packages/*' run build && pnpm --filter @spexr/desktop run build:dev",
+    "dev": "pnpm build:dev && pnpm start",
+    "dev:watch": "pnpm build:dev && turbo run dev start",
+    "start": "pnpm --filter @spexr/desktop start",
+    "rebuild": "pnpm --filter @spexr/desktop run rebuild",
+    "package": "pnpm --filter @spexr/desktop run package",
+    "package:mac": "pnpm --filter @spexr/desktop run package:mac",
+    "package:win": "pnpm --filter @spexr/desktop run package:win",
+    "package:linux": "pnpm --filter @spexr/desktop run package:linux",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "format": "prettier --write \"**/*.{ts,tsx,json,md,css}\""
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.2",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint": "^10.3.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.3.0",
+    "turbo": "^2.1.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.5"
+  },
+  "pnpm": {
+    "overrides": {
+      "@vscode/ripgrep": "1.17.1"
+    }
+  }
+}

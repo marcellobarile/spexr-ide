@@ -1,0 +1,86 @@
+{
+  "name": "@spexr/desktop",
+  "version": "0.0.0",
+  "private": true,
+  "description": "SPEXR desktop shell — Theia + Electron",
+  "license": "MIT",
+  "main": "src-gen/backend/electron-main.js",
+  "scripts": {
+    "build": "theia build --mode=production",
+    "build:dev": "theia build --mode=development",
+    "rebuild": "theia rebuild:electron --cacheRoot ../../",
+    "start": "electron src-gen/backend/electron-main.js",
+    "dev": "theia build --mode=development --watch",
+    "lint": "echo \"no source files\"",
+    "typecheck": "echo \"no source files\"",
+    "test": "vitest run --passWithNoTests",
+    "clean": "rm -rf src-gen lib gen-webpack*.js .turbo *.tsbuildinfo dist-installers",
+    "package": "electron-builder --config electron-builder.yml",
+    "package:mac": "electron-builder --mac --config electron-builder.yml",
+    "package:win": "electron-builder --win --config electron-builder.yml",
+    "package:linux": "electron-builder --linux --config electron-builder.yml"
+  },
+  "theia": {
+    "target": "electron",
+    "frontend": {
+      "config": {
+        "applicationName": "SPEXR",
+        "electron": {
+          "windowOptions": {
+            "width": 1280,
+            "height": 800,
+            "minWidth": 1024,
+            "minHeight": 640
+          }
+        },
+        "preferences": {
+          "files.enableTrash": false,
+          "editor.fontFamily": "'JetBrains Mono', 'Geist Mono', 'SF Mono', monospace"
+        }
+      }
+    },
+    "backend": {
+      "config": {
+        "startupTimeout": -1
+      }
+    }
+  },
+  "dependencies": {
+    "@spexr/theia-extensions": "workspace:*",
+    "@theia/core": "^1.71.0",
+    "@theia/editor": "^1.71.0",
+    "@theia/electron": "^1.71.0",
+    "@theia/file-search": "^1.71.0",
+    "@theia/filesystem": "^1.71.0",
+    "@theia/markers": "^1.71.0",
+    "@theia/messages": "^1.71.0",
+    "@theia/monaco": "^1.71.0",
+    "@theia/monaco-editor-core": "1.108.201",
+    "@theia/navigator": "^1.71.0",
+    "@theia/outline-view": "^1.71.0",
+    "@theia/preferences": "^1.71.0",
+    "@theia/process": "^1.71.0",
+    "@theia/terminal": "^1.71.0",
+    "@theia/userstorage": "^1.71.0",
+    "@theia/variable-resolver": "^1.71.0",
+    "@theia/workspace": "^1.71.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "reflect-metadata": "^0.2.2"
+  },
+  "devDependencies": {
+    "@theia/cli": "^1.71.0",
+    "@types/react": "^18.3.28",
+    "@types/react-dom": "^18.3.7",
+    "css-loader": "^6.11.0",
+    "electron": "^39.8.10",
+    "electron-builder": "^25.1.8",
+    "ignore-loader": "^0.1.2",
+    "node-loader": "^2.1.0",
+    "source-map-loader": "^2.0.2",
+    "string-replace-loader": "^3.1.0",
+    "style-loader": "^2.0.0",
+    "typescript": "^6.0.3",
+    "umd-compat-loader": "^2.1.2"
+  }
+}

@@ -1,0 +1,42 @@
+import { injectable, inject } from "@theia/core/shared/inversify";
+import { Widget } from "@theia/core/shared/@lumino/widgets";
+import {
+  TabBarToolbarContribution,
+  TabBarToolbarRegistry,
+} from "@theia/core/lib/browser/shell/tab-bar-toolbar";
+import { EditorWidget } from "@theia/editor/lib/browser";
+import { SpexrCommands, SpexrCommandsContribution } from "../commands/spexr-commands-contribution.js";
+
+/**
+ * Surfaces "Send to agent" and "Add context" actions in the editor tab toolbar
+ * whenever the active editor is a spec file under `<workspace>/docs/specs/`.
+ */
+@injectable()
+export class SpexrSpecEditorToolbarContribution implements TabBarToolbarContribution {
+  @inject(SpexrCommandsContribution)
+  private readonly spexrCommands!: SpexrCommandsContribution;
+
+  registerToolbarItems(registry: TabBarToolbarRegistry): void {
+    registry.registerItem({
+      id: "spexr.spec.editor.handoff",
+      command: SpexrCommands.SPEC_HANDOFF.id,
+      icon: "codicon codicon-rocket",
+      tooltip: "Send spec to agent",
+      priority: 0,
+      isVisible: (widget?: Widget) => this.isSpecEditor(widget),
+    });
+    registry.registerItem({
+      id: "spexr.spec.editor.add-context",
+      command: SpexrCommands.SPEC_ADD_CONTEXT.id,
+      icon: "codicon codicon-library",
+      tooltip: "Add context (file or URL)",
+      priority: 1,
+      isVisible: (widget?: Widget) => this.isSpecEditor(widget),
+    });
+  }
+
+  private isSpecEditor(widget?: Widget): boolean {
+    if (!(widget instanceof EditorWidget)) return false;
+    return this.spexrCommands.isSpecUri(widget.getResourceUri());
+  }
+}

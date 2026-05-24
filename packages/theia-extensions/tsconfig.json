@@ -1,0 +1,28 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./lib",
+    "rootDir": "./src",
+    "composite": true,
+    "tsBuildInfoFile": "./lib/.tsbuildinfo",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "baseUrl": ".",
+    "paths": {
+      "@spexr/spec/registry": ["../spec/dist/registry.d.ts"]
+    },
+    "ignoreDeprecations": "6.0",
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"]
+  },
+  "include": ["src/**/*"],
+  "exclude": ["src/**/*.test.ts"],
+  "references": [
+    { "path": "../core" },
+    { "path": "../ui-kit" },
+    { "path": "../memory" },
+    { "path": "../spec" },
+    { "path": "../agent" },
+    { "path": "../onboarding" }
+  ]
+}

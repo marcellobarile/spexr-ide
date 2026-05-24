@@ -1,0 +1,60 @@
+appId: dev.spexr.ide
+productName: SPEXR
+copyright: Copyright © 2026
+artifactName: ${productName}-${version}-${os}-${arch}.${ext}
+directories:
+  output: dist-installers
+  buildResources: build
+files:
+  - src-gen/**/*
+  - lib/**/*
+  - package.json
+  - "!**/*.map"
+  - "!**/*.ts"
+  - "!**/tsconfig*.json"
+  - "!node_modules/**/{CHANGELOG.md,README.md,readme.md,changelog.md}"
+  - "!node_modules/**/{test,tests,__tests__,docs,doc,example,examples}/**"
+extraMetadata:
+  main: src-gen/backend/electron-main.js
+asar: true
+asarUnpack:
+  - "node_modules/**/*.{node,dll,dylib,so}"
+  - "node_modules/node-pty/**/*"
+  - "node_modules/nsfw/**/*"
+mac:
+  category: public.app-category.developer-tools
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+    - target: zip
+      arch:
+        - x64
+        - arm64
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: zip
+      arch:
+        - x64
+linux:
+  category: Development
+  target:
+    - target: AppImage
+      arch:
+        - x64
+    - target: deb
+      arch:
+        - x64
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  perMachine: false
+publish: null

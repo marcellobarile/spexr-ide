@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.base.json",
+  "files": [],
+  "references": [
+    { "path": "./packages/core" },
+    { "path": "./packages/ui-kit" },
+    { "path": "./packages/memory" },
+    { "path": "./packages/spec" },
+    { "path": "./packages/agent" },
+    { "path": "./packages/onboarding" },
+    { "path": "./packages/theia-extensions" }
+  ]
+}
