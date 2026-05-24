@@ -17,6 +17,16 @@ Most editors bolt an agent into a sidebar. SPEXR inverts the layout: the Claude 
 5. **Community best-practices baseline** — language/framework guidance pre-loaded, override-able per scope.
 6. **Themeable, accessible UI** — WCAG 2.1 AA via Radix primitives + design tokens (CSS vars). Light, dark, high-contrast presets + custom JSON themes.
 
+## Screenshots
+
+> Pre-alpha UI — these might change.
+
+| Welcome | Specs + agent |
+|---|---|
+| ![Welcome screen](docs/screenshots/welcome.png) | ![A spec open with the agent terminal on the left](docs/screenshots/specs-agent.png) |
+| **Memory** | **Experts** |
+| ![Project & user memory panel](docs/screenshots/memory.png) | ![Expert personas marketplace](docs/screenshots/experts.png) |
+
 ---
 
 ## For adopters
