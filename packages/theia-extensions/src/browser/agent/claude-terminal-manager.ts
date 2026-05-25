@@ -14,6 +14,7 @@ import type { ClaudeProfileDto, MemoryLinkStatus } from "../../common/agent-prot
 import { SpexrAgentServiceProxy } from "./agent-service-proxy.js";
 import type { SpexrAgentService } from "./agent-service-proxy.js";
 import { isClaudeReady } from "./claude-readiness.js";
+import { expandLeftPanelWithMinWidth } from "../shell/side-panel.js";
 import {
   SPEXR_CLAUDE_EXECUTABLE_PREFERENCE,
   SPEXR_CLAUDE_CONFIG_DIR_PREFERENCE,
@@ -419,10 +420,7 @@ export class ClaudeTerminalManager {
   }
 
   private expandLeftPanel(): void {
-    const handler = this.shell.leftPanelHandler;
-    if (!handler) return;
-    const expand = (handler as unknown as { expand?: () => void }).expand;
-    if (typeof expand === "function") expand.call(handler);
+    expandLeftPanelWithMinWidth(this.shell);
   }
 
   private async resolveProfile(workspaceUri: string): Promise<ClaudeProfileDto | undefined> {

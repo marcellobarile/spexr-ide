@@ -5,6 +5,9 @@ export interface WelcomeSplashProps {
   readonly onNewProject: () => void;
   readonly onOpenFolder: () => void;
   readonly onFocusAgent: () => void;
+  /** True when a workspace is open but has no specs yet. */
+  readonly emptyProject?: boolean;
+  readonly onStartFirstSpec?: () => void;
 }
 
 interface ActionCard {
@@ -71,14 +74,31 @@ export const WelcomeSplash: React.FC<WelcomeSplashProps> = ({
   onNewProject,
   onOpenFolder,
   onFocusAgent,
+  emptyProject,
+  onStartFirstSpec,
 }) => {
+  const startFirstSpec: readonly ActionCard[] =
+    emptyProject && onStartFirstSpec
+      ? [
+          {
+            id: "first-spec",
+            title: "Start with the first spec",
+            description:
+              "This project has no specs yet. Create docs/specs/0001-<slug>.md and begin the workflow.",
+            onClick: onStartFirstSpec,
+            primary: true,
+          },
+        ]
+      : [];
+
   const cards: readonly ActionCard[] = [
+    ...startFirstSpec,
     {
       id: "new",
       title: "New project",
       description: "Start a fresh workspace. SPEXR seeds docs/memory/ and docs/specs/ at the root.",
       onClick: onNewProject,
-      primary: true,
+      primary: startFirstSpec.length === 0,
     },
     {
       id: "open-folder",

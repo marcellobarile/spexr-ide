@@ -9,7 +9,7 @@ describe("EXPERT_CATALOG", () => {
 
   it("includes the built-in presets", () => {
     expect(EXPERT_CATALOG.map((e) => e.id).sort()).toEqual(
-      ["brainstorming", "design", "dri", "marketing", "review"],
+      ["brainstorming", "design", "dri", "marketing", "review", "software-engineering"],
     );
   });
 

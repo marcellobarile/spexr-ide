@@ -10,6 +10,7 @@ import { SpexrSpecViewContribution } from "../views/spec-view-contribution.js";
 import { SpexrMemoryViewContribution } from "../views/memory-view-contribution.js";
 import { SpexrExpertsViewContribution } from "../views/experts-view-contribution.js";
 import { SpexrWelcomeViewContribution } from "../views/welcome-view-contribution.js";
+import { expandLeftPanelWithMinWidth, expandRightPanelWithMinWidth } from "./side-panel.js";
 
 const TERMINAL_NEW_COMMAND = "terminal:new";
 
@@ -55,6 +56,7 @@ export class SpexrShellLayoutContribution implements FrontendApplicationContribu
       // Reveal views registered after the user's layout was first saved so they
       // appear without requiring a manual layout reset.
       await this.expertsView.openView({ activate: false, reveal: true });
+      expandRightPanelWithMinWidth(this.shell);
       return;
     }
     await this.applyDefaultLayout();
@@ -106,7 +108,8 @@ export class SpexrShellLayoutContribution implements FrontendApplicationContribu
       console.log("[spexr] open terminal");
       await this.openTerminal();
       this.expandLeftPanel();
-      console.log("[spexr] left panel expanded");
+      expandRightPanelWithMinWidth(this.shell);
+      console.log("[spexr] side panels expanded");
     } catch (err) {
       console.error("[spexr] applyDefaultLayout error", err);
     }
@@ -146,9 +149,6 @@ export class SpexrShellLayoutContribution implements FrontendApplicationContribu
   }
 
   private expandLeftPanel(): void {
-    const handler = this.shell.leftPanelHandler;
-    if (!handler) return;
-    const expand = (handler as unknown as { expand?: () => void }).expand;
-    if (typeof expand === "function") expand.call(handler);
+    expandLeftPanelWithMinWidth(this.shell);
   }
 }

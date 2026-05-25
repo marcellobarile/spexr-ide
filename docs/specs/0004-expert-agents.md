@@ -3,10 +3,10 @@ slug: 0004-expert-agents
 title: Expert agents — persona presets selectable per project
 status: in-progress
 createdAt: 2026-05-23
-relatedSpecs:
-  - 0003-terminal-agent-surface
+relatedSpecs: 
+workflowStep: implement
+updatedAt: 2026-05-25
 ---
-
 ## Goal
 
 Turn the right-panel Memory view into a tabbed surface (tab 1 **Memory**, tab 2 **Esperti**) and add a marketplace of built-in "expert agents". Each expert is a persona — a curated system-prompt preset with its own name, icon, and accent color. The user adds experts from the built-in marketplace to the project, then launches a Claude session as a chosen expert. Exactly one expert is active at a time, and the active expert is recognizable everywhere it appears (panel chip + terminal title/icon).
@@ -37,7 +37,7 @@ interface ExpertAgent {
 }
 ```
 
-**Marketplace (built-in source):** `packages/agent/src/experts/catalog.ts` exports a readonly array of 5 presets — **brainstorming** (includes analysis/exploration), **design**, **review**, **marketing**, **dri** (tracks implementation progress against specs and reports to the user) — each with a curated `systemPrompt`.
+**Marketplace (built-in source):** `packages/agent/src/experts/catalog.ts` exports a readonly array of 6 presets — **brainstorming** (includes analysis/exploration), **design**, **review**, **marketing**, **dri** (tracks implementation progress against specs and reports to the user), **software-engineering** (implements the plan: production code + tests) — each with a curated `systemPrompt`. All presets except **marketing** are installed by default when a project is scaffolded, and each workflow step maps to a default expert (`WORKFLOW_STEP_EXPERT` in `@spexr/spec`) that is auto-activated on step handoff, falling back to the base agent when the mapped expert is not installed.
 
 **Installed experts (project source of truth):** one markdown file per installed expert at `docs/agents/<id>.md`, consistent with `docs/memory` and `docs/specs`. Frontmatter holds `id/name/icon/color/model?`, the body is the `systemPrompt`. Parsed with `gray-matter` (already a `@spexr/memory` dep). "+ Aggiungi" copies a marketplace preset into `docs/agents/<id>.md`; "Rimuovi" deletes the file. A hand-written file in `docs/agents/` is a valid expert too — this unifies built-in and future custom experts from day one.
 

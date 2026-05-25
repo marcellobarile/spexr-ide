@@ -245,7 +245,12 @@ const ExpertsPanel: React.FC<ExpertsPanelProps> = ({
                   style={isActive ? { borderColor: e.color, background: `${e.color}1f` } : undefined}
                 >
                   <span className={`codicon ${e.icon} spexr-experts-list__icon`} style={{ color: e.color }} />
-                  <span className="spexr-experts-list__name">{e.name}</span>
+                  <span className="spexr-experts-list__meta">
+                    <span className="spexr-experts-list__name">{e.name}</span>
+                    {dto?.description ? (
+                      <span className="spexr-experts-list__desc">{dto.description}</span>
+                    ) : null}
+                  </span>
                   {isActive ? (
                     <span className="spexr-experts-list__active">
                       {nls.localize("spexr/experts/active", "● active")}

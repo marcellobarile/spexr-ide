@@ -8,6 +8,7 @@ import { type FileOperationEvent } from "@theia/filesystem/lib/common/files";
 import type URI from "@theia/core/lib/common/uri";
 import {
   computeProgress,
+  hasAuthoredAcceptanceCriteria,
   parseSpec,
   resolveCurrentStep,
   WORKFLOW_STEP_ORDER,
@@ -144,6 +145,7 @@ export class SpexrSpecWidget extends ReactWidget {
       const hasContext = await this.hasContextEntries(contextDir);
       const hasClarifications = await this.exists(contextDir.resolve("clarifications.md"));
       const currentStep = resolveCurrentStep(spec.frontmatter, {
+        hasAcceptanceCriteria: hasAuthoredAcceptanceCriteria(spec.acceptanceCriteria),
         hasContext,
         hasClarifications,
       });

@@ -16,11 +16,13 @@ import { FileDialogService } from "@theia/filesystem/lib/browser/file-dialog/fil
 import URI from "@theia/core/lib/common/uri";
 import {
   computeProgress,
+  hasAuthoredAcceptanceCriteria,
   parseSpec,
   patchFrontmatter,
   persistedStateForStep,
   resolveCurrentStep,
   StructuralDriftDetector,
+  WORKFLOW_STEP_EXPERT,
   WORKFLOW_STEP_LABEL,
   WORKFLOW_STEP_ORDER,
   type DriftReport,
@@ -139,6 +141,9 @@ type: ${type}
 
 `;
 
+/** Experts NOT installed when seeding a fresh project (added manually instead). */
+const DEFAULT_EXCLUDED_EXPERTS = new Set(["marketing"]);
+
 const SPEC_FILE_RE = /^(\d{4})-([a-z0-9][a-z0-9-]*)\.md$/;
 const URL_RE = /^https?:\/\/\S+$/i;
 
@@ -159,7 +164,7 @@ Describe the user-facing outcome this spec delivers.
 
 ## Acceptance Criteria
 
-- **AC-1**
+<!-- One bullet per criterion: - **AC-1** The system … -->
 
 ## Notes
 `;
@@ -303,7 +308,11 @@ export class SpexrCommandsContribution implements CommandContribution, MenuContr
     try {
       const file = await this.fileService.read(uri);
       const spec = parseSpec(file.value, uri.toString());
-      const signals = await this.loadWorkflowSignals(uri, spec.frontmatter.slug);
+      const fsSignals = await this.loadWorkflowSignals(uri, spec.frontmatter.slug);
+      const signals = {
+        ...fsSignals,
+        hasAcceptanceCriteria: hasAuthoredAcceptanceCriteria(spec.acceptanceCriteria),
+      };
       const currentStep = resolveCurrentStep(spec.frontmatter, signals);
       const progress = computeProgress(currentStep);
       if (progress.stateByStep[step] === "pending") {
@@ -312,8 +321,10 @@ export class SpexrCommandsContribution implements CommandContribution, MenuContr
       }
 
       if (step === "specify") {
+        // Open the editor only; specify stays current until acceptance criteria
+        // are authored, at which point resolveCurrentStep advances to context.
+        // Persisting workflowStep="specify" would pin it and deadlock the flow.
         await this.openSpec(uri);
-        await this.persistStep(uri, step);
         return;
       }
       if (step === "context") {
@@ -324,7 +335,9 @@ export class SpexrCommandsContribution implements CommandContribution, MenuContr
 
       const drift = step === "validate" ? await this.runDrift(spec) : undefined;
       const prompt = this.buildWorkflowPrompt(step, spec.frontmatter.slug, spec.raw, drift);
+      await this.applyStepExpert(step);
       await this.claudeTerminal.ensureStarted();
+      await this.claudeTerminal.whenReady();
       this.claudeTerminal.send(prompt.body + "\n");
       await this.claudeTerminal.reveal();
       await this.persistStep(uri, step);
@@ -545,6 +558,46 @@ export class SpexrCommandsContribution implements CommandContribution, MenuContr
     if (!confirmed) return;
     await this.claudeTerminal.resolveMemoryConflict(workspaceRoot);
     this.messages.info("Project memory linked. Any existing memory was backed up alongside it.");
+  }
+
+  /**
+   * Activate the expert mapped to a workflow step before handing off to the
+   * agent. Falls back to the base agent when the mapped expert is not installed
+   * or the step maps to no expert. No-ops when the desired persona is already
+   * active so an in-flight session is not needlessly relaunched.
+   */
+  private async applyStepExpert(step: WorkflowStep): Promise<void> {
+    const mapped = WORKFLOW_STEP_EXPERT[step];
+    const desired = mapped && (await this.isExpertInstalled(mapped)) ? mapped : undefined;
+    if (desired === this.activeExpertId()) return;
+    if (!desired) {
+      await this.claudeTerminal.deactivateExpert();
+      return;
+    }
+    const dto = await this.findMarketplaceExpert(desired);
+    if (!dto) return;
+    await this.claudeTerminal.startWithExpert({ id: dto.id, name: dto.name, icon: dto.icon });
+  }
+
+  private activeExpertId(): string | undefined {
+    const stored = this.preferences.get<string>(SPEXR_EXPERTS_ACTIVE_ID_PREFERENCE) ?? "";
+    return stored.trim() || undefined;
+  }
+
+  private async isExpertInstalled(id: string): Promise<boolean> {
+    const root = this.workspaceRoot();
+    if (!root) return false;
+    return this.exists(agentsDir(root).resolve(`${id}.md`));
+  }
+
+  private async findMarketplaceExpert(id: string): Promise<ExpertAgentDto | undefined> {
+    if (!this.agentService) return undefined;
+    try {
+      const all = await this.agentService.listMarketplaceExperts();
+      return all.find((e) => e.id === id);
+    } catch {
+      return undefined;
+    }
   }
 
   private isExpertDto(raw: unknown): raw is ExpertAgentDto {
@@ -952,6 +1005,7 @@ export class SpexrCommandsContribution implements CommandContribution, MenuContr
 
     const target = folder;
     await this.scaffoldSpexrDir(target);
+    await this.claudeTerminal.linkMemory(target.path.toString());
     await this.workspace.open(target);
   }
 
@@ -967,6 +1021,42 @@ export class SpexrCommandsContribution implements CommandContribution, MenuContr
     const indexUri = memDir.resolve("MEMORY.md");
     if (!(await this.exists(indexUri))) {
       await this.fileService.create(indexUri, "# MEMORY\n\nIndex of project memory entries.\n");
+    }
+    await this.seedDefaultExperts(root);
+  }
+
+  /**
+   * Install the default expert personas (all catalog experts except the ones in
+   * {@link DEFAULT_EXCLUDED_EXPERTS}) into `docs/agents/` on first scaffold.
+   *
+   * Only seeds when the agents directory does not yet exist, so personas the
+   * user later removes are not silently re-created on the next scaffold call.
+   */
+  private async seedDefaultExperts(root: URI): Promise<void> {
+    if (!this.agentService) return;
+    const dir = agentsDir(root);
+    if (await this.exists(dir)) return;
+    try {
+      const catalog = await this.agentService.listMarketplaceExperts();
+      await this.ensureDir(dir);
+      for (const e of catalog) {
+        if (DEFAULT_EXCLUDED_EXPERTS.has(e.id)) continue;
+        const fileUri = dir.resolve(`${e.id}.md`);
+        await this.fileService.create(
+          fileUri,
+          serializeExpertFile({
+            id: e.id,
+            name: e.name,
+            icon: e.icon,
+            color: e.color,
+            systemPrompt: e.systemPrompt,
+            ...(e.model ? { model: e.model } : {}),
+          }),
+          { overwrite: false },
+        );
+      }
+    } catch (err) {
+      console.error("[spexr] seedDefaultExperts failed", err);
     }
   }
 

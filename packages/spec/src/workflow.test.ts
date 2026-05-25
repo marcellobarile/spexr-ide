@@ -1,13 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { computeProgress, resolveCurrentStep } from "./workflow.js";
+import {
+  computeProgress,
+  hasAuthoredAcceptanceCriteria,
+  resolveCurrentStep,
+  WORKFLOW_STEP_EXPERT,
+} from "./workflow.js";
+import type { AcceptanceCriterion } from "./types.js";
 import type { DriftReport } from "./types.js";
+import { WORKFLOW_STEP_ORDER } from "./types.js";
 
 describe("resolveCurrentStep", () => {
   it("returns done for archived spec", () => {
     expect(
       resolveCurrentStep(
         { status: "archived" },
-        { hasContext: false, hasClarifications: false },
+        { hasAcceptanceCriteria: true, hasContext: false, hasClarifications: false },
       ),
     ).toBe("done");
   });
@@ -16,25 +23,61 @@ describe("resolveCurrentStep", () => {
     expect(
       resolveCurrentStep(
         { status: "draft", workflowStep: "plan" },
-        { hasContext: false, hasClarifications: false },
+        { hasAcceptanceCriteria: true, hasContext: false, hasClarifications: false },
       ),
     ).toBe("plan");
   });
 
-  it("derives context when draft and no context yet", () => {
+  // A persisted workflowStep must not let a draft skip specify when no real
+  // acceptance criteria exist (e.g. a spec saved by a looser earlier build).
+  it("clamps to specify when draft has a workflowStep but no acceptance criteria", () => {
+    expect(
+      resolveCurrentStep(
+        { status: "draft", workflowStep: "context" },
+        { hasAcceptanceCriteria: false, hasContext: true, hasClarifications: false },
+      ),
+    ).toBe("specify");
+  });
+
+  it("derives context when AC authored but no context yet", () => {
     expect(
       resolveCurrentStep(
         { status: "draft" },
-        { hasContext: false, hasClarifications: false },
+        { hasAcceptanceCriteria: true, hasContext: false, hasClarifications: false },
       ),
     ).toBe("context");
+  });
+
+  // Regression: a fresh draft (no acceptance criteria yet) must keep "specify"
+  // as the current step, not silently mark it done. The fs signal advances to
+  // "context" only once real AC bullets exist.
+  it("keeps specify current and context pending for a fresh draft", () => {
+    const progress = computeProgress(
+      resolveCurrentStep(
+        { status: "draft" },
+        { hasAcceptanceCriteria: false, hasContext: false, hasClarifications: false },
+      ),
+    );
+    expect(progress.stateByStep.specify).toBe("current");
+    expect(progress.stateByStep.context).toBe("pending");
+  });
+
+  it("advances specify to done once acceptance criteria are authored", () => {
+    const progress = computeProgress(
+      resolveCurrentStep(
+        { status: "draft" },
+        { hasAcceptanceCriteria: true, hasContext: false, hasClarifications: false },
+      ),
+    );
+    expect(progress.stateByStep.specify).toBe("done");
+    expect(progress.stateByStep.context).toBe("current");
   });
 
   it("derives clarify when context exists but no clarifications", () => {
     expect(
       resolveCurrentStep(
         { status: "draft" },
-        { hasContext: true, hasClarifications: false },
+        { hasAcceptanceCriteria: true, hasContext: true, hasClarifications: false },
       ),
     ).toBe("clarify");
   });
@@ -43,7 +86,7 @@ describe("resolveCurrentStep", () => {
     expect(
       resolveCurrentStep(
         { status: "draft" },
-        { hasContext: true, hasClarifications: true },
+        { hasAcceptanceCriteria: true, hasContext: true, hasClarifications: true },
       ),
     ).toBe("plan");
   });
@@ -52,7 +95,7 @@ describe("resolveCurrentStep", () => {
     expect(
       resolveCurrentStep(
         { status: "in-progress" },
-        { hasContext: true, hasClarifications: true },
+        { hasAcceptanceCriteria: true, hasContext: true, hasClarifications: true },
       ),
     ).toBe("implement");
   });
@@ -61,7 +104,7 @@ describe("resolveCurrentStep", () => {
     expect(
       resolveCurrentStep(
         { status: "implemented" },
-        { hasContext: true, hasClarifications: true },
+        { hasAcceptanceCriteria: true, hasContext: true, hasClarifications: true },
       ),
     ).toBe("validate");
   });
@@ -75,7 +118,7 @@ describe("resolveCurrentStep", () => {
     expect(
       resolveCurrentStep(
         { status: "implemented" },
-        { hasContext: true, hasClarifications: true, driftReport },
+        { hasAcceptanceCriteria: true, hasContext: true, hasClarifications: true, driftReport },
       ),
     ).toBe("validate");
   });
@@ -89,7 +132,7 @@ describe("resolveCurrentStep", () => {
     expect(
       resolveCurrentStep(
         { status: "implemented" },
-        { hasContext: true, hasClarifications: true, driftReport },
+        { hasAcceptanceCriteria: true, hasContext: true, hasClarifications: true, driftReport },
       ),
     ).toBe("ship");
   });
@@ -98,7 +141,7 @@ describe("resolveCurrentStep", () => {
     expect(
       resolveCurrentStep(
         { status: "validated" },
-        { hasContext: true, hasClarifications: true },
+        { hasAcceptanceCriteria: true, hasContext: true, hasClarifications: true },
       ),
     ).toBe("ship");
   });
@@ -107,9 +150,29 @@ describe("resolveCurrentStep", () => {
     expect(
       resolveCurrentStep(
         { status: "shipped" },
-        { hasContext: true, hasClarifications: true },
+        { hasAcceptanceCriteria: true, hasContext: true, hasClarifications: true },
       ),
     ).toBe("done");
+  });
+});
+
+describe("hasAuthoredAcceptanceCriteria", () => {
+  const ac = (text: string): AcceptanceCriterion => ({ id: "AC-1", text });
+
+  it("ignores the empty scaffold stub", () => {
+    expect(hasAuthoredAcceptanceCriteria([ac("**AC-1**")])).toBe(false);
+  });
+
+  it("ignores blank text", () => {
+    expect(hasAuthoredAcceptanceCriteria([ac("   ")])).toBe(false);
+  });
+
+  it("returns false for no criteria", () => {
+    expect(hasAuthoredAcceptanceCriteria([])).toBe(false);
+  });
+
+  it("returns true once a criterion has a real description", () => {
+    expect(hasAuthoredAcceptanceCriteria([ac("The user can log in")])).toBe(true);
   });
 });
 
@@ -135,5 +198,17 @@ describe("computeProgress", () => {
     expect(progress.percent).toBe(100);
     expect(progress.doneCount).toBe(progress.totalCount);
     expect(progress.stateByStep.ship).toBe("done");
+  });
+});
+
+describe("WORKFLOW_STEP_EXPERT", () => {
+  it("maps every workflow step", () => {
+    for (const step of WORKFLOW_STEP_ORDER) {
+      expect(step in WORKFLOW_STEP_EXPERT).toBe(true);
+    }
+  });
+
+  it("maps implement to the software-engineering expert", () => {
+    expect(WORKFLOW_STEP_EXPERT.implement).toBe("software-engineering");
   });
 });

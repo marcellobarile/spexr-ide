@@ -168,6 +168,12 @@ pnpm test         # Vitest, all packages
 pnpm format       # Prettier write
 ```
 
+DevTools are off by default. To open the Electron DevTools on each window:
+
+```bash
+SPEXR_DEVTOOLS=1 pnpm start
+```
+
 ### Localization
 
 UI strings go through Theia's i18n: `nls.localize("spexr/<area>/<key>", "English default", ...args)`. **English is the default** and renders with no language pack — the second argument is the fallback. No other languages ship today; add one by registering a Theia `LocalizationContribution` (backend) for the existing `spexr/*` keys — call sites don't change.

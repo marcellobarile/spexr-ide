@@ -1,9 +1,33 @@
-import type { DriftReport, SpecFrontmatter, SpecStatus, WorkflowStep } from "./types.js";
+import type {
+  AcceptanceCriterion,
+  DriftReport,
+  SpecFrontmatter,
+  SpecStatus,
+  WorkflowStep,
+} from "./types.js";
 import { WORKFLOW_STEP_ORDER } from "./types.js";
+
+/** A criterion whose text is only its `**AC-N**` label, i.e. the template stub. */
+const PLACEHOLDER_CRITERION = /^\*\*[A-Za-z]+-\d+\*\*$/;
+
+/**
+ * Whether the spec carries at least one real acceptance criterion — used as the
+ * "specify is done" signal. Empty bullets and the scaffold's `**AC-1**` stub do
+ * not count, so a freshly created draft stays on the specify step.
+ */
+export function hasAuthoredAcceptanceCriteria(
+  criteria: readonly AcceptanceCriterion[],
+): boolean {
+  return criteria.some((c) => {
+    const text = c.text.trim();
+    return text.length > 0 && !PLACEHOLDER_CRITERION.test(text);
+  });
+}
 
 export type WorkflowStepState = "done" | "current" | "pending";
 
 export interface WorkflowSignals {
+  readonly hasAcceptanceCriteria: boolean;
   readonly hasContext: boolean;
   readonly hasClarifications: boolean;
   readonly driftReport?: DriftReport;
@@ -46,6 +70,11 @@ export function resolveCurrentStep(
   signals: WorkflowSignals,
 ): WorkflowStep | "done" {
   if (frontmatter.status === "shipped" || frontmatter.status === "archived") return "done";
+
+  // A draft cannot be past "specify" until real acceptance criteria exist — this
+  // wins over a persisted workflowStep so a stale/placeholder spec is not shown
+  // as already specified.
+  if (frontmatter.status === "draft" && !signals.hasAcceptanceCriteria) return "specify";
   if (frontmatter.workflowStep) return frontmatter.workflowStep;
 
   const statusLevel = STATUS_AT_OR_AFTER[frontmatter.status];
@@ -95,6 +124,22 @@ export const WORKFLOW_STEP_LABEL: Record<WorkflowStep, string> = {
   implement: "Implement",
   validate: "Validate",
   ship: "Ship",
+};
+
+/**
+ * Default expert persona to activate when entering each workflow step.
+ *
+ * `null` means the base agent (no persona). When the mapped expert is not
+ * installed under `docs/agents/`, callers fall back to the base agent.
+ */
+export const WORKFLOW_STEP_EXPERT: Record<WorkflowStep, string | null> = {
+  specify: "brainstorming",
+  context: "design",
+  clarify: "brainstorming",
+  plan: "design",
+  implement: "software-engineering",
+  validate: "review",
+  ship: "marketing",
 };
 
 export const WORKFLOW_STEP_HINT: Record<WorkflowStep, string> = {
