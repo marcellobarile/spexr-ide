@@ -30,6 +30,7 @@ import {
 } from "@spexr/spec";
 import { ClaudeTerminalManager } from "../agent/claude-terminal-manager.js";
 import { SpexrShellLayoutContribution } from "../shell/spexr-shell-layout-contribution.js";
+import { SpexrSpecResourcesViewContribution } from "../views/spec-resources-view-contribution.js";
 import { memoryDir, specsDir, specContextDir, agentsDir } from "../workspace-paths.js";
 import { serializeExpertFile } from "../views/experts-format.js";
 import { SpexrAgentServiceProxy } from "../agent/agent-service-proxy.js";
@@ -45,6 +46,10 @@ export const SpexrCommands = {
     id: "spexr.spec.handoff",
     label: "Spexr: Send spec to agent",
   } satisfies Command,
+  SPEC_RETROSPECTIVE: {
+    id: "spexr.spec.retrospective",
+    label: "Spexr: Run spec retrospective with agent",
+  } satisfies Command,
   SPEC_OPEN: {
     id: "spexr.spec.open",
     label: "Spexr: Open spec",
@@ -52,6 +57,18 @@ export const SpexrCommands = {
   SPEC_ADD_CONTEXT: {
     id: "spexr.spec.context.add",
     label: "Spexr: Add context to spec",
+  } satisfies Command,
+  SPEC_CONTEXT_OPEN: {
+    id: "spexr.spec.context.open",
+    label: "Spexr: Open linked resource",
+  } satisfies Command,
+  SPEC_CONTEXT_REMOVE: {
+    id: "spexr.spec.context.remove",
+    label: "Spexr: Remove linked resource",
+  } satisfies Command,
+  SPEC_RESOURCES_TOGGLE: {
+    id: "spexr.spec.resources.toggle",
+    label: "Spexr: Toggle linked resources panel",
   } satisfies Command,
   RESET_LAYOUT: {
     id: "spexr.layout.reset",
@@ -171,6 +188,14 @@ Describe the user-facing outcome this spec delivers.
 
 const SLUG_RE = /^[a-z0-9][a-z0-9-]*$/;
 
+/** Reference to a single linked resource, passed from the resources panel. */
+interface SpecResourceRef {
+  readonly specUri: string;
+  readonly kind: "file" | "link";
+  readonly label: string;
+  readonly href?: string;
+}
+
 type WorkflowPromptBuilder = (slug: string, specBody: string, driftBlock: string) => string;
 
 const WORKFLOW_PROMPTS: Record<WorkflowStep, WorkflowPromptBuilder> = {
@@ -189,6 +214,13 @@ const WORKFLOW_PROMPTS: Record<WorkflowStep, WorkflowPromptBuilder> = {
   ship: (slug, specBody) =>
     `Prepare to ship spec ${slug}. Draft a PR title (≤70 chars) and body summarizing the change, AC covered, and test plan. End with \`Spec: ${slug}\` trailer. Do not push.\n\n---\n${specBody}`,
 };
+
+/**
+ * Prompt sent when a completed spec hands off for retrospective instead of
+ * forward progress. The focus is analysis of what was delivered, not new work.
+ */
+const RETROSPECTIVE_PROMPT = (slug: string, specBody: string): string =>
+  `Run a retrospective on spec ${slug}. The work is complete — do NOT propose new implementation or edit files. Analyze what was done against the spec below.\n\n1. For each acceptance criterion, state whether it was met, partially met, or dropped — and why.\n2. Note deviations from the original spec and what drove them.\n3. Call out what went well and what slowed delivery.\n4. List residual risks, tech debt, and concrete follow-up items.\n5. Propose any project-memory entries worth saving (decisions, gotchas) under docs/memory/.\n\n---\n${specBody}`;
 
 @injectable()
 export class SpexrCommandsContribution implements CommandContribution, MenuContribution {
@@ -216,6 +248,9 @@ export class SpexrCommandsContribution implements CommandContribution, MenuContr
   @inject(SpexrShellLayoutContribution)
   private readonly shellLayout!: SpexrShellLayoutContribution;
 
+  @inject(SpexrSpecResourcesViewContribution)
+  private readonly specResourcesView!: SpexrSpecResourcesViewContribution;
+
   @optional()
   @inject(SpexrAgentServiceProxy)
   private readonly agentService!: SpexrAgentService | undefined;
@@ -233,11 +268,23 @@ export class SpexrCommandsContribution implements CommandContribution, MenuContr
     commands.registerCommand(SpexrCommands.SPEC_HANDOFF, {
       execute: (raw: unknown) => this.handoffSpec(this.resolveSpecUri(raw)),
     });
+    commands.registerCommand(SpexrCommands.SPEC_RETROSPECTIVE, {
+      execute: (raw: unknown) => this.retrospectiveSpec(this.resolveSpecUri(raw)),
+    });
     commands.registerCommand(SpexrCommands.SPEC_OPEN, {
       execute: (raw: unknown) => this.openSpec(this.resolveSpecUri(raw)),
     });
     commands.registerCommand(SpexrCommands.SPEC_ADD_CONTEXT, {
       execute: (raw: unknown) => this.addSpecContext(this.resolveSpecUri(raw)),
+    });
+    commands.registerCommand(SpexrCommands.SPEC_CONTEXT_OPEN, {
+      execute: (raw: unknown) => this.openSpecContext(this.resolveResourceRef(raw)),
+    });
+    commands.registerCommand(SpexrCommands.SPEC_CONTEXT_REMOVE, {
+      execute: (raw: unknown) => this.removeSpecContext(this.resolveResourceRef(raw)),
+    });
+    commands.registerCommand(SpexrCommands.SPEC_RESOURCES_TOGGLE, {
+      execute: (raw: unknown) => this.toggleSpecResources(this.resolveSpecUri(raw)),
     });
     commands.registerCommand(SpexrCommands.RESET_LAYOUT, {
       execute: () => this.resetLayout(),
@@ -306,6 +353,7 @@ export class SpexrCommandsContribution implements CommandContribution, MenuContr
     }
 
     try {
+      await this.flushDirtyEditor(uri);
       const file = await this.fileService.read(uri);
       const spec = parseSpec(file.value, uri.toString());
       const fsSignals = await this.loadWorkflowSignals(uri, spec.frontmatter.slug);
@@ -337,8 +385,7 @@ export class SpexrCommandsContribution implements CommandContribution, MenuContr
       const prompt = this.buildWorkflowPrompt(step, spec.frontmatter.slug, spec.raw, drift);
       await this.applyStepExpert(step);
       await this.claudeTerminal.ensureStarted();
-      await this.claudeTerminal.whenReady();
-      this.claudeTerminal.send(prompt.body + "\n");
+      await this.sendAndSubmit(prompt.body);
       await this.claudeTerminal.reveal();
       await this.persistStep(uri, step);
       this.messages.info(`Sent ${WORKFLOW_STEP_LABEL[step]} prompt for ${spec.frontmatter.slug}.`);
@@ -430,6 +477,11 @@ export class SpexrCommandsContribution implements CommandContribution, MenuContr
   }
 
   registerMenus(menus: MenuModelRegistry): void {
+    menus.registerMenuAction(CommonMenus.VIEW_VIEWS, {
+      commandId: SpexrCommands.CLAUDE_FOCUS.id,
+      label: "Agent",
+      order: "a_spexr_agent",
+    });
     menus.registerMenuAction(CommonMenus.VIEW_LAYOUT, {
       commandId: SpexrCommands.RESET_LAYOUT.id,
       label: "Reset Layout",
@@ -710,14 +762,19 @@ export class SpexrCommandsContribution implements CommandContribution, MenuContr
     }
   }
 
-  /**
-   * Type a kickoff prompt into the running session and submit it.
-   *
-   * The claude TUI treats a single stdin chunk as a paste, so a trailing "\r"
-   * only inserts a newline. Send the text, then the Enter keystroke separately
-   * once the paste has been processed, so it submits.
-   */
   private async sendKickoff(prompt: string): Promise<void> {
+    await this.sendAndSubmit(prompt);
+  }
+
+  /**
+   * Type a prompt into the running session and submit it.
+   *
+   * The claude TUI treats a single stdin chunk as a paste, so a trailing newline
+   * only inserts a line break instead of submitting. Send the text, then the
+   * Enter keystroke ("\r") separately once the paste has been processed, so the
+   * prompt actually runs without the user pressing Enter.
+   */
+  private async sendAndSubmit(prompt: string): Promise<void> {
     await this.claudeTerminal.whenReady();
     this.claudeTerminal.send(prompt);
     await new Promise((resolve) => setTimeout(resolve, 200));
@@ -748,22 +805,57 @@ export class SpexrCommandsContribution implements CommandContribution, MenuContr
     }
   }
 
+  /**
+   * Persist the open editor for `uri` when it holds unsaved changes, so a
+   * following disk read or agent rewrite sees the user's latest content instead
+   * of a stale dirty buffer (and the editor reloads cleanly afterwards).
+   */
+  private async flushDirtyEditor(uri: URI): Promise<void> {
+    const widget = this.editorManager.all.find((w) => w.editor.uri.isEqual(uri));
+    if (widget?.saveable.dirty) {
+      await widget.saveable.save();
+    }
+  }
+
   private async handoffSpec(uri: URI | undefined): Promise<void> {
     if (!uri) {
       this.messages.warn("Spec handoff requires a spec file URI.");
       return;
     }
     try {
+      await this.flushDirtyEditor(uri);
       const content = await this.fileService.read(uri);
       const title = uri.path.base.replace(/\.md$/, "");
       await this.claudeTerminal.ensureStarted();
-      this.claudeTerminal.send(content.value + "\n");
+      await this.sendAndSubmit(content.value);
       await this.claudeTerminal.reveal();
       this.messages.info(`Sent ${title} to agent.`);
     } catch (err) {
       console.error("[spexr] handoffSpec failed", err);
       this.messages.error(
         `Spec handoff failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
+  private async retrospectiveSpec(uri: URI | undefined): Promise<void> {
+    if (!uri) {
+      this.messages.warn("Spec retrospective requires a spec file URI.");
+      return;
+    }
+    try {
+      await this.flushDirtyEditor(uri);
+      const content = await this.fileService.read(uri);
+      const spec = parseSpec(content.value, uri.toString());
+      const prompt = RETROSPECTIVE_PROMPT(spec.frontmatter.slug, spec.raw);
+      await this.claudeTerminal.ensureStarted();
+      await this.sendAndSubmit(prompt);
+      await this.claudeTerminal.reveal();
+      this.messages.info(`Started retrospective for ${spec.frontmatter.slug}.`);
+    } catch (err) {
+      console.error("[spexr] retrospectiveSpec failed", err);
+      this.messages.error(
+        `Spec retrospective failed: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
   }
@@ -783,6 +875,56 @@ export class SpexrCommandsContribution implements CommandContribution, MenuContr
     }
   }
 
+  /**
+   * Reveal the resources panel for `uri` only when it is not already visible —
+   * so adding from inside the panel does not re-trigger a reveal on top of it.
+   */
+  private async ensureSpecResourcesVisible(uri: URI): Promise<void> {
+    if (this.specResourcesView.tryGetWidget()?.isVisible) return;
+    await this.revealSpecResources(uri);
+  }
+
+  /** Reveal the bottom-panel resources view for the spec being opened. */
+  private async revealSpecResources(uri: URI): Promise<void> {
+    const title = await this.specTitle(uri);
+    const widget = await this.specResourcesView.openView({ activate: false, reveal: true });
+    await widget.showFor(uri.toString(), title);
+  }
+
+  /**
+   * Toggle the linked-resources panel from the editor toolbar: close it when
+   * visible, otherwise reveal it loaded with the active spec's resources. It
+   * never opens the add picker — adding is done from inside the panel.
+   */
+  private async toggleSpecResources(uri: URI | undefined): Promise<void> {
+    const widget = this.specResourcesView.tryGetWidget();
+    if (widget?.isVisible) {
+      widget.close();
+      return;
+    }
+    if (uri) {
+      await this.revealSpecResources(uri);
+    } else {
+      await this.specResourcesView.openView({ activate: true, reveal: true });
+    }
+  }
+
+  /** Re-read the resources panel after a context change that may not emit a file operation. */
+  private async refreshSpecResources(): Promise<void> {
+    await this.specResourcesView.tryGetWidget()?.refresh();
+  }
+
+  private async specTitle(uri: URI): Promise<string> {
+    try {
+      const file = await this.fileService.read(uri);
+      const spec = parseSpec(file.value, uri.toString());
+      if (spec.frontmatter.title) return spec.frontmatter.title;
+    } catch {
+      // Fall back to the filename below.
+    }
+    return uri.path.base;
+  }
+
   private async addSpecContext(uri: URI | undefined): Promise<void> {
     if (!uri) {
       this.messages.warn("Add context requires a spec URI.");
@@ -798,6 +940,7 @@ export class SpexrCommandsContribution implements CommandContribution, MenuContr
       this.messages.warn("Spec filename must match NNNN-slug.md.");
       return;
     }
+    await this.ensureSpecResourcesVisible(uri);
     const choice = await this.quickInput.pick(
       [
         { label: "From file…", description: "Copy local files into the spec context folder" },
@@ -815,6 +958,127 @@ export class SpexrCommandsContribution implements CommandContribution, MenuContr
     } else {
       await this.addContextFromUrl(contextDir);
     }
+    await this.refreshSpecResources();
+  }
+
+  /**
+   * Open a linked resource. Copied files open in the editor; links are already
+   * rendered as anchors in the panel, so only the file case is handled here.
+   */
+  private async openSpecContext(ref: SpecResourceRef | undefined): Promise<void> {
+    if (!ref) {
+      this.messages.warn("Open resource requires a resource reference.");
+      return;
+    }
+    if (ref.kind !== "file") return;
+    const dir = this.resourceContextDir(ref.specUri);
+    if (!dir) return;
+    const target = this.safeChild(dir, ref.label);
+    if (!target) return;
+    try {
+      await this.editorManager.open(target, { mode: "activate", preview: false });
+    } catch (err) {
+      console.error("[spexr] openSpecContext failed", err);
+      this.messages.error(
+        `Open resource failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
+  /**
+   * Remove a linked resource: delete the copied file, or drop its line from
+   * `_links.md` for a link. Confirms first since the deletion is permanent.
+   */
+  private async removeSpecContext(ref: SpecResourceRef | undefined): Promise<void> {
+    if (!ref) {
+      this.messages.warn("Remove resource requires a resource reference.");
+      return;
+    }
+    const dir = this.resourceContextDir(ref.specUri);
+    if (!dir) {
+      this.messages.warn("Open a workspace before removing a resource.");
+      return;
+    }
+    const confirmed = await new ConfirmDialog({
+      title: `Remove "${ref.label}"?`,
+      msg:
+        ref.kind === "file"
+          ? "This deletes the file from the spec context folder. This cannot be undone."
+          : "This removes the link from _links.md. This cannot be undone.",
+      ok: "Remove",
+      cancel: "Cancel",
+      maxWidth: 480,
+    }).open();
+    if (!confirmed) return;
+
+    try {
+      if (ref.kind === "file") {
+        const target = this.safeChild(dir, ref.label);
+        if (!target) {
+          this.messages.warn("Invalid resource name.");
+          return;
+        }
+        await this.fileService.delete(target, { useTrash: false, recursive: false });
+      } else {
+        await this.removeLinkLine(dir.resolve("_links.md"), ref);
+      }
+      await this.refreshSpecResources();
+      this.messages.info(`Removed "${ref.label}".`);
+    } catch (err) {
+      console.error("[spexr] removeSpecContext failed", err);
+      this.messages.error(
+        `Remove resource failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
+  /** Drop the `- [label](href)` line matching the ref from a `_links.md` file. */
+  private async removeLinkLine(linksUri: URI, ref: SpecResourceRef): Promise<void> {
+    if (!(await this.exists(linksUri))) return;
+    const current = await this.fileService.read(linksUri);
+    const next = current.value
+      .split("\n")
+      .filter((line) => {
+        const m = line.match(/^-\s*\[([^\]]+)\]\(([^)]+)\)/);
+        return !(m && m[1] === ref.label && m[2] === ref.href);
+      })
+      .join("\n");
+    if (next !== current.value) {
+      await this.fileService.write(linksUri, next);
+    }
+  }
+
+  /**
+   * Resolve a filename against `dir`, returning the URI only when it stays a
+   * direct child — a second guard against path traversal in the resource name.
+   */
+  private safeChild(dir: URI, filename: string): URI | undefined {
+    const child = dir.resolve(filename);
+    return child.parent.toString() === dir.toString() ? child : undefined;
+  }
+
+  /** Resolve the `.context/<slug>/` folder for the spec a resource belongs to. */
+  private resourceContextDir(specUri: string): URI | undefined {
+    const root = this.workspaceRoot();
+    if (!root) return undefined;
+    const slug = this.specSlug(new URI(specUri));
+    return slug ? specContextDir(root, slug) : undefined;
+  }
+
+  private resolveResourceRef(raw: unknown): SpecResourceRef | undefined {
+    if (!raw || typeof raw !== "object") return undefined;
+    const r = raw as Partial<SpecResourceRef>;
+    if (typeof r.specUri !== "string" || typeof r.label !== "string") return undefined;
+    if (r.kind !== "file" && r.kind !== "link") return undefined;
+    // Reject path-traversal in the label — it is resolved against the context
+    // dir to locate a file to open/delete, so it must be a bare filename.
+    if (/[/\\\x00]/.test(r.label) || r.label === ".." || r.label === ".") return undefined;
+    return {
+      specUri: r.specUri,
+      kind: r.kind,
+      label: r.label,
+      ...(typeof r.href === "string" ? { href: r.href } : {}),
+    };
   }
 
   private async addContextFromFiles(contextDir: URI): Promise<void> {

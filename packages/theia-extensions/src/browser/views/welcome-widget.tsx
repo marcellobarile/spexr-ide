@@ -8,6 +8,7 @@ import { type FileOperationEvent } from "@theia/filesystem/lib/common/files";
 import type URI from "@theia/core/lib/common/uri";
 import { WELCOME_VIEW_ID } from "./welcome-view-contribution.js";
 import { WelcomeSplash } from "./welcome-splash.js";
+import { WelcomeBackground } from "./welcome-background.js";
 import { specsDir } from "../workspace-paths.js";
 
 /** Matches a spec file name (`NNNN-<slug>.md`). */
@@ -93,13 +94,16 @@ export class SpexrWelcomeWidget extends ReactWidget {
 
   protected render(): React.ReactNode {
     return (
-      <WelcomeSplash
-        emptyProject={this.emptyProject}
-        onNewProject={() => this.commands.executeCommand("spexr.project.new")}
-        onOpenFolder={() => this.commands.executeCommand("workspace:openFolder")}
-        onFocusAgent={() => this.commands.executeCommand("spexr.claude.focus")}
-        onStartFirstSpec={() => this.commands.executeCommand("spexr.spec.create")}
-      />
+      <>
+        <WelcomeBackground />
+        <WelcomeSplash
+          emptyProject={this.emptyProject}
+          onNewProject={() => this.commands.executeCommand("spexr.project.new")}
+          onOpenFolder={() => this.commands.executeCommand("workspace:openFolder")}
+          onFocusAgent={() => this.commands.executeCommand("spexr.claude.focus")}
+          onStartFirstSpec={() => this.commands.executeCommand("spexr.spec.create")}
+        />
+      </>
     );
   }
 }

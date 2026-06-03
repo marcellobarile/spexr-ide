@@ -153,6 +153,29 @@ export const WORKFLOW_STEP_HINT: Record<WorkflowStep, string> = {
 };
 
 /**
+ * Human-readable preview of what each step does when its button is clicked —
+ * surfaced in the stepper tooltip so the user knows the prompt sent to the agent
+ * before committing. `specify` and `context` open local UI instead of prompting
+ * the agent; the rest hand a prompt off to the running session.
+ */
+export const WORKFLOW_STEP_PROMPT_PREVIEW: Record<WorkflowStep, string> = {
+  specify:
+    "Opens the spec in the editor so you can author the goal, non-goals, and acceptance criteria. No agent prompt is sent.",
+  context:
+    'Opens the "Add context" picker to attach local files or links under the spec context folder. No agent prompt is sent.',
+  clarify:
+    "Sends a prompt asking the agent to list 5–10 open questions on the acceptance criteria, propose an answer for each from available context, and write the Q&A to clarifications.md.",
+  plan:
+    "Sends a prompt asking the agent to draft an implementation plan — a table of step, description, AC covered, and files touched, plus a numbered task list. No code is written yet.",
+  implement:
+    "Sends a prompt telling the agent to execute the plan: edit files, reference AC IDs in each commit with a `Spec` trailer, and stop after each logical chunk for review.",
+  validate:
+    "Sends a prompt asking the agent to verify each acceptance criterion against the current code and run tests, plus the structural drift detector findings. Reports pass/fail per AC.",
+  ship:
+    "Sends a prompt asking the agent to draft a PR title and body (change summary, AC covered, test plan) ending with a `Spec` trailer. It does not push.",
+};
+
+/**
  * Status / workflowStep that should be persisted when the user clicks a step.
  * Clicking a step means "I am starting / re-entering this step now."
  */

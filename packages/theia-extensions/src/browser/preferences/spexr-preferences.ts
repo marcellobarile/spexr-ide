@@ -11,6 +11,17 @@ import type { PreferenceContribution, PreferenceSchema } from "@theia/core/lib/c
 export const SPEXR_CLAUDE_EXECUTABLE_PREFERENCE = "spexr.claude.executablePath";
 
 /**
+ * Key for a custom launch command (shell alias or function) preference.
+ *
+ * When set, the agent is started through the user's interactive login shell so
+ * aliases / functions defined in `.zshrc` / `.bashrc` resolve — e.g. set it to
+ * `claude-perso` to run a personal alias instead of the `claude` binary. Takes
+ * precedence over {@link SPEXR_CLAUDE_EXECUTABLE_PREFERENCE}. Leave empty to
+ * spawn the resolved executable directly.
+ */
+export const SPEXR_CLAUDE_LAUNCH_COMMAND_PREFERENCE = "spexr.claude.launchCommand";
+
+/**
  * Key for the `CLAUDE_CONFIG_DIR` override preference.
  *
  * When set, the spawned CLI uses this directory for authentication instead of
@@ -42,6 +53,14 @@ const SpexrPreferencesSchema: PreferenceSchema = {
       description:
         "Path override for the Claude Code CLI binary used by the SPEXR agent. " +
         "Leave empty to auto-detect from PATH. Folder-scoped.",
+    },
+    [SPEXR_CLAUDE_LAUNCH_COMMAND_PREFERENCE]: {
+      type: "string",
+      default: "",
+      description:
+        "Custom command run through your interactive login shell to start the agent, " +
+        "so shell aliases/functions resolve (e.g. \"claude-perso\"). Overrides the " +
+        "executable path when set. Leave empty to spawn the binary directly. Folder-scoped.",
     },
     [SPEXR_CLAUDE_CONFIG_DIR_PREFERENCE]: {
       type: "string",

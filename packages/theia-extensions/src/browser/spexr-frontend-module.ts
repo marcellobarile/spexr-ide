@@ -23,6 +23,13 @@ import {
 } from "./views/experts-view-contribution.js";
 import { SpexrExpertsWidget } from "./views/experts-widget.js";
 import {
+  SpexrSpecResourcesViewContribution,
+  SPEC_RESOURCES_VIEW_ID,
+} from "./views/spec-resources-view-contribution.js";
+import { SpexrSpecResourcesWidget } from "./views/spec-resources-widget.js";
+import { SpexrSpecResourcesVisibilityContribution } from "./views/spec-resources-visibility-contribution.js";
+import { SpexrSpecExternalReloadContribution } from "./views/spec-external-reload-contribution.js";
+import {
   SpexrWelcomeViewContribution,
   WELCOME_VIEW_ID,
 } from "./views/welcome-view-contribution.js";
@@ -72,6 +79,17 @@ export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
     }))
     .inSingletonScope();
 
+  bindViewContribution(bind, SpexrSpecResourcesViewContribution);
+  bind(SpexrSpecResourcesWidget).toSelf();
+  bind(WidgetFactory)
+    .toDynamicValue((ctx) => ({
+      id: SPEC_RESOURCES_VIEW_ID,
+      createWidget: () => ctx.container.get(SpexrSpecResourcesWidget),
+    }))
+    .inSingletonScope();
+  bind(SpexrSpecResourcesVisibilityContribution).toSelf().inSingletonScope();
+  bind(FrontendApplicationContribution).toService(SpexrSpecResourcesVisibilityContribution);
+
   bindViewContribution(bind, SpexrWelcomeViewContribution);
   bind(SpexrWelcomeWidget).toSelf();
   bind(WidgetFactory)
@@ -108,6 +126,9 @@ export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
 
   bind(SpexrSpecRelationsContribution).toSelf().inSingletonScope();
   bind(FrontendApplicationContribution).toService(SpexrSpecRelationsContribution);
+
+  bind(SpexrSpecExternalReloadContribution).toSelf().inSingletonScope();
+  bind(FrontendApplicationContribution).toService(SpexrSpecExternalReloadContribution);
 
   bind(SpexrPreferenceContribution).toSelf().inSingletonScope();
   bind(PreferenceContribution).toService(SpexrPreferenceContribution);

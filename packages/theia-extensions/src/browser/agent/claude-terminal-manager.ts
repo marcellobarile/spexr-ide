@@ -17,12 +17,18 @@ import { isClaudeReady } from "./claude-readiness.js";
 import { expandLeftPanelWithMinWidth } from "../shell/side-panel.js";
 import {
   SPEXR_CLAUDE_EXECUTABLE_PREFERENCE,
+  SPEXR_CLAUDE_LAUNCH_COMMAND_PREFERENCE,
   SPEXR_CLAUDE_CONFIG_DIR_PREFERENCE,
   SPEXR_CLAUDE_PROFILE_ID_PREFERENCE,
   SPEXR_EXPERTS_ACTIVE_ID_PREFERENCE,
 } from "../preferences/spexr-preferences.js";
 
 const CLAUDE_TERMINAL_ID = "spexr-claude";
+
+/** Wrap an argument in single quotes for safe inclusion in a shell command. */
+function shellQuote(arg: string): string {
+  return `'${arg.replace(/'/g, `'\\''`)}'`;
+}
 
 /** Quiet period after the last PTY output that signals the TUI finished rendering. */
 const READY_IDLE_MS = 1_200;
@@ -196,6 +202,30 @@ export class ClaudeTerminalManager {
     }
   }
 
+  /**
+   * Decide how to spawn the agent.
+   *
+   * With a custom launch command set, run it through the user's interactive
+   * login shell (no explicit `shellPath` → Theia uses the configured default
+   * shell; `-i -l` load the rc files) so aliases / functions like `claude-perso`
+   * resolve. Otherwise spawn the resolved executable directly.
+   */
+  private resolveShell(
+    profile: ClaudeProfileDto,
+    shellArgs: string[],
+  ): { shellPath?: string; shellArgs: string[] } {
+    const command = this.launchCommand();
+    if (!command) return { shellPath: profile.executablePath, shellArgs };
+    const line = [command, ...shellArgs.map(shellQuote)].join(" ");
+    return { shellArgs: ["-i", "-l", "-c", line] };
+  }
+
+  /** Custom launch command (shell alias/function), or undefined when unset. */
+  private launchCommand(): string | undefined {
+    const stored = this.preferences.get<string>(SPEXR_CLAUDE_LAUNCH_COMMAND_PREFERENCE) ?? "";
+    return stored.trim() || undefined;
+  }
+
   private async buildShellArgs(workspaceRoot: string, expertId?: string): Promise<string[]> {
     const ctx = await this.agentService!.buildLaunchContext(workspaceRoot, expertId);
     if (ctx.appendSystemPromptFile) {
@@ -309,8 +339,7 @@ export class ClaudeTerminalManager {
         : nls.localize("spexr/agent/title", "Agent"),
       useServerTitle: false,
       iconClass: expert ? `codicon ${expert.icon}` : "codicon codicon-sparkle",
-      shellPath: profile.executablePath,
-      shellArgs,
+      ...this.resolveShell(profile, shellArgs),
       cwd: workspaceRoot,
       env,
       destroyTermOnClose: false,

@@ -1,12 +1,7 @@
 import { MemoryError, type Logger } from "@spexr/core";
 import { renderMemoryIndex, writeIndexFile } from "./index-file.js";
 import type { MemoryStore } from "./store.js";
-import type {
-  MemoryListFilter,
-  MemoryRecord,
-  MemoryScope,
-  MemoryWriteInput,
-} from "./types.js";
+import type { MemoryListFilter, MemoryRecord, MemoryWriteInput } from "./types.js";
 
 /**
  * Aggregates the three scopes (baseline, user, project) and resolves overrides:

@@ -1,8 +1,8 @@
 import { injectable, inject, optional } from "@theia/core/shared/inversify";
-import {
-  ApplicationShell,
+import { ApplicationShell } from "@theia/core/lib/browser";
+import type {
+  FrontendApplication,
   FrontendApplicationContribution,
-  type FrontendApplication,
 } from "@theia/core/lib/browser";
 import { CommandService } from "@theia/core/lib/common/command";
 import { FileNavigatorContribution } from "@theia/navigator/lib/browser/navigator-contribution";
@@ -50,7 +50,6 @@ export class SpexrShellLayoutContribution implements FrontendApplicationContribu
 
   async onStart(app: FrontendApplication): Promise<void> {
     void app;
-    console.log("[spexr] layout onStart, configured?", this.layoutAlreadyConfigured());
     if (this.layoutAlreadyConfigured()) {
       this.expandLeftPanelIfNeeded();
       // Reveal views registered after the user's layout was first saved so they
@@ -60,7 +59,6 @@ export class SpexrShellLayoutContribution implements FrontendApplicationContribu
       return;
     }
     await this.applyDefaultLayout();
-    console.log("[spexr] applyDefaultLayout done");
   }
 
   async resetLayout(): Promise<void> {
@@ -101,15 +99,11 @@ export class SpexrShellLayoutContribution implements FrontendApplicationContribu
 
   private async applyDefaultLayout(): Promise<void> {
     try {
-      console.log("[spexr] open welcome");
       await this.openWelcome();
-      console.log("[spexr] open side views");
       await this.openSideViews();
-      console.log("[spexr] open terminal");
       await this.openTerminal();
       this.expandLeftPanel();
       expandRightPanelWithMinWidth(this.shell);
-      console.log("[spexr] side panels expanded");
     } catch (err) {
       console.error("[spexr] applyDefaultLayout error", err);
     }

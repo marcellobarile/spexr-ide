@@ -3,10 +3,10 @@ slug: 0005-drift-detector
 title: Real drift detector — code-vs-spec divergence
 status: draft
 createdAt: 2026-05-24
-relatedSpecs:
-  - 0003-terminal-agent-surface
+relatedSpecs: 
+workflowStep: context
+updatedAt: 2026-06-02
 ---
-
 ## Goal
 
 Replace the structural-only `StructuralDriftDetector` (`packages/spec/src/drift-detector.ts`) with a detector that actually answers "does the code still satisfy this spec's acceptance criteria?". This is the engine behind Pillar #2 ("a drift detector flags divergence") — today it only checks that a spec *has* a Goal and AC section, never whether the code matches them.

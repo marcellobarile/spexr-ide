@@ -39,6 +39,7 @@ interface SpecPanelProps {
   readonly aggregatePercent: number;
   readonly onCreate: () => void;
   readonly onSendToAgent: (uri: string) => void;
+  readonly onRetrospective: (uri: string) => void;
   readonly onOpen: (uri: string) => void;
   readonly onDelete: (uri: string) => void;
   readonly onRefresh: () => void;
@@ -69,6 +70,15 @@ export class SpexrSpecWidget extends ReactWidget {
     this.title.closable = true;
     this.title.iconClass = "codicon codicon-checklist";
     this.addClass("spexr-spec-widget");
+    // Focusable so the shell can complete activation when this tab is selected;
+    // without it Theia warns "did not accept focus" and the current/active
+    // widget change events never fire.
+    this.node.tabIndex = 0;
+  }
+
+  protected override onActivateRequest(msg: Message): void {
+    super.onActivateRequest(msg);
+    this.node.focus();
   }
 
   @postConstruct()
@@ -196,6 +206,10 @@ export class SpexrSpecWidget extends ReactWidget {
     void this.commands.executeCommand(SpexrCommands.SPEC_HANDOFF.id, uri);
   };
 
+  private readonly handleRetrospective = (uri: string): void => {
+    void this.commands.executeCommand(SpexrCommands.SPEC_RETROSPECTIVE.id, uri);
+  };
+
   private readonly handleOpen = (uri: string): void => {
     void this.commands.executeCommand(SpexrCommands.SPEC_OPEN.id, uri);
   };
@@ -220,6 +234,7 @@ export class SpexrSpecWidget extends ReactWidget {
         aggregatePercent={this.aggregatePercent}
         onCreate={this.handleCreate}
         onSendToAgent={this.handleSendToAgent}
+        onRetrospective={this.handleRetrospective}
         onOpen={this.handleOpen}
         onDelete={this.handleDelete}
         onRefresh={this.handleRefresh}
@@ -235,6 +250,7 @@ const SpecPanel: React.FC<SpecPanelProps> = ({
   aggregatePercent,
   onCreate,
   onSendToAgent,
+  onRetrospective,
   onOpen,
   onDelete,
   onRefresh,
@@ -276,45 +292,62 @@ const SpecPanel: React.FC<SpecPanelProps> = ({
 
     {specs.length > 0 ? (
       <ul className="spexr-spec-list" role="list">
-        {specs.map((spec) => (
+        {specs.map((spec) => {
+          const isComplete =
+            spec.progress.currentStep === "ship" || spec.progress.currentStep === "done";
+          return (
           <li key={spec.uri} className="spexr-spec-list__item">
-            <div className="spexr-spec-list__meta">
-              <span className="spexr-spec-list__title">{spec.title}</span>
-              <span className="spexr-spec-list__filename">{spec.name}</span>
-            </div>
-            <SpecWorkflowStepper
-              progress={spec.progress}
-              onStepClick={(step) => onStepClick(spec.uri, step)}
-            />
-            <div className="spexr-spec-list__actions">
-              <button
-                type="button"
-                className="spexr-button spexr-button--primary spexr-button--compact"
-                onClick={() => onSendToAgent(spec.uri)}
-                aria-label={`Send ${spec.title} to agent`}
-              >
-                Send to agent
-              </button>
-              <button
-                type="button"
-                className="spexr-button spexr-button--ghost spexr-button--compact"
-                onClick={() => onOpen(spec.uri)}
-                aria-label={`Open ${spec.title}`}
-              >
-                Open
-              </button>
-              <button
-                type="button"
-                className="spexr-button spexr-button--ghost spexr-button--compact spexr-button--danger"
-                onClick={() => onDelete(spec.uri)}
-                aria-label={`Delete ${spec.title}`}
-                title="Delete spec (and its context folder)"
-              >
-                Delete
-              </button>
+            <div className="spexr-spec-list__row">
+              <div className="spexr-spec-list__meta">
+                <span className="spexr-spec-list__title">{spec.title}</span>
+                <span className="spexr-spec-list__filename">{spec.name}</span>
+              </div>
+              <SpecWorkflowStepper
+                progress={spec.progress}
+                onStepClick={(step) => onStepClick(spec.uri, step)}
+              />
+              <div className="spexr-spec-list__actions">
+                {isComplete ? (
+                  <button
+                    type="button"
+                    className="spexr-button spexr-button--primary spexr-button--compact"
+                    onClick={() => onRetrospective(spec.uri)}
+                    aria-label={`Run retrospective with agent for ${spec.title}`}
+                  >
+                    Retrospective with agent
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="spexr-button spexr-button--primary spexr-button--compact"
+                    onClick={() => onSendToAgent(spec.uri)}
+                    aria-label={`Chat with agent about ${spec.title}`}
+                  >
+                    Chat with agent
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="spexr-button spexr-button--ghost spexr-button--compact"
+                  onClick={() => onOpen(spec.uri)}
+                  aria-label={`Open ${spec.title}`}
+                >
+                  Open
+                </button>
+                <button
+                  type="button"
+                  className="spexr-button spexr-button--ghost spexr-button--compact spexr-button--danger"
+                  onClick={() => onDelete(spec.uri)}
+                  aria-label={`Delete ${spec.title}`}
+                  title="Delete spec (and its context folder)"
+                >
+                  Delete
+                </button>
+              </div>
             </div>
           </li>
-        ))}
+          );
+        })}
       </ul>
     ) : null}
   </section>

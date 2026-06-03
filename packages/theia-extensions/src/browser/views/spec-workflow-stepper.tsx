@@ -1,8 +1,10 @@
 import * as React from "react";
+import { createPortal } from "@theia/core/shared/react-dom";
 import {
   WORKFLOW_STEP_HINT,
   WORKFLOW_STEP_LABEL,
   WORKFLOW_STEP_ORDER,
+  WORKFLOW_STEP_PROMPT_PREVIEW,
   type WorkflowProgress,
   type WorkflowStep,
 } from "@spexr/spec";
@@ -13,35 +15,100 @@ export interface SpecWorkflowStepperProps {
   readonly busy?: boolean;
 }
 
+const TOOLTIP_WIDTH = 260;
+const TOOLTIP_GAP = 8;
+
+interface TooltipPos {
+  readonly top: number;
+  readonly left: number;
+  readonly placement: "above" | "below";
+}
+
+const StepButton: React.FC<{
+  readonly step: WorkflowStep;
+  readonly index: number;
+  readonly state: WorkflowProgress["stateByStep"][WorkflowStep];
+  readonly busy: boolean;
+  readonly onStepClick: (step: WorkflowStep) => void;
+}> = ({ step, index, state, busy, onStepClick }) => {
+  const label = WORKFLOW_STEP_LABEL[step];
+  const hint = WORKFLOW_STEP_HINT[step];
+  const preview = WORKFLOW_STEP_PROMPT_PREVIEW[step];
+  const btnRef = React.useRef<HTMLButtonElement>(null);
+  const [pos, setPos] = React.useState<TooltipPos | undefined>(undefined);
+
+  const show = React.useCallback(() => {
+    const el = btnRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const above = rect.top - TOOLTIP_GAP;
+    const placement = above > 160 ? "above" : "below";
+    let left = rect.left + rect.width / 2 - TOOLTIP_WIDTH / 2;
+    left = Math.max(8, Math.min(left, window.innerWidth - TOOLTIP_WIDTH - 8));
+    const top = placement === "above" ? rect.top - TOOLTIP_GAP : rect.bottom + TOOLTIP_GAP;
+    setPos({ top, left, placement });
+  }, []);
+
+  const hide = React.useCallback(() => setPos(undefined), []);
+
+  return (
+    <li className={`spexr-stepper__item spexr-stepper__item--${state}`}>
+      <button
+        ref={btnRef}
+        type="button"
+        className="spexr-stepper__btn"
+        onClick={() => onStepClick(step)}
+        onMouseEnter={show}
+        onMouseLeave={hide}
+        onFocus={show}
+        onBlur={hide}
+        disabled={busy}
+        aria-current={state === "current" ? "step" : undefined}
+        aria-label={`${label} — ${hint}`}
+      >
+        <span className="spexr-stepper__num" aria-hidden>
+          {state === "done" ? "✓" : String(index + 1)}
+        </span>
+        <span className="spexr-stepper__label">{label}</span>
+      </button>
+      {pos
+        ? createPortal(
+            <div
+              role="tooltip"
+              className={`spexr-stepper__tooltip spexr-stepper__tooltip--${pos.placement}`}
+              style={{
+                top: pos.top,
+                left: pos.left,
+                width: TOOLTIP_WIDTH,
+                transform: pos.placement === "above" ? "translateY(-100%)" : undefined,
+              }}
+            >
+              <span className="spexr-stepper__tooltip-title">{label}</span>
+              <span className="spexr-stepper__tooltip-body">{preview}</span>
+            </div>,
+            document.body,
+          )
+        : null}
+    </li>
+  );
+};
+
 export const SpecWorkflowStepper: React.FC<SpecWorkflowStepperProps> = ({
   progress,
   onStepClick,
   busy = false,
 }) => (
   <ol className="spexr-stepper" role="list" aria-label="Spec workflow">
-    {WORKFLOW_STEP_ORDER.map((step, index) => {
-      const state = progress.stateByStep[step];
-      const label = WORKFLOW_STEP_LABEL[step];
-      const hint = WORKFLOW_STEP_HINT[step];
-      return (
-        <li key={step} className={`spexr-stepper__item spexr-stepper__item--${state}`}>
-          <button
-            type="button"
-            className="spexr-stepper__btn"
-            onClick={() => onStepClick(step)}
-            disabled={busy}
-            aria-current={state === "current" ? "step" : undefined}
-            aria-label={`${label} — ${hint}`}
-            title={hint}
-          >
-            <span className="spexr-stepper__num" aria-hidden>
-              {state === "done" ? "✓" : String(index + 1)}
-            </span>
-            <span className="spexr-stepper__label">{label}</span>
-          </button>
-        </li>
-      );
-    })}
+    {WORKFLOW_STEP_ORDER.map((step, index) => (
+      <StepButton
+        key={step}
+        step={step}
+        index={index}
+        state={progress.stateByStep[step]}
+        busy={busy}
+        onStepClick={onStepClick}
+      />
+    ))}
   </ol>
 );
 

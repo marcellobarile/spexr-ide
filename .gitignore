@@ -11,6 +11,7 @@ coverage/
 .env
 .env.*
 !.env.example
+.browser_modules/
 
 # Electron build artifacts
 release/

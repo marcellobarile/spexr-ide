@@ -8,8 +8,9 @@ import { EditorWidget } from "@theia/editor/lib/browser";
 import { SpexrCommands, SpexrCommandsContribution } from "../commands/spexr-commands-contribution.js";
 
 /**
- * Surfaces "Send to agent" and "Add context" actions in the editor tab toolbar
- * whenever the active editor is a spec file under `<workspace>/docs/specs/`.
+ * Surfaces "Send to agent" and "Toggle linked resources" actions in the editor
+ * tab toolbar whenever the active editor is a spec file under
+ * `<workspace>/docs/specs/`.
  */
 @injectable()
 export class SpexrSpecEditorToolbarContribution implements TabBarToolbarContribution {
@@ -26,10 +27,10 @@ export class SpexrSpecEditorToolbarContribution implements TabBarToolbarContribu
       isVisible: (widget?: Widget) => this.isSpecEditor(widget),
     });
     registry.registerItem({
-      id: "spexr.spec.editor.add-context",
-      command: SpexrCommands.SPEC_ADD_CONTEXT.id,
-      icon: "codicon codicon-library",
-      tooltip: "Add context (file or URL)",
+      id: "spexr.spec.editor.resources",
+      command: SpexrCommands.SPEC_RESOURCES_TOGGLE.id,
+      icon: "codicon codicon-link",
+      tooltip: "Toggle linked resources panel",
       priority: 1,
       isVisible: (widget?: Widget) => this.isSpecEditor(widget),
     });

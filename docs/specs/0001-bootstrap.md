@@ -19,10 +19,10 @@ Establish a working monorepo skeleton for SPEXR so subsequent specs can land fea
 
 ## Acceptance Criteria
 
-- **AC-1** Monorepo built with pnpm workspaces and Turborepo, TypeScript 5.6 strict end-to-end.
-- **AC-2** Six packages compile in isolation: `core`, `ui-kit`, `memory`, `spec`, `agent`, `onboarding`.
+- **AC-1** Monorepo built with pnpm workspaces and Turborepo, TypeScript 6.x strict end-to-end (bootstrapped on 5.6; upgraded to 6.0.3 — strict flags unchanged).
+- **AC-2** Six domain packages compile in isolation: `core`, `ui-kit`, `memory`, `spec`, `agent`, `onboarding`. A seventh package, `theia-extensions`, hosts the Theia frontend/backend/electron-main contributions (added during bootstrap; not foreseen in the original count).
 - **AC-3** Desktop app declares Theia frontend contributions for agent, spec, and memory views.
-- **AC-4** Default layout puts the agent view as the primary panel; spec panel and memory panel are side surfaces.
+- **AC-4** _(superseded by **0003-terminal-agent-surface**.)_ Original intent: agent view as the primary (main-area) panel. As shipped, the agent is an embedded `claude` terminal docked in the **left** side panel; spec/memory/experts views live in the **right** side panel; the welcome splash occupies the main area.
 - **AC-5** Three built-in themes (light, dark, high-contrast) load from CSS variables; `data-spexr-theme` toggles them at the document root.
 - **AC-6** Memory is structured into baseline / user / project scopes with a markdown frontmatter schema and an indexable `MEMORY.md`.
 - **AC-7** Onboarding wizard catalog covers role, project overview, architecture pointer, conventions, glossary, and runbook.

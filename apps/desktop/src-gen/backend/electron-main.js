@@ -52,8 +52,10 @@ process.env.LC_NUMERIC = 'C';
     "reloadOnReconnect": false,
     "uriScheme": "theia",
     "preferences": {
-        "files.enableTrash": false,
-        "editor.fontFamily": "'JetBrains Mono', 'Geist Mono', 'SF Mono', monospace"
+        "files.enableTrash": true,
+        "editor.fontFamily": "'JetBrains Mono', 'Geist Mono', 'SF Mono', monospace",
+        "editor.wordWrap": "on",
+        "editor.cursorStyle": "block"
     }
 };
     const isSingleInstance = true;

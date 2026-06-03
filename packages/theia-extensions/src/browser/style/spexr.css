@@ -189,6 +189,14 @@ body {
   background: var(--spexr-bg-surface);
 }
 
+/* In light theme, align the right side panel with the left (agent) panel so
+   both sidebars share the same background instead of stark white vs off-white. */
+[data-spexr-theme="light"] .spexr-spec-widget,
+[data-spexr-theme="light"] .spexr-memory-widget,
+[data-spexr-theme="light"] .spexr-experts-widget {
+  background: var(--spexr-agent-bg);
+}
+
 .spexr-spec-panel,
 .spexr-memory-panel {
   padding: var(--spexr-space-5);
@@ -407,12 +415,19 @@ body {
 
 .spexr-spec-list__item {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
   gap: var(--spexr-space-3);
   padding: var(--spexr-space-3);
   background: var(--spexr-bg-surface-raised);
   border-radius: var(--spexr-radius-sm);
+}
+
+.spexr-spec-list__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spexr-space-3);
 }
 
 .spexr-spec-list__meta {
@@ -459,6 +474,94 @@ body {
   display: flex;
   align-items: center;
   gap: var(--spexr-space-2);
+  flex: 1 0 100%;
+  margin-top: var(--spexr-space-3);
+  padding-top: var(--spexr-space-3);
+  border-top: 1px solid var(--spexr-border-subtle);
+}
+
+.spexr-spec-resources-widget {
+  overflow: auto;
+  padding: var(--spexr-space-3);
+}
+
+.spexr-spec-resources {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spexr-space-2);
+}
+
+.spexr-spec-resources__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spexr-space-2);
+}
+
+.spexr-spec-resources__caption {
+  font-size: var(--spexr-text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  color: var(--spexr-text-muted);
+}
+
+.spexr-spec-resources__empty {
+  margin: 0;
+  font-size: var(--spexr-text-xs);
+  color: var(--spexr-text-muted);
+}
+
+.spexr-spec-resources__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spexr-space-1);
+}
+
+.spexr-spec-resources__item {
+  display: flex;
+  align-items: center;
+  gap: var(--spexr-space-2);
+  padding: var(--spexr-space-1) 0;
+  border-bottom: 1px solid var(--spexr-border-subtle);
+  font-size: var(--spexr-text-xs);
+}
+
+.spexr-spec-resources__item:last-child {
+  border-bottom: none;
+}
+
+.spexr-spec-resources__badge {
+  flex-shrink: 0;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  color: var(--spexr-text-muted);
+  border: 1px solid var(--spexr-border-subtle);
+  border-radius: var(--spexr-radius-sm);
+  padding: 0 var(--spexr-space-1);
+}
+
+.spexr-spec-resources__item a {
+  color: var(--spexr-accent-default);
+}
+
+.spexr-spec-resources__path {
+  margin-left: auto;
+  font-size: var(--spexr-text-xs);
+  color: var(--spexr-text-secondary);
+  background: var(--spexr-bg-surface);
+  overflow-wrap: anywhere;
+}
+
+.spexr-spec-resources__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spexr-space-1);
   flex-shrink: 0;
 }
 
@@ -471,12 +574,130 @@ code {
 
 /* Welcome splash */
 .spexr-welcome-widget {
+  position: relative;
+  isolation: isolate;
   background: var(--spexr-bg-canvas);
   height: 100%;
   overflow: auto;
 }
 
+/* Iridescent glass backdrop. Sticky + negative margin keeps it pinned to the
+   viewport while the welcome content scrolls over it, without taking layout
+   space. The frosted ::after veils the blobs so they read as blurred glass. */
+.spexr-welcome-bg {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  margin-bottom: -100vh;
+  overflow: hidden;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.spexr-welcome-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  backdrop-filter: blur(60px) saturate(1.4);
+  background: color-mix(in srgb, var(--spexr-bg-canvas) 55%, transparent);
+}
+
+.spexr-welcome-bg__blob {
+  position: absolute;
+  width: 42vmax;
+  height: 42vmax;
+  will-change: transform;
+  transform: translate3d(
+    calc(var(--wx, 0) * var(--bx, 0px)),
+    calc(var(--wy, 0) * var(--by, 0px)),
+    0
+  );
+}
+
+.spexr-welcome-bg__blob::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  filter: blur(70px);
+  opacity: 0.55;
+  background: radial-gradient(circle at 35% 35%, var(--c1), var(--c2) 60%, transparent 72%);
+  animation: spexr-welcome-drift var(--dur, 26s) var(--spexr-ease) infinite alternate;
+}
+
+.spexr-welcome-bg__blob--a {
+  top: -10%;
+  left: -6%;
+  --bx: 34px;
+  --by: 24px;
+  --c1: var(--spexr-accent-default);
+  --c2: var(--spexr-accent-hover);
+  --dur: 24s;
+}
+
+.spexr-welcome-bg__blob--b {
+  top: 18%;
+  right: -12%;
+  --bx: -52px;
+  --by: 30px;
+  --c1: var(--spexr-status-info);
+  --c2: var(--spexr-accent-default);
+  --dur: 31s;
+}
+
+.spexr-welcome-bg__blob--c {
+  bottom: -14%;
+  left: 8%;
+  --bx: 20px;
+  --by: -28px;
+  --c1: var(--spexr-status-success);
+  --c2: var(--spexr-accent-hover);
+  --dur: 28s;
+}
+
+.spexr-welcome-bg__blob--d {
+  bottom: -6%;
+  right: 4%;
+  --bx: -38px;
+  --by: -44px;
+  --c1: var(--spexr-accent-active);
+  --c2: var(--spexr-status-info);
+  --dur: 35s;
+}
+
+.spexr-welcome-bg__blob--e {
+  top: 30%;
+  left: 28%;
+  --bx: 44px;
+  --by: -20px;
+  --c1: var(--spexr-accent-hover);
+  --c2: var(--spexr-status-danger);
+  --dur: 22s;
+}
+
+@keyframes spexr-welcome-drift {
+  from {
+    transform: translate3d(-6%, -4%, 0) scale(0.92);
+    filter: blur(70px) hue-rotate(0deg);
+  }
+  to {
+    transform: translate3d(7%, 5%, 0) scale(1.08);
+    filter: blur(70px) hue-rotate(28deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spexr-welcome-bg__blob {
+    transform: none;
+  }
+  .spexr-welcome-bg__blob::before {
+    animation: none;
+  }
+}
+
 .spexr-welcome {
+  position: relative;
+  z-index: 1;
   max-width: 960px;
   margin: 0 auto;
   padding: clamp(var(--spexr-space-6), 6vw, var(--spexr-space-8));
@@ -893,10 +1114,76 @@ code {
   color: var(--spexr-bg-canvas);
 }
 
+/* Custom tooltip for stepper buttons — explains the prompt sent on click.
+   Rendered into document.body via a portal with position: fixed so it escapes
+   the side-panel's overflow clipping. */
+.spexr-stepper__tooltip {
+  position: fixed;
+  z-index: var(--spexr-z-toast);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spexr-space-1);
+  padding: var(--spexr-space-2) var(--spexr-space-3);
+  border-radius: var(--spexr-radius-md);
+  border: 1px solid var(--spexr-border-default);
+  background: var(--spexr-bg-surface-raised);
+  box-shadow: var(--spexr-shadow-lg);
+  pointer-events: none;
+  animation: spexr-tooltip-in var(--spexr-motion-fast) var(--spexr-ease);
+}
+
+.spexr-stepper__tooltip-title {
+  font-size: var(--spexr-text-xs);
+  font-weight: 600;
+  color: var(--spexr-text-primary);
+}
+
+.spexr-stepper__tooltip-body {
+  font-size: var(--spexr-text-xs);
+  line-height: 1.4;
+  color: var(--spexr-text-secondary);
+}
+
+.spexr-stepper__tooltip::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  transform: translateX(-50%) rotate(45deg);
+  background: var(--spexr-bg-surface-raised);
+  border: 1px solid var(--spexr-border-default);
+}
+
+.spexr-stepper__tooltip--above::after {
+  bottom: -5px;
+  border-top: none;
+  border-left: none;
+}
+
+.spexr-stepper__tooltip--below::after {
+  top: -5px;
+  border-bottom: none;
+  border-right: none;
+}
+
+@keyframes spexr-tooltip-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .spexr-progress__fill,
   .spexr-stepper__btn {
     transition: none;
+  }
+
+  .spexr-stepper__tooltip {
+    animation: none;
   }
 }
 
