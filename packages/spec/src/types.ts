@@ -89,6 +89,37 @@ export interface DriftReport {
   readonly findings: readonly DriftFinding[];
 }
 
+export type SpecLintSeverity = "error" | "warn" | "info";
+
+export type SpecLintSection =
+  | "Frontmatter"
+  | "Goal"
+  | "Non-goals"
+  | "Acceptance Criteria"
+  | "Notes"
+  | "Document";
+
+/**
+ * A single spec-validation finding. Mirrors {@link DriftFinding} for a
+ * consistent findings vocabulary across lint and drift, but carries a section
+ * anchor and an optional 1-based line for editor navigation.
+ */
+export interface SpecLintFinding {
+  readonly severity: SpecLintSeverity;
+  readonly section: SpecLintSection;
+  readonly message: string;
+  readonly suggestion?: string;
+  /** 1-based line in the raw source; omitted when the rule has no line. */
+  readonly line?: number;
+}
+
+export interface SpecLintReport {
+  readonly findings: readonly SpecLintFinding[];
+  readonly errorCount: number;
+  readonly warnCount: number;
+  readonly infoCount: number;
+}
+
 export interface SpecRegistry {
   list(): Promise<readonly Spec[]>;
   get(slug: string): Promise<Spec>;

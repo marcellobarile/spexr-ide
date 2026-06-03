@@ -28,6 +28,12 @@ import {
 } from "./views/spec-resources-view-contribution.js";
 import { SpexrSpecResourcesWidget } from "./views/spec-resources-widget.js";
 import { SpexrSpecResourcesVisibilityContribution } from "./views/spec-resources-visibility-contribution.js";
+import {
+  SpexrSpecLintViewContribution,
+  SPEC_LINT_VIEW_ID,
+} from "./views/spec-lint-view-contribution.js";
+import { SpexrSpecLintWidget } from "./views/spec-lint-widget.js";
+import { SpexrSpecLintVisibilityContribution } from "./views/spec-lint-visibility-contribution.js";
 import { SpexrSpecExternalReloadContribution } from "./views/spec-external-reload-contribution.js";
 import {
   SpexrWelcomeViewContribution,
@@ -89,6 +95,17 @@ export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
     .inSingletonScope();
   bind(SpexrSpecResourcesVisibilityContribution).toSelf().inSingletonScope();
   bind(FrontendApplicationContribution).toService(SpexrSpecResourcesVisibilityContribution);
+
+  bindViewContribution(bind, SpexrSpecLintViewContribution);
+  bind(SpexrSpecLintWidget).toSelf();
+  bind(WidgetFactory)
+    .toDynamicValue((ctx) => ({
+      id: SPEC_LINT_VIEW_ID,
+      createWidget: () => ctx.container.get(SpexrSpecLintWidget),
+    }))
+    .inSingletonScope();
+  bind(SpexrSpecLintVisibilityContribution).toSelf().inSingletonScope();
+  bind(FrontendApplicationContribution).toService(SpexrSpecLintVisibilityContribution);
 
   bindViewContribution(bind, SpexrWelcomeViewContribution);
   bind(SpexrWelcomeWidget).toSelf();

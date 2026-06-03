@@ -572,6 +572,137 @@ code {
   border-radius: var(--spexr-radius-sm);
 }
 
+/* Spec validation panel */
+.spexr-spec-lint-widget {
+  overflow: auto;
+  padding: var(--spexr-space-3);
+}
+
+.spexr-spec-lint {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spexr-space-2);
+}
+
+.spexr-spec-lint__empty {
+  margin: 0;
+  font-size: var(--spexr-text-xs);
+  color: var(--spexr-text-muted);
+}
+
+.spexr-spec-lint__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--spexr-space-2);
+}
+
+.spexr-spec-lint__title {
+  font-size: var(--spexr-text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  color: var(--spexr-text-muted);
+}
+
+.spexr-spec-lint__summary {
+  font-size: var(--spexr-text-xs);
+  color: var(--spexr-text-secondary);
+}
+
+.spexr-spec-lint__ok {
+  font-size: var(--spexr-text-xs);
+  color: var(--theia-editorInfo-foreground);
+}
+
+.spexr-spec-lint__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spexr-space-1);
+}
+
+.spexr-spec-lint__group-title {
+  margin: 0;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  color: var(--spexr-text-muted);
+}
+
+.spexr-spec-lint__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spexr-space-1);
+}
+
+.spexr-spec-lint__finding {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spexr-space-2);
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: var(--spexr-radius-sm);
+  padding: var(--spexr-space-1);
+  cursor: pointer;
+  color: var(--spexr-text-primary);
+  font-size: var(--spexr-text-xs);
+}
+
+.spexr-spec-lint__finding:hover {
+  background: var(--spexr-bg-surface-raised);
+}
+
+.spexr-spec-lint__icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.spexr-spec-lint--error .spexr-spec-lint__icon {
+  color: var(--theia-editorError-foreground);
+}
+
+.spexr-spec-lint--warn .spexr-spec-lint__icon {
+  color: var(--theia-editorWarning-foreground);
+}
+
+.spexr-spec-lint--info .spexr-spec-lint__icon {
+  color: var(--theia-editorInfo-foreground);
+}
+
+.spexr-spec-lint__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.spexr-spec-lint__section {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  color: var(--spexr-text-muted);
+  margin-right: var(--spexr-space-1);
+}
+
+.spexr-spec-lint__suggestion {
+  color: var(--spexr-text-secondary);
+}
+
+.spexr-spec-lint__line {
+  flex-shrink: 0;
+  margin-left: auto;
+  font-family: var(--spexr-font-mono);
+  color: var(--spexr-text-secondary);
+}
+
 /* Welcome splash */
 .spexr-welcome-widget {
   position: relative;

@@ -1,0 +1,171 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { describe, expect, it } from "vitest";
+import { lintSpec } from "./spec-lint.js";
+import type { SpecLintFinding, SpecLintSeverity } from "./types.js";
+
+const CLEAN = `---
+slug: 0010-sample
+title: Sample spec
+status: draft
+createdAt: 2026-06-03
+---
+
+## Goal
+
+The system shows a clear outcome to the user.
+
+## Non-goals
+
+- Does not change the database schema.
+
+## Acceptance Criteria
+
+- **AC-1** The panel renders findings grouped by severity when a spec is open.
+
+## Notes
+
+Some notes.
+`;
+
+const OPTS = { filename: "0010-sample.md" } as const;
+
+function has(
+  findings: readonly SpecLintFinding[],
+  severity: SpecLintSeverity,
+  re: RegExp,
+): boolean {
+  return findings.some((f) => f.severity === severity && re.test(f.message));
+}
+
+describe("lintSpec", () => {
+  it("is silent on a clean spec", () => {
+    const report = lintSpec(CLEAN, OPTS);
+    expect(report.findings).toEqual([]);
+    expect(report.errorCount).toBe(0);
+    expect(report.warnCount).toBe(0);
+    expect(report.infoCount).toBe(0);
+  });
+
+  // AC-1: parse-failure tolerance.
+  it("never throws and yields a finding when frontmatter is missing", () => {
+    const report = lintSpec("## Goal\n\nNo frontmatter here.\n", OPTS);
+    expect(has(report.findings, "error", /frontmatter/i)).toBe(true);
+  });
+
+  // AC-2: placeholder / scaffold checks.
+  it("flags unsubstituted scaffold text", () => {
+    const raw = CLEAN.replace(
+      "The system shows a clear outcome to the user.",
+      "Describe the user-facing outcome this spec delivers.",
+    );
+    expect(has(lintSpec(raw, OPTS).findings, "warn", /scaffold text/i)).toBe(true);
+  });
+
+  it("flags TODO/TBD markers", () => {
+    const raw = CLEAN.replace("Some notes.", "TODO: write the notes.");
+    expect(has(lintSpec(raw, OPTS).findings, "warn", /TBD\/TODO/)).toBe(true);
+  });
+
+  it("flags an empty bullet", () => {
+    const raw = CLEAN.replace("- Does not change the database schema.", "-");
+    expect(has(lintSpec(raw, OPTS).findings, "warn", /empty bullet/i)).toBe(true);
+  });
+
+  it("flags a leftover scaffold comment", () => {
+    const raw = CLEAN.replace("Some notes.", "<!-- One bullet per criterion -->");
+    expect(has(lintSpec(raw, OPTS).findings, "warn", /scaffold comment/i)).toBe(true);
+  });
+
+  // AC-3: missing / empty sections.
+  it("flags an empty Goal", () => {
+    const raw = CLEAN.replace("The system shows a clear outcome to the user.", "");
+    expect(has(lintSpec(raw, OPTS).findings, "warn", /goal section is empty/i)).toBe(true);
+  });
+
+  it("flags a Non-goals section with no entries", () => {
+    const raw = CLEAN.replace("- Does not change the database schema.", "");
+    expect(has(lintSpec(raw, OPTS).findings, "warn", /non-goals/i)).toBe(true);
+  });
+
+  it("flags zero acceptance criteria", () => {
+    const raw = CLEAN.replace(
+      "- **AC-1** The panel renders findings grouped by severity when a spec is open.",
+      "",
+    );
+    expect(has(lintSpec(raw, OPTS).findings, "warn", /no authored acceptance criteria/i)).toBe(true);
+  });
+
+  // AC-4: malformed acceptance criteria.
+  it("flags duplicate ids as errors", () => {
+    const raw = CLEAN.replace(
+      "- **AC-1** The panel renders findings grouped by severity when a spec is open.",
+      "- **AC-1** The panel renders findings.\n- **AC-1** A second criterion appears.",
+    );
+    expect(has(lintSpec(raw, OPTS).findings, "error", /duplicate id AC-1/i)).toBe(true);
+  });
+
+  it("flags an AC bullet without an id", () => {
+    const raw = CLEAN.replace(
+      "- **AC-1** The panel renders findings grouped by severity when a spec is open.",
+      "- The panel renders findings grouped by severity when a spec is open.",
+    );
+    expect(has(lintSpec(raw, OPTS).findings, "warn", /no \*\*AC-N\*\* id/i)).toBe(true);
+  });
+
+  it("flags non-sequential numbering", () => {
+    const raw = CLEAN.replace(
+      "- **AC-1** The panel renders findings grouped by severity when a spec is open.",
+      "- **AC-3** The panel renders findings grouped by severity when a spec is open.",
+    );
+    expect(has(lintSpec(raw, OPTS).findings, "warn", /non-sequential/i)).toBe(true);
+  });
+
+  it("flags a vague AC as info", () => {
+    const raw = CLEAN.replace(
+      "- **AC-1** The panel renders findings grouped by severity when a spec is open.",
+      "- **AC-1** Better UX.",
+    );
+    expect(has(lintSpec(raw, OPTS).findings, "info", /verifiable predicate/i)).toBe(true);
+  });
+
+  // AC-5: frontmatter coherence.
+  it("flags invalid status, slug mismatch, and empty title as errors", () => {
+    const raw = `---
+slug: wrong-slug
+title:
+status: bogus
+---
+
+## Goal
+
+A goal that is present.
+
+## Acceptance Criteria
+
+- **AC-1** The system does a verifiable thing when triggered.
+`;
+    const findings = lintSpec(raw, OPTS).findings;
+    expect(has(findings, "error", /invalid status/i)).toBe(true);
+    expect(has(findings, "error", /does not match filename stem/i)).toBe(true);
+    expect(has(findings, "error", /title.*empty/i)).toBe(true);
+  });
+
+  it("flags a relatedSpecs entry with no matching spec", () => {
+    const raw = CLEAN.replace(
+      "createdAt: 2026-06-03",
+      "createdAt: 2026-06-03\nrelatedSpecs: [0001-bootstrap, 9999-ghost]",
+    );
+    const findings = lintSpec(raw, { ...OPTS, knownSlugs: ["0001-bootstrap"] }).findings;
+    expect(has(findings, "warn", /9999-ghost/)).toBe(true);
+    expect(has(findings, "warn", /0001-bootstrap/)).toBe(false);
+  });
+
+  // Real spec sanity: a shipped/real spec has no error-level findings.
+  it("yields zero error findings on a real spec (0008)", () => {
+    const path = fileURLToPath(new URL("../../../docs/specs/0008-plan-task-artifacts.md", import.meta.url));
+    const raw = readFileSync(path, "utf8");
+    const report = lintSpec(raw, { filename: "0008-plan-task-artifacts.md" });
+    expect(report.errorCount).toBe(0);
+  });
+});

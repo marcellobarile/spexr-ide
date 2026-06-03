@@ -1,13 +1,13 @@
 import * as React from "react";
 import { injectable, inject, postConstruct } from "@theia/core/shared/inversify";
-import { ReactWidget } from "@theia/core/lib/browser";
+import { ReactWidget, type Message } from "@theia/core/lib/browser";
 import { CommandService } from "@theia/core/lib/common/command";
 import { EditorManager } from "@theia/editor/lib/browser";
 import { WorkspaceService } from "@theia/workspace/lib/browser";
 import { FileService } from "@theia/filesystem/lib/browser/file-service";
 import { type FileOperationEvent } from "@theia/filesystem/lib/common/files";
 import type URI from "@theia/core/lib/common/uri";
-import { parseSpec } from "@spexr/spec";
+import { parseSpec, parseFrontmatter } from "@spexr/spec";
 import { SPEC_RESOURCES_VIEW_ID } from "./spec-resources-view-contribution.js";
 import { SpexrCommands } from "../commands/spexr-commands-contribution.js";
 import { specContextDir, SPEC_CONTEXT_DIR } from "../workspace-paths.js";
@@ -150,6 +150,28 @@ export class SpexrSpecResourcesWidget extends ReactWidget {
     await this.reload();
   }
 
+  protected override onActivateRequest(msg: Message): void {
+    super.onActivateRequest(msg);
+    this.node.focus();
+    void this.syncTitle();
+  }
+
+  private syncTitle(): void {
+    const widget = this.editorManager.currentEditor;
+    const uri = widget?.getResourceUri();
+    if (!widget || !uri || !this.state || this.state.specUri !== uri.toString()) return;
+    const raw = widget.editor.document.getText();
+    const parsed = parseFrontmatter(raw);
+    const title =
+      typeof parsed.data.title === "string" && parsed.data.title.trim()
+        ? parsed.data.title.trim()
+        : uri.path.base;
+    if (title !== this.state.title) {
+      this.state = { ...this.state, title };
+      this.update();
+    }
+  }
+
   private readonly handleAdd = (): void => {
     if (this.state) void this.commands.executeCommand(SpexrCommands.SPEC_ADD_CONTEXT.id, this.state.specUri);
   };
@@ -255,7 +277,6 @@ const SpecResourcesPanel: React.FC<SpecResourcesPanelProps> = ({ state, onAdd, o
     <section className="spexr-spec-resources" aria-label="Linked resources">
       <header className="spexr-spec-resources__header">
         <span className="spexr-spec-resources__caption">
-          {state.title} — {state.resources.length}{" "}
           {state.resources.length === 1 ? "resource" : "resources"}
         </span>
         <button
