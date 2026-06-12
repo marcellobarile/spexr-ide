@@ -1,8 +1,10 @@
 ---
 slug: 0006-spec-context-fan-in
 title: Automatic spec-context fan-in to the agent
-status: draft
+status: in-progress
 createdAt: 2026-05-24
+workflowStep: validate
+updatedAt: 2026-06-12
 relatedSpecs:
   - 0004-expert-agents
   - 0005-drift-detector

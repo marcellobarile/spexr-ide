@@ -31,7 +31,8 @@ import {
 import { ClaudeTerminalManager } from "../agent/claude-terminal-manager.js";
 import { SpexrShellLayoutContribution } from "../shell/spexr-shell-layout-contribution.js";
 import { SpexrSpecResourcesViewContribution } from "../views/spec-resources-view-contribution.js";
-import { memoryDir, specsDir, specContextDir, agentsDir, allSpecsDirs } from "../workspace-paths.js";
+import { memoryDir, specsDir, specContextDir, agentsDir, allSpecsDirs, SPEC_CONTEXT_DIR } from "../workspace-paths.js";
+import { buildSpecHandoff, parseLinksFile, type ContextFileEntry, type ContextLink } from "@spexr/agent";
 import { serializeExpertFile } from "../views/experts-format.js";
 import { SpexrAgentServiceProxy } from "../agent/agent-service-proxy.js";
 import type { SpexrAgentService, ExpertAgentDto } from "../../common/agent-protocol.js";
@@ -825,17 +826,58 @@ export class SpexrCommandsContribution implements CommandContribution, MenuContr
     try {
       await this.flushDirtyEditor(uri);
       const content = await this.fileService.read(uri);
-      const title = uri.path.base.replace(/\.md$/, "");
+      const slug = uri.path.base.replace(/\.md$/, "");
+      const contextDir = uri.parent.resolve(SPEC_CONTEXT_DIR).resolve(slug);
+      const { contextFiles, links } = await this.loadSpecContext(contextDir);
+      const payload = buildSpecHandoff({ specBody: content.value, contextFiles, links });
       await this.claudeTerminal.ensureStarted();
-      await this.sendAndSubmit(content.value);
+      await this.sendAndSubmit(payload);
       await this.claudeTerminal.reveal();
-      this.messages.info(`Sent ${title} to agent.`);
+      this.messages.info(`Sent ${slug} to agent.`);
     } catch (err) {
       console.error("[spexr] handoffSpec failed", err);
       this.messages.error(
         `Spec handoff failed: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
+  }
+
+  private async loadSpecContext(
+    contextDir: URI,
+  ): Promise<{ contextFiles: ContextFileEntry[]; links: ContextLink[] }> {
+    const contextFiles: ContextFileEntry[] = [];
+    let links: ContextLink[] = [];
+    try {
+      const stat = await this.fileService.resolve(contextDir);
+      for (const child of stat.children ?? []) {
+        if (!child.isFile) continue;
+        if (child.name === "_links.md") {
+          try {
+            const f = await this.fileService.read(child.resource);
+            links = parseLinksFile(f.value);
+          } catch { /* skip malformed */ }
+          continue;
+        }
+        try {
+          const f = await this.fileService.read(child.resource);
+          contextFiles.push({
+            name: child.name,
+            content: f.value,
+            sizeBytes: new TextEncoder().encode(f.value).length,
+            mtimeMs: child.mtime ?? 0,
+          });
+        } catch {
+          // Unreadable / binary
+          contextFiles.push({
+            name: child.name,
+            content: null,
+            sizeBytes: child.size ?? 0,
+            mtimeMs: child.mtime ?? 0,
+          });
+        }
+      }
+    } catch { /* context dir absent — backward compat */ }
+    return { contextFiles, links };
   }
 
   private async retrospectiveSpec(uri: URI | undefined): Promise<void> {
