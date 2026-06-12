@@ -35,7 +35,7 @@ import { memoryDir, specsDir, specContextDir, agentsDir, allSpecsDirs, SPEC_CONT
 import { buildSpecHandoff, parseLinksFile, type ContextFileEntry, type ContextLink } from "@spexr/agent";
 import { serializeExpertFile } from "../views/experts-format.js";
 import { SpexrAgentServiceProxy } from "../agent/agent-service-proxy.js";
-import type { SpexrAgentService, ExpertAgentDto } from "../../common/agent-protocol.js";
+import type { SpexrAgentService, ExpertAgentDto, DriftReportDto } from "../../common/agent-protocol.js";
 import { PreferenceService } from "@theia/core/lib/common/preferences/preference-service";
 import { PreferenceScope } from "@theia/core/lib/common/preferences/preference-scope";
 import { SPEXR_EXPERTS_ACTIVE_ID_PREFERENCE } from "../preferences/spexr-preferences.js";
@@ -138,6 +138,10 @@ export const SpexrCommands = {
   SPEC_SHIP: {
     id: "spexr.spec.ship",
     label: "Spexr: Ship spec (branch, commit, PR)",
+  } satisfies Command,
+  SPEC_CHECK_DRIFT: {
+    id: "spexr.spec.checkDrift",
+    label: "Spexr: Check drift (validate spec vs code)",
   } satisfies Command,
 } as const;
 
@@ -344,6 +348,10 @@ export class SpexrCommandsContribution implements CommandContribution, MenuContr
       execute: (raw: unknown) =>
         this.runWorkflowStep(this.resolveSpecUri(raw), "ship"),
     });
+    commands.registerCommand(SpexrCommands.SPEC_CHECK_DRIFT, {
+      execute: (raw: unknown) =>
+        this.runWorkflowStep(this.resolveSpecUri(raw), "validate"),
+    });
   }
 
   private coerceWorkflowStep(raw: unknown): WorkflowStep | undefined {
@@ -393,8 +401,12 @@ export class SpexrCommandsContribution implements CommandContribution, MenuContr
         await this.executeShipSpec(uri, spec);
         return;
       }
+      if (step === "validate") {
+        await this.executeCheckDrift(uri, spec);
+        return;
+      }
 
-      const drift = step === "validate" ? await this.runDrift(spec) : undefined;
+      const drift = undefined;
       const prompt = this.buildWorkflowPrompt(step, spec.frontmatter.slug, spec.raw, drift);
       await this.applyStepExpert(step);
       await this.claudeTerminal.ensureStarted();
@@ -429,12 +441,27 @@ export class SpexrCommandsContribution implements CommandContribution, MenuContr
   private async loadWorkflowSignals(
     specUri: URI,
     slug: string,
-  ): Promise<{ hasContext: boolean; hasClarifications: boolean }> {
+  ): Promise<{ hasContext: boolean; hasClarifications: boolean; driftReport?: DriftReport }> {
     const specsDir = specUri.parent;
     const contextDir = specsDir.resolve(".context").resolve(slug);
     const hasContext = await this.hasAnyEntry(contextDir);
     const hasClarifications = await this.exists(contextDir.resolve("clarifications.md"));
-    return { hasContext, hasClarifications };
+    const driftReport = await this.loadPersistedDriftReport(contextDir);
+    return { hasContext, hasClarifications, ...(driftReport ? { driftReport } : {}) };
+  }
+
+  private async loadPersistedDriftReport(contextDir: URI): Promise<DriftReport | undefined> {
+    try {
+      const file = await this.fileService.read(contextDir.resolve("_drift.json"));
+      const dto = JSON.parse(file.value) as DriftReportDto;
+      return {
+        specSlug: dto.specSlug,
+        checkedAt: dto.checkedAt,
+        findings: dto.findings as DriftReport["findings"],
+      };
+    } catch {
+      return undefined;
+    }
   }
 
   private async hasAnyEntry(dir: URI): Promise<boolean> {
@@ -504,6 +531,51 @@ export class SpexrCommandsContribution implements CommandContribution, MenuContr
 
     await this.persistShipped(uri);
     this.messages.info(`Spec shipped! PR: ${outcome.prUrl}`);
+  }
+
+  private async executeCheckDrift(
+    uri: URI,
+    spec: ReturnType<typeof parseSpec>,
+  ): Promise<void> {
+    if (!this.agentService) {
+      this.messages.error("Drift check failed: agent backend service unavailable.");
+      return;
+    }
+    const rootUri = this.workspaceRoot();
+    if (!rootUri) {
+      this.messages.error("Drift check failed: no workspace root found.");
+      return;
+    }
+    const root = rootUri.path.toString();
+    const { slug } = spec.frontmatter;
+
+    await this.persistStep(uri, "validate");
+    this.messages.info(`Running drift check for ${slug}… (this may take a moment)`);
+
+    let dto: DriftReportDto;
+    try {
+      dto = await this.agentService.checkDrift(root, slug, spec.raw);
+    } catch (err) {
+      this.messages.error(`Drift check failed: ${err instanceof Error ? err.message : String(err)}`);
+      return;
+    }
+
+    const blockCount = dto.findings.filter((f) => f.severity === "block").length;
+    const warnCount = dto.findings.filter((f) => f.severity === "warn").length;
+    const infoCount = dto.findings.filter((f) => f.severity === "info").length;
+    const summary = [
+      blockCount > 0 ? `${blockCount} block` : "",
+      warnCount > 0 ? `${warnCount} warn` : "",
+      infoCount > 0 ? `${infoCount} ok` : "",
+    ].filter(Boolean).join(", ");
+
+    if (blockCount > 0) {
+      this.messages.error(`Drift check: ${summary}. Fix blocking issues before shipping.`);
+    } else if (dto.findings.length === 0) {
+      this.messages.info(`Drift check: no issues — spec ${slug} is ready to ship.`);
+    } else {
+      this.messages.warn(`Drift check: ${summary}. Review warnings before shipping.`);
+    }
   }
 
   private async persistShipped(uri: URI): Promise<void> {

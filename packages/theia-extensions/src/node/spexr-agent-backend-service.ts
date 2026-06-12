@@ -10,13 +10,22 @@ import { resolveSpexrPaths } from "@spexr/core";
 // bundle. The package exposes it via the `./registry` export; tsc resolves the
 // types through the `paths` mapping in this package's tsconfig.
 import { FilesystemSpecRegistry } from "@spexr/spec/registry";
-import { buildShipCommitMessage, buildShipPrBody } from "@spexr/spec";
+import {
+  buildShipCommitMessage,
+  buildShipPrBody,
+  extractLinkedPaths,
+  parseDriftVerdicts,
+  parseSpec,
+  StructuralDriftDetector,
+} from "@spexr/spec";
 import type {
   SpexrAgentService,
   ClaudeProfileDto,
   ExpertAgentDto,
   LaunchContextDto,
   MemoryLinkResult,
+  DriftFindingDto,
+  DriftReportDto,
   ShipOutcome,
 } from "../common/agent-protocol.js";
 import {
@@ -114,6 +123,10 @@ export class SpexrAgentBackendService implements SpexrAgentService {
    */
   resolveMemoryConflict(workspaceRoot: string, configDir?: string): Promise<MemoryLinkResult> {
     return Promise.resolve(resolveMemoryConflictSync(workspaceRoot, configDir));
+  }
+
+  async checkDrift(workspaceRoot: string, slug: string, specRaw: string): Promise<DriftReportDto> {
+    return checkDriftImpl(workspaceRoot, slug, specRaw);
   }
 
   shipSpec(
@@ -363,6 +376,159 @@ function getMemoryLinkStatusSync(workspaceRoot: string, configDir?: string): Mem
       target,
       message: err instanceof Error ? err.message : String(err),
     };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Drift-check helper
+// ---------------------------------------------------------------------------
+
+const DRIFT_FILE_CAP_BYTES = 20_000;
+const DRIFT_TOTAL_CAP_BYTES = 120_000;
+
+async function checkDriftImpl(
+  workspaceRoot: string,
+  slug: string,
+  specRaw: string,
+): Promise<DriftReportDto> {
+  const checkedAt = new Date().toISOString();
+
+  // Parse spec to run structural checks first
+  let spec: ReturnType<typeof parseSpec>;
+  try {
+    spec = parseSpec(specRaw, path.join(workspaceRoot, "docs", "specs", `${slug}.md`));
+  } catch (err) {
+    return {
+      specSlug: slug,
+      checkedAt,
+      impliedFiles: [],
+      findings: [{ criterionId: "structure", severity: "block", message: `Could not parse spec: ${String(err)}` }],
+    };
+  }
+
+  const detector = new StructuralDriftDetector();
+  const structural = await detector.evaluate(spec);
+  const hasStructuralBlock = structural.findings.some((f) => f.severity === "block");
+
+  if (hasStructuralBlock) {
+    const dto: DriftReportDto = { specSlug: slug, checkedAt, impliedFiles: [], findings: structural.findings };
+    persistDriftReport(workspaceRoot, slug, dto);
+    return dto;
+  }
+
+  // Resolve implicated files
+  const trailerPaths = resolveTrailerFiles(workspaceRoot, slug);
+  const linkedPaths = extractLinkedPaths(specRaw);
+  const allRelative = [...new Set([...trailerPaths, ...linkedPaths])];
+  const impliedFiles = allRelative.filter((p) => {
+    try { fs.statSync(path.join(workspaceRoot, p)); return true; } catch { return false; }
+  });
+
+  const findings: DriftFindingDto[] = [...structural.findings];
+
+  if (impliedFiles.length === 0) {
+    findings.push({
+      criterionId: "coverage",
+      severity: "warn",
+      message: "No code linked to this spec yet. Add `Spec: " + slug + "` trailers to relevant commits.",
+    });
+    const dto: DriftReportDto = { specSlug: slug, checkedAt, impliedFiles, findings };
+    persistDriftReport(workspaceRoot, slug, dto);
+    return dto;
+  }
+
+  // Read file contents (capped)
+  const fileBlocks: string[] = [];
+  let totalBytes = 0;
+  for (const rel of impliedFiles) {
+    if (totalBytes >= DRIFT_TOTAL_CAP_BYTES) {
+      fileBlocks.push(`### ${rel} _(omitted — total budget reached)_`);
+      continue;
+    }
+    try {
+      let content = fs.readFileSync(path.join(workspaceRoot, rel), "utf8");
+      const orig = content.length;
+      if (content.length > DRIFT_FILE_CAP_BYTES) {
+        content = content.slice(0, DRIFT_FILE_CAP_BYTES) + `\n...(truncated, ${orig - DRIFT_FILE_CAP_BYTES} bytes omitted)`;
+      }
+      fileBlocks.push(`### ${rel}\n\`\`\`\n${content}\n\`\`\``);
+      totalBytes += content.length;
+    } catch {
+      fileBlocks.push(`### ${rel} _(unreadable)_`);
+    }
+  }
+
+  // Build evaluation prompt
+  const acBlock = spec.acceptanceCriteria
+    .map((c) => `- **${c.id}**: ${c.text}`)
+    .join("\n");
+
+  const prompt =
+    `You are a code reviewer. Evaluate whether the acceptance criteria below are satisfied by the code provided.\n` +
+    `For each criterion, output a JSON object with: criterionId, severity ("ok"|"warn"|"block"), message, and optional suggestion.\n` +
+    `Output ONLY a JSON array — no other text, no prose, no markdown headers.\n\n` +
+    `## Acceptance Criteria\n${acBlock}\n\n` +
+    `## Code Files\n${fileBlocks.join("\n\n")}`;
+
+  // Spawn claude --print
+  const claudeExec = resolveClaudeExecutable();
+  if (!claudeExec || claudeExec === "ambiguous") {
+    findings.push({ criterionId: "agent", severity: "warn", message: "Claude CLI not found; agent evaluation skipped." });
+    const dto: DriftReportDto = { specSlug: slug, checkedAt, impliedFiles, findings };
+    persistDriftReport(workspaceRoot, slug, dto);
+    return dto;
+  }
+
+  const claudeResult = child_process.spawnSync(
+    claudeExec,
+    ["--print", "--output-format", "json", "--input-format", "text"],
+    { cwd: workspaceRoot, encoding: "utf8", input: prompt, timeout: 120_000 },
+  );
+
+  let agentFindings: DriftFindingDto[] = [];
+  if (claudeResult.status === 0 && claudeResult.stdout) {
+    try {
+      const envelope = JSON.parse(claudeResult.stdout as string) as { result?: string; is_error?: boolean };
+      const text = envelope.result ?? "";
+      agentFindings = parseDriftVerdicts(text);
+    } catch {
+      agentFindings = [{ criterionId: "agent", severity: "warn", message: "Agent output could not be parsed." }];
+    }
+  } else {
+    const stderr = ((claudeResult.stderr as string) ?? "").trim();
+    agentFindings = [{ criterionId: "agent", severity: "warn", message: `Agent evaluation failed: ${stderr || "unknown error"}` }];
+  }
+
+  const allFindings = [...findings, ...agentFindings];
+  const dto: DriftReportDto = { specSlug: slug, checkedAt, impliedFiles, findings: allFindings };
+  persistDriftReport(workspaceRoot, slug, dto);
+  return dto;
+}
+
+function resolveTrailerFiles(workspaceRoot: string, slug: string): string[] {
+  try {
+    const result = child_process.spawnSync(
+      "git",
+      ["log", `--grep=Spec: ${slug}`, "--name-only", "--diff-filter=d", "--pretty=format:"],
+      { cwd: workspaceRoot, encoding: "utf8" },
+    );
+    if (result.status !== 0) return [];
+    return (result.stdout as string)
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0);
+  } catch {
+    return [];
+  }
+}
+
+function persistDriftReport(workspaceRoot: string, slug: string, dto: DriftReportDto): void {
+  try {
+    const contextDir = path.join(workspaceRoot, "docs", "specs", ".context", slug);
+    fs.mkdirSync(contextDir, { recursive: true });
+    fs.writeFileSync(path.join(contextDir, "_drift.json"), JSON.stringify(dto, null, 2), "utf8");
+  } catch {
+    // Best-effort; failure does not affect the returned report
   }
 }
 

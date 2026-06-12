@@ -72,6 +72,21 @@ export interface LaunchContextDto {
   readonly appendSystemPromptInline?: string;
 }
 
+export interface DriftFindingDto {
+  readonly criterionId: string;
+  readonly severity: "info" | "warn" | "block";
+  readonly message: string;
+  readonly suggestion?: string;
+}
+
+export interface DriftReportDto {
+  readonly specSlug: string;
+  readonly checkedAt: string;
+  readonly findings: readonly DriftFindingDto[];
+  /** Workspace-relative paths implicated by commit trailers + spec links. */
+  readonly impliedFiles: readonly string[];
+}
+
 export type ShipErrorCode = "gh-not-found" | "gh-auth" | "no-remote" | "nothing-to-ship";
 
 export interface ShipResult {
@@ -166,6 +181,25 @@ export interface SpexrAgentService {
    * @param configDir      Optional CLAUDE_CONFIG_DIR override (profile-specific).
    */
   resolveMemoryConflict(workspaceRoot: string, configDir?: string): Promise<MemoryLinkResult>;
+
+  /**
+   * Resolve the files implicated by a spec (commit trailers + body links),
+   * ask the embedded Claude CLI to evaluate each acceptance criterion, and
+   * return a structured `DriftReportDto`. The report is also persisted to
+   * `docs/specs/.context/<slug>/_drift.json` so the workflow stepper can
+   * gate the ship step without re-running the detector.
+   *
+   * Never throws across RPC — all error conditions degrade to `warn` findings.
+   *
+   * @param workspaceRoot  Absolute path to the open workspace.
+   * @param slug           Spec slug (e.g. `0005-drift-detector`).
+   * @param specRaw        Full raw markdown of the spec file.
+   */
+  checkDrift(
+    workspaceRoot: string,
+    slug: string,
+    specRaw: string,
+  ): Promise<DriftReportDto>;
 
   /**
    * Ship a spec: create branch, commit staged changes with trailer, push,

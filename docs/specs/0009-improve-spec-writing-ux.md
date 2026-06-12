@@ -1,10 +1,10 @@
 ---
 slug: 0009-improve-spec-writing-ux
 title: Improve spec writing UX
-status: draft
+status: in-progress
 createdAt: 2026-06-02
-workflowStep: context
-updatedAt: 2026-06-03
+workflowStep: validate
+updatedAt: 2026-06-12
 ---
 > **What is this file.** Implementation contract for a live spec-validation companion panel. Audience: SPEXR contributors. Owner: marcello.barile. The spec is the contract; acceptance criteria below are the verifiable surface. No companion solution-proposal file.
 
