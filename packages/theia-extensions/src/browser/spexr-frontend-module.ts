@@ -34,6 +34,8 @@ import {
 } from "./views/spec-lint-view-contribution.js";
 import { SpexrSpecLintWidget } from "./views/spec-lint-widget.js";
 import { SpexrSpecLintVisibilityContribution } from "./views/spec-lint-visibility-contribution.js";
+import { SpexrSpecPreviewWidget, SPEC_PREVIEW_VIEW_ID } from "./views/spec-preview-widget.js";
+import { SpexrSpecPreviewContribution } from "./views/spec-preview-contribution.js";
 import { SpexrSpecExternalReloadContribution } from "./views/spec-external-reload-contribution.js";
 import {
   SpexrWelcomeViewContribution,
@@ -52,6 +54,8 @@ import {
 import { SpexrPreferenceContribution } from "./preferences/spexr-preferences.js";
 import { PreferenceConfigurations } from "@theia/core/lib/common/preferences/preference-configurations";
 import { SpexrPreferenceConfigurations } from "./preferences/spexr-preference-configurations.js";
+import { SpexrLanguageGrammarContribution } from "./language/spexr-language-grammar-contribution.js";
+import { LanguageGrammarDefinitionContribution } from "@theia/monaco/lib/browser/textmate/textmate-contribution.js";
 
 /**
  * Frontend contributions for SPEXR. Theia handles DI via Inversify and
@@ -107,6 +111,17 @@ export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
   bind(SpexrSpecLintVisibilityContribution).toSelf().inSingletonScope();
   bind(FrontendApplicationContribution).toService(SpexrSpecLintVisibilityContribution);
 
+  bind(SpexrSpecPreviewWidget).toSelf();
+  bind(WidgetFactory)
+    .toDynamicValue((ctx) => ({
+      id: SPEC_PREVIEW_VIEW_ID,
+      createWidget: () => ctx.container.get(SpexrSpecPreviewWidget),
+    }))
+    .inSingletonScope();
+  bind(SpexrSpecPreviewContribution).toSelf().inSingletonScope();
+  bind(FrontendApplicationContribution).toService(SpexrSpecPreviewContribution);
+  bind(CommandContribution).toService(SpexrSpecPreviewContribution);
+
   bindViewContribution(bind, SpexrWelcomeViewContribution);
   bind(SpexrWelcomeWidget).toSelf();
   bind(WidgetFactory)
@@ -152,4 +167,8 @@ export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
 
   bind(SpexrPreferenceConfigurations).toSelf().inSingletonScope();
   rebind(PreferenceConfigurations).toService(SpexrPreferenceConfigurations);
+
+  bind(SpexrLanguageGrammarContribution).toSelf().inSingletonScope();
+  bind(FrontendApplicationContribution).toService(SpexrLanguageGrammarContribution);
+  bind(LanguageGrammarDefinitionContribution).toService(SpexrLanguageGrammarContribution);
 });

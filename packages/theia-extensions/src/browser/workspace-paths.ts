@@ -44,6 +44,32 @@ export function specsDir(root: URI): URI {
   return root.resolve(DOCS_DIR).resolve(SPECS_DIR);
 }
 
+/** Superpowers container name inside the docs folder. */
+export const SUPERPOWERS_DIR = "superpowers";
+
+/**
+ * Resolves the `docs/superpowers/specs/` directory URI for the given workspace root.
+ *
+ * Alternative spec collection used when the workspace is set up with the
+ * Claude superpowers layout (`docs/superpowers/`) instead of the default
+ * SPEXR layout (`docs/specs/`).
+ */
+export function superspecsDir(root: URI): URI {
+  return root.resolve(DOCS_DIR).resolve(SUPERPOWERS_DIR).resolve(SPECS_DIR);
+}
+
+/**
+ * All spec collection directories to probe, in priority order.
+ *
+ * SPEXR features that scan or detect specs always check every directory in
+ * this list so both the default layout and the superpowers layout are
+ * supported without configuration.  New specs are always written to
+ * `docs/specs/` (index 0).
+ */
+export function allSpecsDirs(root: URI): URI[] {
+  return [specsDir(root), superspecsDir(root)];
+}
+
 /**
  * Resolves the `docs/agents/` directory URI for the given workspace root.
  *

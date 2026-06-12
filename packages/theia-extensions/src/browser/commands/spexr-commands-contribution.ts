@@ -31,7 +31,7 @@ import {
 import { ClaudeTerminalManager } from "../agent/claude-terminal-manager.js";
 import { SpexrShellLayoutContribution } from "../shell/spexr-shell-layout-contribution.js";
 import { SpexrSpecResourcesViewContribution } from "../views/spec-resources-view-contribution.js";
-import { memoryDir, specsDir, specContextDir, agentsDir } from "../workspace-paths.js";
+import { memoryDir, specsDir, specContextDir, agentsDir, allSpecsDirs } from "../workspace-paths.js";
 import { serializeExpertFile } from "../views/experts-format.js";
 import { SpexrAgentServiceProxy } from "../agent/agent-service-proxy.js";
 import type { SpexrAgentService, ExpertAgentDto } from "../../common/agent-protocol.js";
@@ -1176,8 +1176,8 @@ export class SpexrCommandsContribution implements CommandContribution, MenuContr
     const root = this.workspaceRoot();
     if (!root) return false;
     if (uri.scheme !== root.scheme) return false;
-    const specsRoot = specsDir(root);
-    const isUnderSpecs = uri.toString().startsWith(specsRoot.toString() + "/");
+    const uriStr = uri.toString();
+    const isUnderSpecs = allSpecsDirs(root).some((dir) => uriStr.startsWith(dir.toString() + "/"));
     return isUnderSpecs && SPEC_FILE_RE.test(uri.path.base);
   }
 

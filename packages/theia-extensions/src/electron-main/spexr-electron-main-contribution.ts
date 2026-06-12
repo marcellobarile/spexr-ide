@@ -1,5 +1,5 @@
 import { injectable } from "@theia/core/shared/inversify";
-import { app, BrowserWindow, dialog, ipcMain, screen } from "@theia/core/electron-shared/electron";
+import { app, BrowserWindow, dialog, ipcMain } from "@theia/core/electron-shared/electron";
 import { ElectronMainApplicationContribution } from "@theia/core/lib/electron-main/electron-main-application";
 
 const CHANNEL_SHOW_OPEN = "ShowOpenDialog";
@@ -26,9 +26,7 @@ interface SpexrOpenDialogOptions {
  * 1. Opens DevTools on each window only when `SPEXR_DEVTOOLS=1` is set, so the
  *    console no longer pops up by default (e.g. in the new-project window).
  *
- * 2. Positions each window at (0,0) covering the primary display on first load
- *    and enforces a minimum size, so the multi-panel layout has room to render
- *    instead of opening too small.
+ * 2. Enforces a minimum window size so the multi-panel layout has room to render.
  *
  * 3. Overrides Theia's `ShowOpenDialog` IPC handler to add the macOS
  *    `createDirectory` property. Without it, Finder hides the "New Folder"
@@ -39,7 +37,7 @@ interface SpexrOpenDialogOptions {
 export class SpexrElectronMainContribution implements ElectronMainApplicationContribution {
   onStart(): void {
     if (process.env.SPEXR_DEVTOOLS === "1") this.openDevToolsOnLoad();
-    this.sizeWindowsOnCreate();
+    this.enforceMinimumSize();
     app.whenReady().then(() => this.overrideOpenDialogHandler());
   }
 
@@ -51,15 +49,9 @@ export class SpexrElectronMainContribution implements ElectronMainApplicationCon
     });
   }
 
-  /**
-   * Enforce a minimum window size and place each window at (0,0) covering the
-   * full primary display, so the layout opens large and top-left aligned.
-   */
-  private sizeWindowsOnCreate(): void {
+  private enforceMinimumSize(): void {
     app.on("browser-window-created", (_event, window) => {
       window.setMinimumSize(MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT);
-      const { width, height } = screen.getPrimaryDisplay().bounds;
-      window.setBounds({ x: 0, y: 0, width, height });
     });
   }
 

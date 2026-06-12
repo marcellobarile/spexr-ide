@@ -1439,3 +1439,190 @@ code {
   gap: var(--spexr-space-2);
   flex: 0 0 auto;
 }
+
+/* ── Spec preview widget ─────────────────────────────────────── */
+
+.spexr-spec-preview-widget {
+  overflow: hidden;
+}
+
+.spexr-spec-preview {
+  height: 100%;
+  overflow-y: auto;
+  padding: var(--spexr-space-4) var(--spexr-space-5);
+  box-sizing: border-box;
+}
+
+.spexr-spec-preview__empty {
+  color: var(--spexr-text-secondary);
+  font-size: var(--spexr-text-sm);
+  padding: var(--spexr-space-4);
+}
+
+.spexr-spec-preview__body {
+  font-size: var(--spexr-text-md);
+  line-height: 1.65;
+  color: var(--spexr-text-primary);
+  max-width: 72ch;
+}
+
+.spexr-spec-preview__body h1,
+.spexr-spec-preview__body h2,
+.spexr-spec-preview__body h3,
+.spexr-spec-preview__body h4 {
+  margin: 1.4em 0 0.4em;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--spexr-text-primary);
+}
+
+.spexr-spec-preview__body h1 { font-size: 1.5em; }
+.spexr-spec-preview__body h2 { font-size: 1.25em; border-bottom: 1px solid var(--spexr-border-subtle); padding-bottom: 0.2em; }
+.spexr-spec-preview__body h3 { font-size: 1.1em; }
+
+.spexr-spec-preview__body p {
+  margin: 0.6em 0;
+}
+
+.spexr-spec-preview__body ul,
+.spexr-spec-preview__body ol {
+  padding-left: 1.5em;
+  margin: 0.5em 0;
+}
+
+.spexr-spec-preview__body li {
+  margin: 0.25em 0;
+}
+
+.spexr-spec-preview__body code {
+  font-family: var(--theia-code-font-family, monospace);
+  font-size: 0.9em;
+  background: var(--spexr-bg-surface);
+  border: 1px solid var(--spexr-border-subtle);
+  border-radius: var(--spexr-radius-sm);
+  padding: 0.1em 0.35em;
+}
+
+.spexr-spec-preview__body pre {
+  background: var(--spexr-bg-surface);
+  border: 1px solid var(--spexr-border-subtle);
+  border-radius: var(--spexr-radius-md);
+  padding: var(--spexr-space-3) var(--spexr-space-4);
+  overflow-x: auto;
+  margin: 0.75em 0;
+}
+
+.spexr-spec-preview__body pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.875em;
+}
+
+/* ── Syntax highlighting (theme-adaptive token colours) ──────── */
+
+.spexr-spec-preview__body .hljs {
+  color: var(--spexr-hljs-base);
+}
+
+.spexr-spec-preview__body .hljs-comment,
+.spexr-spec-preview__body .hljs-quote {
+  color: var(--spexr-hljs-comment);
+  font-style: italic;
+}
+
+.spexr-spec-preview__body .hljs-doctag,
+.spexr-spec-preview__body .hljs-keyword,
+.spexr-spec-preview__body .hljs-formula {
+  color: var(--spexr-hljs-keyword);
+}
+
+.spexr-spec-preview__body .hljs-section,
+.spexr-spec-preview__body .hljs-name,
+.spexr-spec-preview__body .hljs-selector-tag,
+.spexr-spec-preview__body .hljs-deletion,
+.spexr-spec-preview__body .hljs-subst {
+  color: var(--spexr-hljs-tag);
+}
+
+.spexr-spec-preview__body .hljs-literal {
+  color: var(--spexr-hljs-literal);
+}
+
+.spexr-spec-preview__body .hljs-string,
+.spexr-spec-preview__body .hljs-regexp,
+.spexr-spec-preview__body .hljs-addition,
+.spexr-spec-preview__body .hljs-attribute,
+.spexr-spec-preview__body .hljs-meta .hljs-string {
+  color: var(--spexr-hljs-string);
+}
+
+.spexr-spec-preview__body .hljs-attr,
+.spexr-spec-preview__body .hljs-variable,
+.spexr-spec-preview__body .hljs-template-variable,
+.spexr-spec-preview__body .hljs-type,
+.spexr-spec-preview__body .hljs-selector-class,
+.spexr-spec-preview__body .hljs-selector-attr,
+.spexr-spec-preview__body .hljs-selector-pseudo,
+.spexr-spec-preview__body .hljs-number {
+  color: var(--spexr-hljs-number);
+}
+
+.spexr-spec-preview__body .hljs-symbol,
+.spexr-spec-preview__body .hljs-bullet,
+.spexr-spec-preview__body .hljs-link,
+.spexr-spec-preview__body .hljs-meta,
+.spexr-spec-preview__body .hljs-selector-id,
+.spexr-spec-preview__body .hljs-title {
+  color: var(--spexr-hljs-title);
+}
+
+.spexr-spec-preview__body .hljs-built_in,
+.spexr-spec-preview__body .hljs-title.class_,
+.spexr-spec-preview__body .hljs-class .hljs-title {
+  color: var(--spexr-hljs-builtin);
+}
+
+.spexr-spec-preview__body .hljs-emphasis {
+  font-style: italic;
+}
+
+.spexr-spec-preview__body .hljs-strong {
+  font-weight: bold;
+}
+
+.spexr-spec-preview__body blockquote {
+  margin: 0.75em 0;
+  padding: var(--spexr-space-2) var(--spexr-space-4);
+  border-left: 3px solid var(--spexr-border-default);
+  color: var(--spexr-text-secondary);
+}
+
+.spexr-spec-preview__body table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.75em 0;
+  font-size: var(--spexr-text-sm);
+}
+
+.spexr-spec-preview__body th,
+.spexr-spec-preview__body td {
+  border: 1px solid var(--spexr-border-subtle);
+  padding: var(--spexr-space-2) var(--spexr-space-3);
+  text-align: left;
+}
+
+.spexr-spec-preview__body th {
+  background: var(--spexr-bg-surface);
+  font-weight: 600;
+}
+
+.spexr-spec-preview__body a {
+  color: var(--theia-textLink-foreground, var(--spexr-text-primary));
+}
+
+.spexr-spec-preview__body hr {
+  border: none;
+  border-top: 1px solid var(--spexr-border-subtle);
+  margin: 1.5em 0;
+}

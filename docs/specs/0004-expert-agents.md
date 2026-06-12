@@ -4,8 +4,8 @@ title: Expert agents — persona presets selectable per project
 status: in-progress
 createdAt: 2026-05-23
 relatedSpecs: 
-workflowStep: implement
-updatedAt: 2026-05-25
+workflowStep: validate
+updatedAt: 2026-06-12
 ---
 ## Goal
 

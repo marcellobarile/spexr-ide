@@ -6,6 +6,7 @@ import {
 } from "@theia/core/lib/browser/shell/tab-bar-toolbar";
 import { EditorWidget } from "@theia/editor/lib/browser";
 import { SpexrCommands, SpexrCommandsContribution } from "../commands/spexr-commands-contribution.js";
+import { SPEC_PREVIEW_TOGGLE_COMMAND } from "./spec-preview-contribution.js";
 
 /**
  * Surfaces "Send to agent" and "Toggle linked resources" actions in the editor
@@ -32,6 +33,14 @@ export class SpexrSpecEditorToolbarContribution implements TabBarToolbarContribu
       icon: "codicon codicon-link",
       tooltip: "Toggle linked resources panel",
       priority: 1,
+      isVisible: (widget?: Widget) => this.isSpecEditor(widget),
+    });
+    registry.registerItem({
+      id: "spexr.spec.editor.preview",
+      command: SPEC_PREVIEW_TOGGLE_COMMAND.id,
+      icon: "codicon codicon-open-preview",
+      tooltip: "Toggle markdown preview",
+      priority: 2,
       isVisible: (widget?: Widget) => this.isSpecEditor(widget),
     });
   }

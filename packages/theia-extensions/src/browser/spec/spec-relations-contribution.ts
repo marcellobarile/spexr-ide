@@ -9,7 +9,7 @@ import { type FileOperationEvent } from "@theia/filesystem/lib/common/files";
 const FILE_OPERATION_MOVE = 2;
 import { WorkspaceService } from "@theia/workspace/lib/browser";
 import URI from "@theia/core/lib/common/uri";
-import { specsDir, SPEC_CONTEXT_DIR } from "../workspace-paths.js";
+import { allSpecsDirs, SPEC_CONTEXT_DIR } from "../workspace-paths.js";
 
 const SPEC_FILE_RE = /^(\d{4})-([a-z0-9][a-z0-9-]*)\.md$/;
 
@@ -52,7 +52,7 @@ export class SpexrSpecRelationsContribution implements FrontendApplicationContri
     if (!oldSlug || !newSlug) return;
     if (oldSlug === newSlug) return;
 
-    const contextRoot = specsDir(root).resolve(SPEC_CONTEXT_DIR);
+    const contextRoot = source.parent.resolve(SPEC_CONTEXT_DIR);
     const oldDir = contextRoot.resolve(oldSlug);
     const newDir = contextRoot.resolve(newSlug);
 
@@ -77,8 +77,9 @@ export class SpexrSpecRelationsContribution implements FrontendApplicationContri
 
   private specSlugUnderRoot(uri: URI, root: URI): string | undefined {
     if (uri.scheme !== root.scheme) return undefined;
-    const specsRoot = specsDir(root);
-    if (!uri.toString().startsWith(specsRoot.toString() + "/")) return undefined;
+    const uriStr = uri.toString();
+    const inAnySpecDir = allSpecsDirs(root).some((dir) => uriStr.startsWith(dir.toString() + "/"));
+    if (!inAnySpecDir) return undefined;
     const match = uri.path.base.match(SPEC_FILE_RE);
     if (!match) return undefined;
     return `${match[1]}-${match[2]}`;

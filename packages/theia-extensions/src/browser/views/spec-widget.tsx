@@ -17,7 +17,7 @@ import {
 } from "@spexr/spec";
 import { SPEC_VIEW_ID } from "./spec-view-contribution.js";
 import { SpexrCommands } from "../commands/spexr-commands-contribution.js";
-import { specsDir, SPEC_CONTEXT_DIR } from "../workspace-paths.js";
+import { allSpecsDirs, SPEC_CONTEXT_DIR } from "../workspace-paths.js";
 import {
   SpecWorkflowStepper,
   WorkspaceProgressBar,
@@ -96,11 +96,13 @@ export class SpexrSpecWidget extends ReactWidget {
   private affectsSpecs(event: FileOperationEvent): boolean {
     const root = this.workspaceRoot();
     if (!root) return false;
-    const specsRoot = specsDir(root).toString() + "/";
+    const specsDirPrefixes = allSpecsDirs(root).map((d) => d.toString() + "/");
     const candidates = [event.resource, event.target?.resource].filter(
       (u): u is URI => u !== undefined,
     );
-    return candidates.some((uri) => uri.toString().startsWith(specsRoot));
+    return candidates.some((uri) =>
+      specsDirPrefixes.some((prefix) => uri.toString().startsWith(prefix)),
+    );
   }
 
   protected override onAfterAttach(msg: Message): void {
@@ -123,20 +125,21 @@ export class SpexrSpecWidget extends ReactWidget {
   private async loadSpecs(): Promise<readonly SpecEntry[]> {
     const root = this.workspaceRoot();
     if (!root) return [];
-    const spcsDir = specsDir(root);
-    try {
-      const stat = await this.fileService.resolve(spcsDir);
-      const entries: SpecEntry[] = [];
-      for (const child of stat.children ?? []) {
-        if (!child.isFile || !child.name.endsWith(".md")) continue;
-        if (!SPEC_FILE_RE.test(child.name)) continue;
-        const entry = await this.buildEntry(child.resource, child.name, spcsDir);
-        if (entry) entries.push(entry);
+    const entries: SpecEntry[] = [];
+    for (const spcsDir of allSpecsDirs(root)) {
+      try {
+        const stat = await this.fileService.resolve(spcsDir);
+        for (const child of stat.children ?? []) {
+          if (!child.isFile || !child.name.endsWith(".md")) continue;
+          if (!SPEC_FILE_RE.test(child.name)) continue;
+          const entry = await this.buildEntry(child.resource, child.name, spcsDir);
+          if (entry) entries.push(entry);
+        }
+      } catch {
+        // directory absent — skip silently
       }
-      return entries.sort((a, b) => a.name.localeCompare(b.name));
-    } catch {
-      return [];
     }
+    return entries.sort((a, b) => a.name.localeCompare(b.name));
   }
 
   private async buildEntry(

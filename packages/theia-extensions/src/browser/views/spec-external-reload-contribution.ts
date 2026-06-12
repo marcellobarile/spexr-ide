@@ -6,7 +6,7 @@ import { FileService } from "@theia/filesystem/lib/browser/file-service";
 import { type FileChangesEvent } from "@theia/filesystem/lib/common/files";
 import { WorkspaceService } from "@theia/workspace/lib/browser";
 import type URI from "@theia/core/lib/common/uri";
-import { specsDir } from "../workspace-paths.js";
+import { allSpecsDirs } from "../workspace-paths.js";
 
 const SPEC_FILE_RE = /^\d{4}-[a-z0-9][a-z0-9-]*\.md$/;
 
@@ -103,7 +103,8 @@ export class SpexrSpecExternalReloadContribution implements FrontendApplicationC
     const root = this.workspace.tryGetRoots()[0]?.resource;
     if (!root) return false;
     if (uri.scheme !== root.scheme) return false;
-    const specsRoot = specsDir(root).toString() + "/";
-    return uri.toString().startsWith(specsRoot) && SPEC_FILE_RE.test(uri.path.base);
+    const uriStr = uri.toString();
+    return allSpecsDirs(root).some((dir) => uriStr.startsWith(dir.toString() + "/"))
+      && SPEC_FILE_RE.test(uri.path.base);
   }
 }

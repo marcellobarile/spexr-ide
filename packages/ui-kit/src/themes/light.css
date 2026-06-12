@@ -43,4 +43,15 @@
 
   /* Focus */
   --spexr-focus-ring: #5b6cff;
+
+  /* Syntax highlight token colours (atom-one-light) */
+  --spexr-hljs-base:     #383a42;
+  --spexr-hljs-comment:  #9ca3a3;
+  --spexr-hljs-keyword:  #a626a4;
+  --spexr-hljs-string:   #50a14f;
+  --spexr-hljs-literal:  #0184bc;
+  --spexr-hljs-number:   #986801;
+  --spexr-hljs-tag:      #e45649;
+  --spexr-hljs-title:    #4078f2;
+  --spexr-hljs-builtin:  #c18401;
 }

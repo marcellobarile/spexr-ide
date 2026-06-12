@@ -3,7 +3,6 @@ import { Disposable, DisposableCollection } from "@theia/core";
 import { Deferred } from "@theia/core/lib/common/promise-util";
 import { ApplicationShell } from "@theia/core/lib/browser";
 import { MessageService } from "@theia/core/lib/common/message-service";
-import { QuickInputService } from "@theia/core/lib/common/quick-pick-service";
 import { PreferenceService } from "@theia/core/lib/common/preferences/preference-service";
 import { PreferenceScope } from "@theia/core/lib/common/preferences/preference-scope";
 import { nls } from "@theia/core/lib/common/nls";
@@ -57,9 +56,6 @@ export class ClaudeTerminalManager {
 
   @inject(PreferenceService)
   private readonly preferences!: PreferenceService;
-
-  @inject(QuickInputService)
-  private readonly quickInput!: QuickInputService;
 
   @inject(MessageService)
   private readonly messages!: MessageService;
@@ -452,7 +448,7 @@ export class ClaudeTerminalManager {
     expandLeftPanelWithMinWidth(this.shell);
   }
 
-  private async resolveProfile(workspaceUri: string): Promise<ClaudeProfileDto | undefined> {
+  private async resolveProfile(_workspaceUri: string): Promise<ClaudeProfileDto | undefined> {
     const storedProfileId = this.preferences.get<string>(SPEXR_CLAUDE_PROFILE_ID_PREFERENCE) ?? "";
     const storedExecPath = this.preferences.get<string>(SPEXR_CLAUDE_EXECUTABLE_PREFERENCE) ?? "";
     const storedConfigDir = this.preferences.get<string>(SPEXR_CLAUDE_CONFIG_DIR_PREFERENCE) ?? "";
@@ -461,13 +457,10 @@ export class ClaudeTerminalManager {
       return this.buildProfileDto(storedProfileId, storedExecPath, storedConfigDir);
     }
 
+    // No profile stored — auto-select the first detected profile without prompting.
+    // Configure spexr.claude.* preferences in workspace settings for per-folder overrides.
     const profiles = await this.agentService!.detectClaudeProfiles();
-    if (profiles.length <= 1) return profiles[0];
-
-    const chosen = await this.promptForProfile(profiles);
-    if (!chosen) return undefined;
-    await this.persistProfileChoice(chosen, workspaceUri);
-    return chosen;
+    return profiles[0];
   }
 
   private buildProfileDto(id: string, executablePath: string, configDir: string): ClaudeProfileDto {
@@ -479,41 +472,4 @@ export class ClaudeTerminalManager {
     };
   }
 
-  private async promptForProfile(
-    profiles: ClaudeProfileDto[],
-  ): Promise<ClaudeProfileDto | undefined> {
-    const items = profiles.map((p) => ({
-      label: p.label,
-      description: p.configDir ?? "(default)",
-      profile: p,
-    }));
-    const picked = await this.quickInput.pick(items, {
-      placeHolder: "Select a Claude account profile for this workspace",
-    });
-    return picked?.profile;
-  }
-
-  private async persistProfileChoice(
-    profile: ClaudeProfileDto,
-    workspaceUri: string,
-  ): Promise<void> {
-    await this.preferences.set(
-      SPEXR_CLAUDE_PROFILE_ID_PREFERENCE,
-      profile.id,
-      PreferenceScope.Folder,
-      workspaceUri,
-    );
-    await this.preferences.set(
-      SPEXR_CLAUDE_EXECUTABLE_PREFERENCE,
-      profile.executablePath,
-      PreferenceScope.Folder,
-      workspaceUri,
-    );
-    await this.preferences.set(
-      SPEXR_CLAUDE_CONFIG_DIR_PREFERENCE,
-      profile.configDir ?? "",
-      PreferenceScope.Folder,
-      workspaceUri,
-    );
-  }
 }
