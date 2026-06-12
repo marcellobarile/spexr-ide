@@ -10,12 +10,14 @@ import { resolveSpexrPaths } from "@spexr/core";
 // bundle. The package exposes it via the `./registry` export; tsc resolves the
 // types through the `paths` mapping in this package's tsconfig.
 import { FilesystemSpecRegistry } from "@spexr/spec/registry";
+import { buildShipCommitMessage, buildShipPrBody } from "@spexr/spec";
 import type {
   SpexrAgentService,
   ClaudeProfileDto,
   ExpertAgentDto,
   LaunchContextDto,
   MemoryLinkResult,
+  ShipOutcome,
 } from "../common/agent-protocol.js";
 import {
   detectClaudeProfiles,
@@ -112,6 +114,15 @@ export class SpexrAgentBackendService implements SpexrAgentService {
    */
   resolveMemoryConflict(workspaceRoot: string, configDir?: string): Promise<MemoryLinkResult> {
     return Promise.resolve(resolveMemoryConflictSync(workspaceRoot, configDir));
+  }
+
+  shipSpec(
+    workspaceRoot: string,
+    slug: string,
+    specTitle: string,
+    acItems: readonly string[],
+  ): Promise<ShipOutcome> {
+    return Promise.resolve(shipSpecImpl(workspaceRoot, slug, specTitle, acItems));
   }
 }
 
@@ -353,6 +364,121 @@ function getMemoryLinkStatusSync(workspaceRoot: string, configDir?: string): Mem
       message: err instanceof Error ? err.message : String(err),
     };
   }
+}
+
+// ---------------------------------------------------------------------------
+// Ship-spec helper
+// ---------------------------------------------------------------------------
+
+function shipSpecImpl(
+  workspaceRoot: string,
+  slug: string,
+  specTitle: string,
+  acItems: readonly string[],
+): ShipOutcome {
+  function run(cmd: string, args: string[]): { stdout: string; stderr: string; ok: boolean } {
+    const r = child_process.spawnSync(cmd, args, { cwd: workspaceRoot, encoding: "utf8" });
+    return {
+      stdout: ((r.stdout as string) ?? "").trim(),
+      stderr: ((r.stderr as string) ?? "").trim(),
+      ok: r.status === 0,
+    };
+  }
+
+  if (!run("gh", ["--version"]).ok) {
+    return {
+      ok: false,
+      code: "gh-not-found",
+      message: "GitHub CLI (`gh`) not found. Install it from https://cli.github.com.",
+    };
+  }
+
+  if (!run("gh", ["auth", "status"]).ok) {
+    return {
+      ok: false,
+      code: "gh-auth",
+      message: "Not authenticated with GitHub. Run `gh auth login` and try again.",
+    };
+  }
+
+  const remoteCheck = run("git", ["remote"]);
+  if (!remoteCheck.ok || remoteCheck.stdout.length === 0) {
+    return {
+      ok: false,
+      code: "no-remote",
+      message:
+        "No git remote configured. Add a remote (e.g. `git remote add origin <url>`) and try again.",
+    };
+  }
+
+  const currentBranch = run("git", ["branch", "--show-current"]).stdout;
+
+  let defaultBranch = "main";
+  const headRef = run("git", ["symbolic-ref", "refs/remotes/origin/HEAD"]);
+  if (headRef.ok && headRef.stdout) {
+    defaultBranch = headRef.stdout.replace("refs/remotes/origin/", "");
+  }
+
+  const specBranch = `spec/${slug}`;
+  let targetBranch = currentBranch;
+
+  if (currentBranch === defaultBranch || currentBranch === "") {
+    const branchExists = run("git", ["rev-parse", "--verify", specBranch]);
+    if (branchExists.ok) {
+      run("git", ["checkout", specBranch]);
+    } else {
+      run("git", ["checkout", "-b", specBranch]);
+    }
+    targetBranch = specBranch;
+  }
+
+  const stagedCheck = run("git", ["diff", "--staged", "--quiet"]);
+  const hasStaged = !stagedCheck.ok;
+
+  const unpushedResult = run("git", ["rev-list", `origin/${defaultBranch}..HEAD`, "--count"]);
+  const unpushed = unpushedResult.ok ? parseInt(unpushedResult.stdout, 10) || 0 : 0;
+
+  if (!hasStaged && unpushed === 0) {
+    return {
+      ok: false,
+      code: "nothing-to-ship",
+      message: "Nothing to ship: no staged changes and no unpushed commits.",
+    };
+  }
+
+  if (hasStaged) {
+    const msg = buildShipCommitMessage(specTitle, slug);
+    const commitResult = run("git", ["commit", "-m", msg]);
+    if (!commitResult.ok) {
+      return {
+        ok: false,
+        code: "nothing-to-ship",
+        message: `Commit failed: ${commitResult.stderr}`,
+      };
+    }
+  }
+
+  run("git", ["push", "-u", "origin", targetBranch]);
+
+  const prTitle = specTitle;
+  const prBody = buildShipPrBody(slug, acItems);
+  const prResult = run("gh", ["pr", "create", "--title", prTitle, "--body", prBody]);
+
+  let prUrl = prResult.stdout;
+  if (!prResult.ok || !prUrl.startsWith("http")) {
+    const existing = run("gh", ["pr", "view", "--json", "url", "--jq", ".url"]);
+    if (existing.ok && existing.stdout.startsWith("http")) {
+      prUrl = existing.stdout;
+    } else {
+      return {
+        ok: false,
+        code: "gh-auth",
+        message: `PR creation failed: ${prResult.stderr || prResult.stdout}`,
+      };
+    }
+  }
+
+  return { ok: true, prUrl, branch: targetBranch };
 }
 
 /**

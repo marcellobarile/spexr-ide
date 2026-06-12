@@ -1,8 +1,10 @@
 ---
 slug: 0007-ship-to-pr
 title: Ship step — branch, commit trailer, open PR
-status: draft
+status: in-progress
+workflowStep: validate
 createdAt: 2026-05-24
+updatedAt: 2026-06-12
 relatedSpecs:
   - 0005-drift-detector
 ---

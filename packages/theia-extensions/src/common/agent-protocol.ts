@@ -72,6 +72,22 @@ export interface LaunchContextDto {
   readonly appendSystemPromptInline?: string;
 }
 
+export type ShipErrorCode = "gh-not-found" | "gh-auth" | "no-remote" | "nothing-to-ship";
+
+export interface ShipResult {
+  readonly ok: true;
+  readonly prUrl: string;
+  readonly branch: string;
+}
+
+export interface ShipError {
+  readonly ok: false;
+  readonly code: ShipErrorCode;
+  readonly message: string;
+}
+
+export type ShipOutcome = ShipResult | ShipError;
+
 /**
  * Backend service exposed over JSON-RPC.
  *
@@ -150,4 +166,22 @@ export interface SpexrAgentService {
    * @param configDir      Optional CLAUDE_CONFIG_DIR override (profile-specific).
    */
   resolveMemoryConflict(workspaceRoot: string, configDir?: string): Promise<MemoryLinkResult>;
+
+  /**
+   * Ship a spec: create branch, commit staged changes with trailer, push,
+   * and open a PR via `gh`.
+   *
+   * Never throws across RPC — all error conditions are captured in the result.
+   *
+   * @param workspaceRoot  Absolute path to the open workspace (git root).
+   * @param slug           Spec slug (e.g. `0007-ship-to-pr`).
+   * @param specTitle      Spec title used as commit subject and PR title.
+   * @param acItems        Formatted acceptance-criterion strings for the PR body.
+   */
+  shipSpec(
+    workspaceRoot: string,
+    slug: string,
+    specTitle: string,
+    acItems: readonly string[],
+  ): Promise<ShipOutcome>;
 }

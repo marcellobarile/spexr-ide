@@ -135,6 +135,10 @@ export const SpexrCommands = {
     id: "spexr.experts.kickoff",
     label: "Spexr: Run expert kickoff prompt",
   } satisfies Command,
+  SPEC_SHIP: {
+    id: "spexr.spec.ship",
+    label: "Spexr: Ship spec (branch, commit, PR)",
+  } satisfies Command,
 } as const;
 
 const MEMORY_TYPES = ["user", "feedback", "project", "reference"] as const;
@@ -336,6 +340,10 @@ export class SpexrCommandsContribution implements CommandContribution, MenuContr
     commands.registerCommand(SpexrCommands.EXPERT_KICKOFF, {
       execute: (raw: unknown) => this.kickoffExpert(raw),
     });
+    commands.registerCommand(SpexrCommands.SPEC_SHIP, {
+      execute: (raw: unknown) =>
+        this.runWorkflowStep(this.resolveSpecUri(raw), "ship"),
+    });
   }
 
   private coerceWorkflowStep(raw: unknown): WorkflowStep | undefined {
@@ -379,6 +387,10 @@ export class SpexrCommandsContribution implements CommandContribution, MenuContr
       if (step === "context") {
         await this.persistStep(uri, step);
         await this.addSpecContext(uri);
+        return;
+      }
+      if (step === "ship") {
+        await this.executeShipSpec(uri, spec);
         return;
       }
 
@@ -454,6 +466,60 @@ export class SpexrCommandsContribution implements CommandContribution, MenuContr
       }
     } catch (err) {
       console.error("[spexr] persistStep failed", err);
+    }
+  }
+
+  private async executeShipSpec(
+    uri: URI,
+    spec: ReturnType<typeof parseSpec>,
+  ): Promise<void> {
+    if (!this.agentService) {
+      this.messages.error("Ship failed: agent backend service unavailable.");
+      return;
+    }
+    const rootUri = this.workspaceRoot();
+    if (!rootUri) {
+      this.messages.error("Ship failed: no workspace root found.");
+      return;
+    }
+    const root = rootUri.path.toString();
+    const { slug, title } = spec.frontmatter;
+    const acItems = spec.acceptanceCriteria.map((c) => `**${c.id}** ${c.text}`);
+
+    await this.persistStep(uri, "ship");
+
+    const outcome = await this.agentService.shipSpec(root, slug, title, acItems);
+
+    if (!outcome.ok) {
+      const hints: Record<string, string> = {
+        "gh-not-found": "Install GitHub CLI: https://cli.github.com",
+        "gh-auth": "Run `gh auth login` in your terminal.",
+        "no-remote": "Add a git remote: `git remote add origin <url>`.",
+        "nothing-to-ship": "Stage or commit your changes first.",
+      };
+      const hint = hints[outcome.code] ?? "";
+      this.messages.error(`Ship failed: ${outcome.message}${hint ? `\n${hint}` : ""}`);
+      return;
+    }
+
+    await this.persistShipped(uri);
+    this.messages.info(`Spec shipped! PR: ${outcome.prUrl}`);
+  }
+
+  private async persistShipped(uri: URI): Promise<void> {
+    try {
+      const current = await this.fileService.read(uri);
+      const today = new Date().toISOString().slice(0, 10);
+      const next = patchFrontmatter(current.value, {
+        status: "shipped",
+        workflowStep: "ship",
+        updatedAt: today,
+      });
+      if (next !== current.value) {
+        await this.fileService.write(uri, next);
+      }
+    } catch (err) {
+      console.error("[spexr] persistShipped failed", err);
     }
   }
 
