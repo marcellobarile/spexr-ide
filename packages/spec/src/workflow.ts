@@ -30,6 +30,7 @@ export interface WorkflowSignals {
   readonly hasAcceptanceCriteria: boolean;
   readonly hasContext: boolean;
   readonly hasClarifications: boolean;
+  readonly hasPlan?: boolean;
   readonly driftReport?: DriftReport;
 }
 
@@ -75,7 +76,12 @@ export function resolveCurrentStep(
   // wins over a persisted workflowStep so a stale/placeholder spec is not shown
   // as already specified.
   if (frontmatter.status === "draft" && !signals.hasAcceptanceCriteria) return "specify";
-  if (frontmatter.workflowStep) return frontmatter.workflowStep;
+  if (frontmatter.workflowStep) {
+    // Once the plan is generated the workflow auto-advances to implement so the
+    // stepper reflects the real state without a manual click.
+    if (frontmatter.workflowStep === "plan" && signals.hasPlan === true) return "implement";
+    return frontmatter.workflowStep;
+  }
 
   const statusLevel = STATUS_AT_OR_AFTER[frontmatter.status];
 

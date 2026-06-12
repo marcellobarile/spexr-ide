@@ -18,10 +18,13 @@ import {
   computeProgress,
   hasAuthoredAcceptanceCriteria,
   parseSpec,
+  parseSpecPlan,
   patchFrontmatter,
   persistedStateForStep,
   resolveCurrentStep,
+  serializeSpecPlan,
   StructuralDriftDetector,
+  togglePlanTask,
   WORKFLOW_STEP_EXPERT,
   WORKFLOW_STEP_LABEL,
   WORKFLOW_STEP_ORDER,
@@ -143,6 +146,10 @@ export const SpexrCommands = {
     id: "spexr.spec.checkDrift",
     label: "Spexr: Check drift (validate spec vs code)",
   } satisfies Command,
+  SPEC_TOGGLE_TASK: {
+    id: "spexr.spec.toggleTask",
+    label: "Spexr: Toggle plan task",
+  } satisfies Command,
 } as const;
 
 const MEMORY_TYPES = ["user", "feedback", "project", "reference"] as const;
@@ -215,7 +222,9 @@ const WORKFLOW_PROMPTS: Record<WorkflowStep, WorkflowPromptBuilder> = {
   clarify: (slug, specBody) =>
     `Spec ${slug} needs clarification before planning. List 5–10 open questions on the acceptance criteria below. For each, propose an answer using any context under docs/specs/.context/${slug}/. Write the final Q&A to docs/specs/.context/${slug}/clarifications.md so the next step can reference it.\n\n---\n${specBody}`,
   plan: (slug, specBody) =>
-    `Draft an implementation plan for spec ${slug}. Output a markdown table with columns: step, description, AC covered, files touched. Then a numbered task list. Do not write code yet.\n\n---\n${specBody}`,
+    `Draft an implementation plan for spec ${slug}. Write the plan as \`docs/specs/.context/${slug}/_plan.md\` using this exact format:\n\n` +
+    "```\n---\nspecSlug: " + slug + "\ngeneratedAt: <ISO timestamp>\n---\n\n- [ ] T1 (AC-1): task description\n- [ ] T2 (AC-2): task description\n```\n\n" +
+    `Each task must reference a real AC id from the spec. Do not write code yet.\n\n---\n${specBody}`,
   implement: (slug, specBody) =>
     `Execute the plan for spec ${slug}. Edit files as needed; reference AC IDs in each commit message and include a \`Spec: ${slug}\` trailer. Stop after each logical chunk for review.\n\n---\n${specBody}`,
   validate: (slug, specBody, driftBlock) =>
@@ -352,6 +361,10 @@ export class SpexrCommandsContribution implements CommandContribution, MenuContr
       execute: (raw: unknown) =>
         this.runWorkflowStep(this.resolveSpecUri(raw), "validate"),
     });
+    commands.registerCommand(SpexrCommands.SPEC_TOGGLE_TASK, {
+      execute: (rawUri: unknown, rawTaskId: unknown) =>
+        this.togglePlanTask(this.resolveSpecUri(rawUri), typeof rawTaskId === "string" ? rawTaskId : undefined),
+    });
   }
 
   private coerceWorkflowStep(raw: unknown): WorkflowStep | undefined {
@@ -441,13 +454,14 @@ export class SpexrCommandsContribution implements CommandContribution, MenuContr
   private async loadWorkflowSignals(
     specUri: URI,
     slug: string,
-  ): Promise<{ hasContext: boolean; hasClarifications: boolean; driftReport?: DriftReport }> {
+  ): Promise<{ hasContext: boolean; hasClarifications: boolean; hasPlan: boolean; driftReport?: DriftReport }> {
     const specsDir = specUri.parent;
     const contextDir = specsDir.resolve(".context").resolve(slug);
     const hasContext = await this.hasAnyEntry(contextDir);
     const hasClarifications = await this.exists(contextDir.resolve("clarifications.md"));
+    const hasPlan = await this.exists(contextDir.resolve("_plan.md"));
     const driftReport = await this.loadPersistedDriftReport(contextDir);
-    return { hasContext, hasClarifications, ...(driftReport ? { driftReport } : {}) };
+    return { hasContext, hasClarifications, hasPlan, ...(driftReport ? { driftReport } : {}) };
   }
 
   private async loadPersistedDriftReport(contextDir: URI): Promise<DriftReport | undefined> {
@@ -592,6 +606,23 @@ export class SpexrCommandsContribution implements CommandContribution, MenuContr
       }
     } catch (err) {
       console.error("[spexr] persistShipped failed", err);
+    }
+  }
+
+  private async togglePlanTask(uri: URI | undefined, taskId: string | undefined): Promise<void> {
+    if (!uri || !taskId) return;
+    try {
+      const file = await this.fileService.read(uri);
+      const spec = parseSpec(file.value, uri.toString());
+      const { slug } = spec.frontmatter;
+      const specsDir = uri.parent;
+      const planUri = specsDir.resolve(SPEC_CONTEXT_DIR).resolve(slug).resolve("_plan.md");
+      const planFile = await this.fileService.read(planUri);
+      const doc = parseSpecPlan(planFile.value, slug);
+      const updated = togglePlanTask(doc, taskId);
+      await this.fileService.write(planUri, serializeSpecPlan(updated));
+    } catch (err) {
+      this.messages.error(`Failed to toggle task: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 

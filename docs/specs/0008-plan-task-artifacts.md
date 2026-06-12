@@ -1,8 +1,10 @@
 ---
 slug: 0008-plan-task-artifacts
 title: Plan & task artifacts derived from a spec
-status: draft
+status: in-progress
+workflowStep: validate
 createdAt: 2026-05-24
+updatedAt: 2026-06-12
 relatedSpecs:
   - 0005-drift-detector
   - 0006-spec-context-fan-in

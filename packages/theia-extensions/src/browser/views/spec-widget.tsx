@@ -10,8 +10,10 @@ import {
   computeProgress,
   hasAuthoredAcceptanceCriteria,
   parseSpec,
+  parseSpecPlan,
   resolveCurrentStep,
   WORKFLOW_STEP_ORDER,
+  type PlanTask,
   type WorkflowProgress,
   type WorkflowStep,
 } from "@spexr/spec";
@@ -31,6 +33,7 @@ interface SpecEntry {
   readonly name: string;
   readonly title: string;
   readonly progress: WorkflowProgress;
+  readonly planTasks: readonly PlanTask[];
 }
 
 interface SpecPanelProps {
@@ -44,6 +47,7 @@ interface SpecPanelProps {
   readonly onDelete: (uri: string) => void;
   readonly onRefresh: () => void;
   readonly onStepClick: (uri: string, step: WorkflowStep) => void;
+  readonly onTaskToggle: (uri: string, taskId: string) => void;
 }
 
 @injectable()
@@ -157,16 +161,20 @@ export class SpexrSpecWidget extends ReactWidget {
       const contextDir = spcsDir.resolve(SPEC_CONTEXT_DIR).resolve(slug);
       const hasContext = await this.hasContextEntries(contextDir);
       const hasClarifications = await this.exists(contextDir.resolve("clarifications.md"));
+      const planTasks = await this.loadPlanTasks(contextDir, slug);
+      const hasPlan = planTasks.length > 0;
       const currentStep = resolveCurrentStep(spec.frontmatter, {
         hasAcceptanceCriteria: hasAuthoredAcceptanceCriteria(spec.acceptanceCriteria),
         hasContext,
         hasClarifications,
+        hasPlan,
       });
       return {
         uri: uri.toString(),
         name: filename,
         title: spec.frontmatter.title || filename,
         progress: computeProgress(currentStep),
+        planTasks,
       };
     } catch {
       return {
@@ -174,6 +182,7 @@ export class SpexrSpecWidget extends ReactWidget {
         name: filename,
         title: filename,
         progress: computeProgress("specify"),
+        planTasks: [],
       };
     }
   }
@@ -193,6 +202,16 @@ export class SpexrSpecWidget extends ReactWidget {
       return stat.isFile === true || (stat.children?.length ?? 0) > 0;
     } catch {
       return false;
+    }
+  }
+
+  private async loadPlanTasks(contextDir: URI, slug: string): Promise<readonly PlanTask[]> {
+    try {
+      const file = await this.fileService.read(contextDir.resolve("_plan.md"));
+      const doc = parseSpecPlan(file.value, slug);
+      return doc.tasks;
+    } catch {
+      return [];
     }
   }
 
@@ -229,6 +248,10 @@ export class SpexrSpecWidget extends ReactWidget {
     void this.commands.executeCommand(SpexrCommands.SPEC_WORKFLOW_ACTION.id, uri, step);
   };
 
+  private readonly handleTaskToggle = (uri: string, taskId: string): void => {
+    void this.commands.executeCommand(SpexrCommands.SPEC_TOGGLE_TASK.id, uri, taskId);
+  };
+
   protected render(): React.ReactNode {
     return (
       <SpecPanel
@@ -242,6 +265,7 @@ export class SpexrSpecWidget extends ReactWidget {
         onDelete={this.handleDelete}
         onRefresh={this.handleRefresh}
         onStepClick={this.handleStepClick}
+        onTaskToggle={this.handleTaskToggle}
       />
     );
   }
@@ -258,6 +282,7 @@ const SpecPanel: React.FC<SpecPanelProps> = ({
   onDelete,
   onRefresh,
   onStepClick,
+  onTaskToggle,
 }) => (
   <section className="spexr-spec-panel" aria-label="Specs">
     <header className="spexr-spec-panel__header">
@@ -308,6 +333,8 @@ const SpecPanel: React.FC<SpecPanelProps> = ({
               <SpecWorkflowStepper
                 progress={spec.progress}
                 onStepClick={(step) => onStepClick(spec.uri, step)}
+                planTasks={spec.planTasks}
+                onTaskToggle={(taskId) => onTaskToggle(spec.uri, taskId)}
               />
               <div className="spexr-spec-list__actions">
                 {isComplete ? (

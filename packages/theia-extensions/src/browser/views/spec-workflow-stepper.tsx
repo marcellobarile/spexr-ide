@@ -5,6 +5,7 @@ import {
   WORKFLOW_STEP_LABEL,
   WORKFLOW_STEP_ORDER,
   WORKFLOW_STEP_PROMPT_PREVIEW,
+  type PlanTask,
   type WorkflowProgress,
   type WorkflowStep,
 } from "@spexr/spec";
@@ -13,6 +14,8 @@ export interface SpecWorkflowStepperProps {
   readonly progress: WorkflowProgress;
   readonly onStepClick: (step: WorkflowStep) => void;
   readonly busy?: boolean;
+  readonly planTasks?: readonly PlanTask[];
+  readonly onTaskToggle?: (taskId: string) => void;
 }
 
 const TOOLTIP_WIDTH = 260;
@@ -97,20 +100,59 @@ export const SpecWorkflowStepper: React.FC<SpecWorkflowStepperProps> = ({
   progress,
   onStepClick,
   busy = false,
+  planTasks,
+  onTaskToggle,
 }) => (
-  <ol className="spexr-stepper" role="list" aria-label="Spec workflow">
-    {WORKFLOW_STEP_ORDER.map((step, index) => (
-      <StepButton
-        key={step}
-        step={step}
-        index={index}
-        state={progress.stateByStep[step]}
-        busy={busy}
-        onStepClick={onStepClick}
-      />
-    ))}
-  </ol>
+  <>
+    <ol className="spexr-stepper" role="list" aria-label="Spec workflow">
+      {WORKFLOW_STEP_ORDER.map((step, index) => (
+        <StepButton
+          key={step}
+          step={step}
+          index={index}
+          state={progress.stateByStep[step]}
+          busy={busy}
+          onStepClick={onStepClick}
+        />
+      ))}
+    </ol>
+    {planTasks && planTasks.length > 0 ? (
+      <PlanChecklist tasks={planTasks} {...(onTaskToggle ? { onToggle: onTaskToggle } : {})} />
+    ) : null}
+  </>
 );
+
+const PlanChecklist: React.FC<{
+  readonly tasks: readonly PlanTask[];
+  readonly onToggle?: (taskId: string) => void;
+}> = ({ tasks, onToggle }) => {
+  const doneCount = tasks.filter((t) => t.done).length;
+  return (
+    <div className="spexr-plan-checklist" aria-label="Implementation tasks">
+      <div className="spexr-plan-checklist__header">
+        Tasks — {doneCount}/{tasks.length}
+      </div>
+      <ul className="spexr-plan-checklist__list" role="list">
+        {tasks.map((task) => (
+          <li key={task.id} className="spexr-plan-checklist__item">
+            <label className="spexr-plan-checklist__label">
+              <input
+                type="checkbox"
+                checked={task.done}
+                onChange={() => onToggle?.(task.id)}
+                aria-label={`${task.id} (${task.acRef}): ${task.description}`}
+              />
+              <span className={`spexr-plan-checklist__text${task.done ? " spexr-plan-checklist__text--done" : ""}`}>
+                <span className="spexr-plan-checklist__ac-ref">{task.acRef}</span>
+                {task.description}
+              </span>
+            </label>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
 
 export interface WorkspaceProgressBarProps {
   readonly percent: number;
