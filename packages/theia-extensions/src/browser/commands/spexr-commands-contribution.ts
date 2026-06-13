@@ -23,7 +23,6 @@ import {
   persistedStateForStep,
   resolveCurrentStep,
   serializeSpecPlan,
-  StructuralDriftDetector,
   togglePlanTask,
   WORKFLOW_STEP_EXPERT,
   WORKFLOW_STEP_LABEL,
@@ -419,8 +418,7 @@ export class SpexrCommandsContribution implements CommandContribution, MenuContr
         return;
       }
 
-      const drift = undefined;
-      const prompt = this.buildWorkflowPrompt(step, spec.frontmatter.slug, spec.raw, drift);
+      const prompt = this.buildWorkflowPrompt(step, spec.frontmatter.slug, spec.raw);
       await this.applyStepExpert(step);
       await this.claudeTerminal.ensureStarted();
       await this.sendAndSubmit(prompt.body);
@@ -485,11 +483,6 @@ export class SpexrCommandsContribution implements CommandContribution, MenuContr
     } catch {
       return false;
     }
-  }
-
-  private async runDrift(spec: ReturnType<typeof parseSpec>): Promise<DriftReport> {
-    const detector = new StructuralDriftDetector();
-    return detector.evaluate(spec);
   }
 
   private async persistStep(uri: URI, step: WorkflowStep): Promise<void> {
@@ -630,20 +623,10 @@ export class SpexrCommandsContribution implements CommandContribution, MenuContr
     step: WorkflowStep,
     slug: string,
     specBody: string,
-    drift: DriftReport | undefined,
   ): { title: string; body: string } {
-    const driftBlock = drift ? this.formatDrift(drift) : "";
     const title = `${WORKFLOW_STEP_LABEL[step]} — ${slug}`;
-    const body = WORKFLOW_PROMPTS[step](slug, specBody, driftBlock);
+    const body = WORKFLOW_PROMPTS[step](slug, specBody, "");
     return { title, body };
-  }
-
-  private formatDrift(report: DriftReport): string {
-    if (report.findings.length === 0) return "Drift detector: no findings.";
-    const lines = report.findings.map(
-      (f) => `- [${f.severity}] ${f.criterionId}: ${f.message}${f.suggestion ? ` — ${f.suggestion}` : ""}`,
-    );
-    return `Drift detector findings:\n${lines.join("\n")}`;
   }
 
   registerMenus(menus: MenuModelRegistry): void {

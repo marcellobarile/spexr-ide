@@ -1626,3 +1626,65 @@ code {
   border-top: 1px solid var(--spexr-border-subtle);
   margin: 1.5em 0;
 }
+
+/* Plan checklist — rendered under the stepper when _plan.md exists */
+.spexr-plan-checklist {
+  margin-top: var(--spexr-space-3);
+  padding: var(--spexr-space-3) var(--spexr-space-4);
+  border: 1px solid var(--spexr-border-subtle);
+  border-radius: var(--spexr-radius-md);
+  background: var(--spexr-bg-surface);
+}
+
+.spexr-plan-checklist__header {
+  font-size: var(--spexr-text-xs);
+  font-weight: 600;
+  color: var(--spexr-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--spexr-space-2);
+}
+
+.spexr-plan-checklist__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spexr-space-1);
+}
+
+.spexr-plan-checklist__item {
+  display: flex;
+}
+
+.spexr-plan-checklist__label {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spexr-space-2);
+  cursor: pointer;
+  font-size: var(--spexr-text-sm);
+  line-height: var(--spexr-line-normal);
+}
+
+.spexr-plan-checklist__label input[type="checkbox"] {
+  flex-shrink: 0;
+  margin-top: 3px;
+  accent-color: var(--spexr-accent-default);
+}
+
+.spexr-plan-checklist__text {
+  color: var(--spexr-text-primary);
+}
+
+.spexr-plan-checklist__text--done {
+  color: var(--spexr-text-secondary);
+  text-decoration: line-through;
+}
+
+.spexr-plan-checklist__ac-ref {
+  font-size: var(--spexr-text-xs);
+  font-weight: 600;
+  color: var(--spexr-accent-default);
+  margin-right: var(--spexr-space-1);
+}

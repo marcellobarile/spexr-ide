@@ -13,6 +13,7 @@ import {
   parseSpecPlan,
   resolveCurrentStep,
   WORKFLOW_STEP_ORDER,
+  type DriftReport,
   type PlanTask,
   type WorkflowProgress,
   type WorkflowStep,
@@ -163,11 +164,13 @@ export class SpexrSpecWidget extends ReactWidget {
       const hasClarifications = await this.exists(contextDir.resolve("clarifications.md"));
       const planTasks = await this.loadPlanTasks(contextDir, slug);
       const hasPlan = planTasks.length > 0;
+      const driftReport = await this.loadDriftReport(contextDir);
       const currentStep = resolveCurrentStep(spec.frontmatter, {
         hasAcceptanceCriteria: hasAuthoredAcceptanceCriteria(spec.acceptanceCriteria),
         hasContext,
         hasClarifications,
         hasPlan,
+        ...(driftReport ? { driftReport } : {}),
       });
       return {
         uri: uri.toString(),
@@ -212,6 +215,19 @@ export class SpexrSpecWidget extends ReactWidget {
       return doc.tasks;
     } catch {
       return [];
+    }
+  }
+
+  private async loadDriftReport(contextDir: URI): Promise<DriftReport | undefined> {
+    try {
+      const file = await this.fileService.read(contextDir.resolve("_drift.json"));
+      const parsed = JSON.parse(file.value) as unknown;
+      if (parsed && typeof parsed === "object" && "findings" in parsed) {
+        return parsed as DriftReport;
+      }
+      return undefined;
+    } catch {
+      return undefined;
     }
   }
 
