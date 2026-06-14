@@ -97,8 +97,9 @@ export const sel = {
 
 /** Open the SPEXR spec view via keyboard shortcut or command palette. */
 export async function openSpecView(page: Page): Promise<void> {
-  // Try the view toggle command via command palette
-  await page.keyboard.press("Meta+Shift+P");
+  // Meta = Cmd on macOS, but Windows key on Linux — use Control on non-mac
+  const modifier = process.platform === "darwin" ? "Meta" : "Control";
+  await page.keyboard.press(`${modifier}+Shift+P`);
   await page.waitForSelector(".quick-input-widget", { timeout: 5_000 });
   await page.keyboard.type("SPEXR: Show Specs");
   await page.keyboard.press("Enter");
