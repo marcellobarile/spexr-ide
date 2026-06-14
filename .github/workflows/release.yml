@@ -41,9 +41,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Rebuild native modules
-        run: pnpm rebuild
-        working-directory: apps/desktop
+      - name: Rebuild native modules for Electron
+        run: pnpm --filter @spexr/desktop run rebuild
 
       - name: Build (dev)
         run: pnpm build:dev
@@ -100,9 +99,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Rebuild native modules
-        run: pnpm rebuild
-        working-directory: apps/desktop
+      - name: Rebuild native modules for Electron
+        run: pnpm --filter @spexr/desktop run rebuild
 
       - name: Build all packages
         run: pnpm build
