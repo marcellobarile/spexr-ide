@@ -5,7 +5,7 @@
  */
 import path from "path";
 import fs from "fs";
-import { test, expect, sel } from "../fixtures/app.js";
+import { test, expect, sel, openFileInEditor } from "../fixtures/app.js";
 
 const SPEC_CONTENT = `---
 slug: 0002-preview-spec
@@ -29,15 +29,7 @@ function seedSpecFile(workspace: string, filename: string, content: string): voi
   fs.writeFileSync(p, content, "utf8");
 }
 
-async function openSpecInEditor(page: import("@playwright/test").Page, filename: string): Promise<void> {
-  await page.keyboard.press("Meta+Shift+P");
-  await page.waitForSelector(".quick-input-widget", { timeout: 5_000 });
-  await page.keyboard.type("Go to File");
-  await page.keyboard.press("Enter");
-  await page.waitForSelector(".quick-input-widget");
-  await page.keyboard.type(filename);
-  await page.keyboard.press("Enter");
-}
+const openSpecInEditor = openFileInEditor;
 
 test.describe("Spec markdown preview", () => {
   test("preview opens automatically when spec file opened", async ({ page, workspace }) => {
@@ -67,7 +59,7 @@ test.describe("Spec markdown preview", () => {
 
     // Type in the editor — append a unique string
     const uniqueText = `UniqueMarker_${Date.now()}`;
-    await page.keyboard.press("Meta+End");
+    await page.keyboard.press(process.platform === "darwin" ? "Meta+End" : "Control+End");
     await page.keyboard.type(`\n\n## ${uniqueText}`);
 
     // Wait for debounce + re-render

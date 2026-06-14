@@ -5,7 +5,7 @@
  */
 import path from "path";
 import fs from "fs";
-import { test, expect, sel, openSpecView } from "../fixtures/app.js";
+import { test, expect, sel, openSpecView, openFileInEditor } from "../fixtures/app.js";
 
 const CLEAN_SPEC = `---
 slug: 0001-clean-spec
@@ -68,14 +68,7 @@ test.describe("Spec lint panel", () => {
   test("clean spec shows no error findings", async ({ page, workspace }) => {
     seedSpecFile(workspace, "0001-clean-spec.md", CLEAN_SPEC);
 
-    // Open the spec file in the editor via command palette
-    await page.keyboard.press("Meta+Shift+P");
-    await page.waitForSelector(".quick-input-widget", { timeout: 5_000 });
-    await page.keyboard.type("Go to File");
-    await page.keyboard.press("Enter");
-    await page.waitForSelector(".quick-input-widget");
-    await page.keyboard.type("0001-clean-spec.md");
-    await page.keyboard.press("Enter");
+    await openFileInEditor(page, "0001-clean-spec.md");
 
     // Wait for lint panel to populate
     await page.waitForSelector(sel.lintWidget, { timeout: 10_000 });
@@ -87,13 +80,7 @@ test.describe("Spec lint panel", () => {
   test("duplicate AC id surfaces as error finding", async ({ page, workspace }) => {
     seedSpecFile(workspace, "0001-clean-spec.md", SPEC_WITH_ERRORS);
 
-    await page.keyboard.press("Meta+Shift+P");
-    await page.waitForSelector(".quick-input-widget", { timeout: 5_000 });
-    await page.keyboard.type("Go to File");
-    await page.keyboard.press("Enter");
-    await page.waitForSelector(".quick-input-widget");
-    await page.keyboard.type("0001-clean-spec.md");
-    await page.keyboard.press("Enter");
+    await openFileInEditor(page, "0001-clean-spec.md");
 
     await page.waitForSelector(sel.lintWidget, { timeout: 10_000 });
 

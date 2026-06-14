@@ -11,6 +11,9 @@ const ELECTRON_MAIN = path.join(REPO_ROOT, "apps/desktop/src-gen/backend/electro
 // On Linux CI there is no display server; Electron needs --no-sandbox.
 const EXTRA_ARGS = process.platform === "linux" ? ["--no-sandbox"] : [];
 
+// ctrlcmd in Theia maps to Cmd on macOS and Ctrl elsewhere.
+const MOD = process.platform === "darwin" ? "Meta" : "Control";
+
 export interface AppFixtures {
   readonly app: ElectronApplication;
   readonly page: Page;
@@ -47,8 +50,10 @@ export const test = base.extend<AppFixtures>({
 
   page: async ({ app }, use) => {
     const page = await app.firstWindow();
-    // Wait for Theia shell to be ready
+    // Wait for Theia shell DOM, then for the status bar which appears only
+    // after Theia finishes JS initialization (services, keybindings, plugins).
     await page.waitForSelector(".theia-ApplicationShell", { timeout: 30_000 });
+    await page.waitForSelector(".theia-statusBar", { timeout: 30_000 });
     await use(page);
   },
 });
@@ -95,15 +100,27 @@ export const sel = {
   notification: ".theia-notification-message",
 } as const;
 
-/** Open the SPEXR spec view via keyboard shortcut or command palette. */
+/**
+ * Open the SPEXR spec view using its registered keybinding (ctrlcmd+shift+s).
+ * Avoids the command palette entirely — palette requires extra round-trips and
+ * is less reliable in headless Electron CI.
+ */
 export async function openSpecView(page: Page): Promise<void> {
-  // Meta = Cmd on macOS, but Windows key on Linux — use Control on non-mac
-  const modifier = process.platform === "darwin" ? "Meta" : "Control";
-  await page.keyboard.press(`${modifier}+Shift+P`);
-  await page.waitForSelector(".quick-input-widget", { timeout: 5_000 });
-  await page.keyboard.type("SPEXR: Show Specs");
+  await page.keyboard.press(`${MOD}+Shift+S`);
+  await page.waitForSelector(sel.specPanel, { timeout: 15_000 });
+}
+
+/**
+ * Open a file in the Theia editor using the quick file picker (ctrlcmd+p).
+ * More reliable than going through the command palette → "Go to File" two-step.
+ */
+export async function openFileInEditor(page: Page, filename: string): Promise<void> {
+  await page.keyboard.press(`${MOD}+P`);
+  await page.waitForSelector(".quick-input-widget", { timeout: 10_000 });
+  await page.keyboard.type(filename);
   await page.keyboard.press("Enter");
-  await page.waitForSelector(sel.specPanel, { timeout: 10_000 });
+  // Brief settle time for the editor to finish opening
+  await page.waitForTimeout(500);
 }
 
 /** Wait until at least one spec item appears in the list. */
