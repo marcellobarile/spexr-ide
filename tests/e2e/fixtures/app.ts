@@ -2,10 +2,14 @@ import { test as base, _electron as electron, type ElectronApplication, type Pag
 import path from "path";
 import fs from "fs";
 import os from "os";
-
 const REPO_ROOT = path.resolve(__dirname, "../../..");
-const ELECTRON_BIN = path.join(REPO_ROOT, "node_modules/electron/dist/Electron.app/Contents/MacOS/Electron");
+// `electron` package exports the platform-correct binary path as its default value.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const ELECTRON_BIN: string = require("electron") as string;
 const ELECTRON_MAIN = path.join(REPO_ROOT, "apps/desktop/src-gen/backend/electron-main.js");
+
+// On Linux CI there is no display server; Electron needs --no-sandbox.
+const EXTRA_ARGS = process.platform === "linux" ? ["--no-sandbox"] : [];
 
 export interface AppFixtures {
   readonly app: ElectronApplication;
@@ -29,11 +33,12 @@ export const test = base.extend<AppFixtures>({
   app: async ({ workspace }, use) => {
     const app = await electron.launch({
       executablePath: ELECTRON_BIN,
-      args: [ELECTRON_MAIN, workspace],
+      args: [...EXTRA_ARGS, ELECTRON_MAIN, workspace],
       env: {
         ...process.env,
         THEIA_DEFAULT_PLUGINS: "local-dir:plugins",
         ELECTRON_DISABLE_SECURITY_WARNINGS: "true",
+        DISPLAY: process.env.DISPLAY ?? ":99",
       },
     });
     await use(app);
