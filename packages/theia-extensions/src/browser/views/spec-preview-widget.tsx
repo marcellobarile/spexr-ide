@@ -131,7 +131,9 @@ export class SpexrSpecPreviewWidget extends ReactWidget {
     const uri = widget?.getResourceUri();
     if (!widget || !uri) return;
     const raw = widget.editor.document.getText();
-    const html = DOMPurify.sanitize(marked.parse(raw) as string);
+    const html = DOMPurify.sanitize(marked.parse(raw) as string, {
+      FORBID_TAGS: ["script", "iframe"],
+    });
     this.state = { title: uri.path.base, html };
     this.update();
   }

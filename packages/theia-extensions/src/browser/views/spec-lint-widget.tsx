@@ -1,6 +1,7 @@
 import * as React from "react";
 import { injectable, inject, postConstruct } from "@theia/core/shared/inversify";
 import { ReactWidget, type Message } from "@theia/core/lib/browser";
+import { BadgeService } from "@theia/core/lib/browser/badges/badge-service.js";
 import { DisposableCollection } from "@theia/core/lib/common/disposable";
 import { EditorManager, type EditorWidget } from "@theia/editor/lib/browser";
 import { WorkspaceService } from "@theia/workspace/lib/browser";
@@ -57,6 +58,9 @@ export class SpexrSpecLintWidget extends ReactWidget {
   @inject(FileService)
   private readonly fileService!: FileService;
 
+  @inject(BadgeService)
+  private readonly badgeService!: BadgeService;
+
   private state: LintState | undefined;
   private knownSlugs: string[] = [];
   /** Editor currently linted, plus its content-change subscription. */
@@ -97,6 +101,7 @@ export class SpexrSpecLintWidget extends ReactWidget {
       this.trackedDisposables.dispose();
       this.tracked = undefined;
       this.state = undefined;
+      this.badgeService.showBadge(this);
       this.update();
       return;
     }
@@ -129,6 +134,17 @@ export class SpexrSpecLintWidget extends ReactWidget {
     const raw = widget.editor.document.getText();
     const report = lintSpec(raw, { filename: uri.path.base, knownSlugs: this.knownSlugs });
     this.state = { specUri: uri.toString(), title: specTitle(raw, uri), report };
+    const errors = report.findings.filter((f) => f.severity === "error").length;
+    const warns = report.findings.filter((f) => f.severity === "warn").length;
+    const count = errors + warns;
+    if (count > 0) {
+      this.badgeService.showBadge(this, {
+        value: count,
+        tooltip: `${errors} error${errors !== 1 ? "s" : ""}, ${warns} warning${warns !== 1 ? "s" : ""}`,
+      });
+    } else {
+      this.badgeService.showBadge(this);
+    }
     this.update();
   }
 
