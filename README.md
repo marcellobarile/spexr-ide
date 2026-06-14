@@ -215,6 +215,72 @@ SPEXR_DEVTOOLS=1 pnpm start
 
 UI strings go through Theia's i18n: `nls.localize("spexr/<area>/<key>", "English default", ...args)`. **English is the default** and renders with no language pack — the second argument is the fallback. No other languages ship today; add one by registering a Theia `LocalizationContribution` (backend) for the existing `spexr/*` keys — call sites don't change.
 
+### Release process
+
+Releases are fully automated via GitHub Actions ([`.github/workflows/release.yml`](.github/workflows/release.yml)). The script handles versioning, changelog, and tagging; CI handles building and publishing.
+
+#### Cutting a release
+
+```bash
+bash scripts/release.sh [patch|minor|major]
+# default: patch  →  0.1.0 → 0.1.1
+```
+
+What it does:
+
+1. Validates the working tree is clean and the branch is `main`.
+2. Bumps `version` in `apps/desktop/package.json` and root `package.json`.
+3. Generates a changelog section from `git log` since the last tag (merges and `chore: release` commits excluded).
+4. Prepends the section to `CHANGELOG.md`.
+5. Commits `chore: release v<new-version>`.
+6. Creates an annotated tag `v<new-version>`.
+7. Pushes commit + tag → triggers CI.
+
+#### What CI does on a `v*` tag
+
+```
+tag push
+  └─ e2e         build:dev + Playwright on ubuntu + xvfb
+       └─ build  [mac | win | linux] production builds (parallel, needs e2e)
+            └─ release  GitHub Release + installer attachments (needs all builds)
+```
+
+| Job | Runner | Artifacts |
+|---|---|---|
+| `e2e` | `ubuntu-latest` | Playwright HTML report (on failure, 7-day retention) |
+| `build / mac` | `macos-latest` | `SPEXR-<v>-mac-{x64,arm64}.{dmg,zip}` |
+| `build / win` | `windows-latest` | `SPEXR-<v>-win-x64.{exe,zip}` |
+| `build / linux` | `ubuntu-latest` | `SPEXR-<v>-linux-x64.{AppImage,deb}` |
+| `release` | `ubuntu-latest` | GitHub Release (auto-created, changelog body) |
+
+The E2E job is a hard gate: if any Playwright test fails the build and release jobs do not run.
+
+#### Code signing (current state)
+
+| Platform | Status | Notes |
+|---|---|---|
+| macOS | **Unsigned** | `CSC_IDENTITY_AUTO_DISCOVERY: false` in CI. Users must right-click → Open on first launch. Add `CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_ID`, `APPLE_TEAM_ID` to repo secrets to enable notarized builds. |
+| Windows | **Unsigned** | SmartScreen warns on first run. Add an EV certificate secret to enable signing. |
+| Linux | N/A | No signing required for AppImage/deb. |
+
+#### Running E2E locally
+
+```bash
+# Requires a dev build first
+pnpm build:dev
+
+# Mac / Windows (no display server needed)
+pnpm --filter @spexr/e2e test
+
+# Linux (needs xvfb)
+xvfb-run --auto-servernum pnpm --filter @spexr/e2e test
+
+# Interactive UI mode
+pnpm --filter @spexr/e2e test:ui
+```
+
+Playwright HTML report opens at `tests/e2e/playwright-report/index.html` after a run.
+
 ### Contributing workflow
 
 SPEXR dogfoods its own spec-driven flow:
