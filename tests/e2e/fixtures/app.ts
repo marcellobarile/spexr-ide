@@ -100,26 +100,56 @@ export const sel = {
   notification: ".theia-notification-message",
 } as const;
 
+// Theia registers keybinding handlers on document with capture=true.
+// Playwright CDP keyboard events don't reliably trigger them in headless Electron
+// (modifier+key combos are swallowed). Dispatching synthetic KeyboardEvents
+// directly on document bypasses CDP routing and fires Theia's handlers.
+function theiaKey(
+  page: Page,
+  key: string,
+  code: string,
+  opts: { ctrl?: boolean; meta?: boolean; shift?: boolean } = {}
+): Promise<void> {
+  return page.evaluate(
+    ([k, c, o]) => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: k as string,
+          code: c as string,
+          ctrlKey: !!(o as Record<string, boolean>).ctrl,
+          metaKey: !!(o as Record<string, boolean>).meta,
+          shiftKey: !!(o as Record<string, boolean>).shift,
+          bubbles: true,
+          cancelable: true,
+          composed: true,
+        })
+      );
+    },
+    [key, code, opts] as const
+  );
+}
+
+const IS_MAC = process.platform === "darwin";
+
 /**
  * Open the SPEXR spec view using its registered keybinding (ctrlcmd+shift+s).
- * Avoids the command palette entirely — palette requires extra round-trips and
- * is less reliable in headless Electron CI.
+ * Uses synthetic DOM dispatch — CDP modifier+key events are unreliable in headless Electron.
  */
 export async function openSpecView(page: Page): Promise<void> {
-  await page.keyboard.press(`${MOD}+Shift+S`);
-  await page.waitForSelector(sel.specPanel, { timeout: 15_000 });
+  await theiaKey(page, "S", "KeyS", { ctrl: !IS_MAC, meta: IS_MAC, shift: true });
+  // Panel exists in DOM but is hidden until the keybinding fires; wait for visible.
+  await page.waitForSelector(sel.specPanel, { state: "visible", timeout: 15_000 });
 }
 
 /**
  * Open a file in the Theia editor using the quick file picker (ctrlcmd+p).
- * More reliable than going through the command palette → "Go to File" two-step.
+ * Uses synthetic DOM dispatch for the opener, then regular typing for the filename.
  */
 export async function openFileInEditor(page: Page, filename: string): Promise<void> {
-  await page.keyboard.press(`${MOD}+P`);
+  await theiaKey(page, "p", "KeyP", { ctrl: !IS_MAC, meta: IS_MAC });
   await page.waitForSelector(".quick-input-widget", { timeout: 10_000 });
-  await page.keyboard.type(filename);
+  await page.locator(".quick-input-widget input").fill(filename);
   await page.keyboard.press("Enter");
-  // Brief settle time for the editor to finish opening
   await page.waitForTimeout(500);
 }
 
