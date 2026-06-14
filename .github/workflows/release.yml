@@ -28,9 +28,6 @@ jobs:
         with:
           version: 9.12.0
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
       - name: Install system dependencies (Linux)
         run: |
           sudo apt-get update -y
@@ -40,6 +37,9 @@ jobs:
             libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 \
             libxfixes3 libxrandr2 libgbm1 libasound2t64 \
             xvfb
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Rebuild native modules
         run: pnpm rebuild
