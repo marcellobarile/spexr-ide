@@ -11,9 +11,6 @@ const ELECTRON_MAIN = path.join(REPO_ROOT, "apps/desktop/src-gen/backend/electro
 // On Linux CI there is no display server; Electron needs --no-sandbox.
 const EXTRA_ARGS = process.platform === "linux" ? ["--no-sandbox"] : [];
 
-// ctrlcmd in Theia maps to Cmd on macOS and Ctrl elsewhere.
-const MOD = process.platform === "darwin" ? "Meta" : "Control";
-
 export interface AppFixtures {
   readonly app: ElectronApplication;
   readonly page: Page;
@@ -100,57 +97,48 @@ export const sel = {
   notification: ".theia-notification-message",
 } as const;
 
-// Theia registers keybinding handlers on document with capture=true.
-// Playwright CDP keyboard events don't reliably trigger them in headless Electron
-// (modifier+key combos are swallowed). Dispatching synthetic KeyboardEvents
-// directly on document bypasses CDP routing and fires Theia's handlers.
-function theiaKey(
-  page: Page,
-  key: string,
-  code: string,
-  opts: { ctrl?: boolean; meta?: boolean; shift?: boolean } = {}
-): Promise<void> {
-  return page.evaluate(
-    ([k, c, o]) => {
-      document.dispatchEvent(
-        new KeyboardEvent("keydown", {
-          key: k as string,
-          code: c as string,
-          ctrlKey: !!(o as Record<string, boolean>).ctrl,
-          metaKey: !!(o as Record<string, boolean>).meta,
-          shiftKey: !!(o as Record<string, boolean>).shift,
-          bubbles: true,
-          cancelable: true,
-          composed: true,
-        })
-      );
-    },
-    [key, code, opts] as const
-  );
-}
-
-const IS_MAC = process.platform === "darwin";
-
 /**
- * Open the SPEXR spec view using its registered keybinding (ctrlcmd+shift+s).
- * Uses synthetic DOM dispatch — CDP modifier+key events are unreliable in headless Electron.
+ * Open the SPEXR spec view by clicking its tab in the main area.
+ * The spec view is pre-opened at startup with activate:false so the tab always
+ * exists in the main tab bar — no keyboard shortcut needed.
+ * Theia (lumino) uses .lm-TabBar-tabLabel; .p-TabBar-tabLabel is the legacy alias.
  */
 export async function openSpecView(page: Page): Promise<void> {
-  await theiaKey(page, "S", "KeyS", { ctrl: !IS_MAC, meta: IS_MAC, shift: true });
-  // Panel exists in DOM but is hidden until the keybinding fires; wait for visible.
+  const tabLabel = page
+    .locator(".lm-TabBar-tabLabel, .p-TabBar-tabLabel")
+    .filter({ hasText: "Active Spec" });
+  await tabLabel.first().click({ timeout: 10_000 });
   await page.waitForSelector(sel.specPanel, { state: "visible", timeout: 15_000 });
 }
 
 /**
- * Open a file in the Theia editor using the quick file picker (ctrlcmd+p).
- * Uses synthetic DOM dispatch for the opener, then regular typing for the filename.
+ * Open a file in the Theia editor via the Explorer sidebar tree.
+ * More reliable than keyboard-driven quick-open in headless Electron CI where
+ * modifier+key CDP events are unreliable.
+ * The file must already exist on disk before calling this.
  */
 export async function openFileInEditor(page: Page, filename: string): Promise<void> {
-  await theiaKey(page, "p", "KeyP", { ctrl: !IS_MAC, meta: IS_MAC });
-  await page.waitForSelector(".quick-input-widget", { timeout: 10_000 });
-  await page.locator(".quick-input-widget input").fill(filename);
-  await page.keyboard.press("Enter");
-  await page.waitForTimeout(500);
+  // Expand parent folders in the Explorer tree if needed.
+  for (const segment of ["docs", "specs"]) {
+    const folder = page
+      .locator(".theia-FileTreeNode")
+      .filter({ hasText: new RegExp(`^${segment}$`) });
+    if (await folder.count() > 0 && await folder.first().isVisible()) {
+      const isExpanded = await folder.first().getAttribute("aria-expanded");
+      if (isExpanded !== "true") {
+        await folder.first().click();
+        await page.waitForTimeout(200);
+      }
+    }
+  }
+
+  // Find and double-click the file node to open it in the editor.
+  const fileNode = page
+    .locator(".theia-FileTreeNode")
+    .filter({ hasText: filename });
+  await fileNode.first().dblclick({ timeout: 8_000 });
+  // Settle time for editor to open and emit onCurrentEditorChanged.
+  await page.waitForTimeout(800);
 }
 
 /** Wait until at least one spec item appears in the list. */
