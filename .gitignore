@@ -25,6 +25,11 @@ gen-webpack*.js
 .vscode/settings.json
 .idea/
 
+# Playwright E2E
+tests/e2e/playwright-report/
+tests/e2e/test-results/
+tests/e2e/dist/
+
 # Personal AI-tooling artifacts (not project content)
 .claude/
 .remember/
