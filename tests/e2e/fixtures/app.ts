@@ -50,10 +50,10 @@ export const test = base.extend<AppFixtures>({
 
   page: async ({ app }, use) => {
     const page = await app.firstWindow();
-    // Wait for Theia shell DOM, then for the status bar which appears only
-    // after Theia finishes JS initialization (services, keybindings, plugins).
+    // Wait for Theia shell DOM, then for the status bar (id="theia-statusBar")
+    // which appears only after Theia finishes JS initialization (keybindings, plugins).
     await page.waitForSelector(".theia-ApplicationShell", { timeout: 30_000 });
-    await page.waitForSelector(".theia-statusBar", { timeout: 30_000 });
+    await page.waitForSelector("#theia-statusBar", { timeout: 30_000 });
     await use(page);
   },
 });
