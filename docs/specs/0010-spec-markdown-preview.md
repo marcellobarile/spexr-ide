@@ -1,10 +1,10 @@
 ---
 slug: 0010-spec-markdown-preview
 title: Spec markdown preview
-status: in-progress
+status: validated
 createdAt: 2026-06-04
-workflowStep: validate
-updatedAt: 2026-06-12
+workflowStep: ship
+updatedAt: 2026-06-14
 ---
 
 > **What is this file.** Implementation contract for a live markdown preview panel that opens split-right alongside the spec editor. Audience: SPEXR contributors. Owner: marcello.barile. This spec is the implementation contract; no companion solution-proposal file.
