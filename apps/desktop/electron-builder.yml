@@ -32,6 +32,8 @@ mac:
       arch:
         - x64
         - arm64
+  # Hardened runtime enabled; signing is skipped when CSC_LINK is unset (unsigned builds).
+  # Users must right-click → Open on first launch to bypass Gatekeeper.
   hardenedRuntime: true
   gatekeeperAssess: false
   entitlements: build/entitlements.mac.plist
@@ -57,4 +59,7 @@ nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
   perMachine: false
-publish: null
+publish:
+  provider: github
+  owner: marcellobarile
+  repo: spexr-ide

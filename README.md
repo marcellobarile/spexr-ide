@@ -2,7 +2,7 @@
 
 Agent-centric, spec-based IDE. Built on **Eclipse Theia** + **Theia AI**, fully TypeScript.
 
-> **Status: pre-alpha scaffold.** No packaged release yet — you run it from source. APIs, layout, and on-disk formats still change. See `docs/specs/` for the live roadmap.
+> **Status: v0.1.0 — public beta.** Packaged installers available on the [Releases page](https://github.com/marcellobarile/spexr-ide/releases). Core spec workflow complete. On-disk formats stable; minor API changes possible before 1.0.
 
 ## Why
 
@@ -58,28 +58,65 @@ claude --version     # must resolve on your PATH (or set spexr.claude.executable
 
 If you launch `claude` through a shell alias that sets `CLAUDE_CONFIG_DIR` (e.g. multiple Claude profiles), SPEXR detects it on workspace open and, when more than one profile exists, prompts once per project and remembers your choice.
 
-### Run it
+### Install from a release (recommended)
 
-There is no installer yet — build and launch from source:
+Download the latest installer from the [Releases page](https://github.com/marcellobarile/spexr-ide/releases).
+
+#### macOS
+
+1. Download `SPEXR-<version>-mac-arm64.dmg` (Apple Silicon) or `SPEXR-<version>-mac-x64.dmg` (Intel).
+2. Open the DMG and drag **SPEXR** to **Applications**.
+3. **First launch only:** macOS blocks unsigned apps. Right-click the app icon → **Open** → **Open** in the dialog. After that, double-click works normally.
+
+> SPEXR is not yet notarized by Apple. The "right-click → Open" step is a one-time workaround until code signing is set up.
+
+#### Windows
+
+1. Download `SPEXR-<version>-win-x64.exe` (NSIS installer).
+2. Run the installer. If Windows SmartScreen warns "Unknown publisher", click **More info → Run anyway**.
+3. SPEXR appears in the Start menu.
+
+> Windows may show a SmartScreen warning because the binary is not yet code-signed.
+
+#### Linux
+
+**AppImage (any distro):**
+```bash
+chmod +x SPEXR-<version>-linux-x64.AppImage
+./SPEXR-<version>-linux-x64.AppImage
+```
+
+**Debian / Ubuntu:**
+```bash
+sudo dpkg -i SPEXR-<version>-linux-x64.deb
+# then launch via Applications menu or:
+spexr
+```
+
+---
+
+### Run from source
+
+Requires Node.js ≥ 22.17.0 and pnpm ≥ 9.
 
 ```bash
 nvm use
-pnpm setup        # idempotent: installs deps, rebuilds Electron native modules, builds packages
-pnpm dev          # build all packages + launch the Electron app
+pnpm setup        # installs deps, rebuilds Electron native modules, builds packages
+pnpm dev          # build + launch
 ```
 
-On first launch the onboarding wizard collects your project docs and seeds memory. Open a folder as your workspace; the agent session starts automatically.
+On first launch the onboarding wizard seeds project memory. Open any folder as your workspace; the Claude session starts automatically.
 
-### Building installers (optional)
+### Build installers locally
 
 ```bash
 pnpm package           # current OS
-pnpm package:mac       # dmg + zip (x64 + arm64)
-pnpm package:win       # nsis + zip (x64)
+pnpm package:mac       # dmg + zip (x64 + arm64)  — requires macOS
+pnpm package:win       # nsis + zip (x64)          — requires Windows or Wine
 pnpm package:linux     # AppImage + deb (x64)
 ```
 
-Output lands in `apps/desktop/dist-installers/`. Config: `apps/desktop/electron-builder.yml`.
+Output: `apps/desktop/dist-installers/`. Config: `apps/desktop/electron-builder.yml`.
 
 ### How your workspace is laid out
 
@@ -195,24 +232,29 @@ Conventions: TypeScript strict, no dead code or speculative abstractions, commen
 
 ## Roadmap
 
-The core scaffold (specs `0001`–`0004`) is implemented. Open specs in `docs/specs/` are the live roadmap — good first contributions.
+Specs `0001`–`0010` are implemented and shipped in v0.1.0. Open a spec in `docs/specs/` to see its acceptance criteria and status — they are the live roadmap.
 
-**Next — close the spec → PR loop** (these finish what the pillars promise):
+**Shipped in v0.1.0** — full spec → PR loop:
 
-| Spec | What | Why it matters |
-|---|---|---|
-| [`0005`](docs/specs/0005-drift-detector.md) | Real drift detector | Tells you when the code has stopped matching what the spec asked for, instead of just checking the spec is well-formed. |
-| [`0006`](docs/specs/0006-spec-context-fan-in.md) | Spec-context fan-in | The notes and files you attach to a spec are handed to the agent automatically, so it starts with the full picture. |
-| [`0007`](docs/specs/0007-ship-to-pr.md) | Ship → PR | One action takes a finished spec to an opened pull request, instead of doing the git steps by hand. |
-| [`0008`](docs/specs/0008-plan-task-artifacts.md) | Plan & task artifacts | Breaks a spec into a saved checklist you can tick off, so progress is visible and survives restarts. |
+| Spec | What |
+|---|---|
+| `0001` | Bootstrap — Theia shell, agent terminal, memory panel |
+| `0003` | Terminal agent surface — embedded Claude session |
+| `0004` | Expert personas — built-in catalog, per-step auto-activation |
+| `0005` | Drift detector — agent evaluates AC coverage vs. code |
+| `0006` | Spec context fan-in — attached files fed to agent on handoff |
+| `0007` | Ship → PR — commit + push + `gh pr create` in one step |
+| `0008` | Plan & task artifacts — checklist from spec AC, tickable in UI |
+| `0009` | Live spec validation — lint panel, tab badge |
+| `0010` | Markdown preview — split-right live preview |
 
-**Exploration — net-new directions** (not yet specced):
+**Next — net-new directions** (not yet specced):
 
-- **MCP / tool-use registration** — per-project MCP servers exposed to the spawned CLI (named as a separate spec in `0002`).
-- **Custom & shareable experts** — author/import experts beyond the built-in catalog (extends `0004`).
+- **MCP / tool-use registration** — per-project MCP servers exposed to the spawned CLI.
+- **Custom & shareable experts** — author/import experts beyond the built-in catalog.
 - **Cost & usage tracking** — token/cost per spec and session from the local CLI.
-- **Localization packs** — languages beyond English via Theia `LocalizationContribution`.
-- **Concurrent expert sessions** — more than one agent terminal side by side (e.g. Design + Review).
+- **Mac notarization** — remove the "right-click → Open" first-launch step.
+- **Concurrent expert sessions** — more than one agent terminal side by side.
 
 ## License
 
