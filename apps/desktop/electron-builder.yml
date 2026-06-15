@@ -1,6 +1,10 @@
 appId: dev.spexr.ide
 productName: SPEXR
 electronVersion: "39.8.10"
+# Native modules are rebuilt by the CI's explicit `theia rebuild:electron`
+# step before electron-builder runs. Skip the internal rebuild to avoid
+# node-gyp/Python 3.12 distutils incompatibility in app-builder-lib.
+npmRebuild: false
 copyright: Copyright © 2026
 artifactName: ${productName}-${version}-${os}-${arch}.${ext}
 directories:
