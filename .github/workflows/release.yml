@@ -97,6 +97,10 @@ jobs:
         with:
           version: 9.12.0
 
+      - name: Install system dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -y && sudo apt-get install -y libx11-dev libxkbfile-dev
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 

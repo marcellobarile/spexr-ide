@@ -1,5 +1,6 @@
 appId: dev.spexr.ide
 productName: SPEXR
+electronVersion: "39.8.10"
 copyright: Copyright © 2026
 artifactName: ${productName}-${version}-${os}-${arch}.${ext}
 directories:
