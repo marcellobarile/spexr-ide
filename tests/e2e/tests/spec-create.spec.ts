@@ -3,14 +3,14 @@
  * Verifies: spec file created, appears in list, stepper at "Specify" step,
  * advances to "Context" once real AC authored.
  */
-import { test, expect, sel, openSpecView, waitForSpecList } from "../fixtures/app.js";
+import { test, expect, sel, openSpecView, waitForSpecList, createSpecViaUI } from "../fixtures/app.js";
 import { listSpecFiles, readWorkspaceFile } from "../fixtures/fs-helpers.js";
 
 test.describe("Spec creation", () => {
   test("creates spec file and shows it in the list", async ({ page, workspace }) => {
     await openSpecView(page);
 
-    await page.click(sel.createBtn);
+    await createSpecViaUI(page);
 
     // Spec file appears in docs/specs/
     await expect
@@ -28,7 +28,7 @@ test.describe("Spec creation", () => {
 
   test("new spec shows Specify as current step", async ({ page, workspace }) => {
     await openSpecView(page);
-    await page.click(sel.createBtn);
+    await createSpecViaUI(page);
     await waitForSpecList(page);
 
     const specifyStep = page.locator(sel.stepBtn("Specify"));
@@ -40,7 +40,7 @@ test.describe("Spec creation", () => {
 
   test("stepper stays at Specify with placeholder AC only", async ({ page, workspace }) => {
     await openSpecView(page);
-    await page.click(sel.createBtn);
+    await createSpecViaUI(page);
     await waitForSpecList(page);
 
     // Scaffold file has placeholder AC — step must not advance past Specify
@@ -50,7 +50,7 @@ test.describe("Spec creation", () => {
 
   test("stepper advances to Context once real AC written", async ({ page, workspace }) => {
     await openSpecView(page);
-    await page.click(sel.createBtn);
+    await createSpecViaUI(page);
     await waitForSpecList(page);
 
     const [filename] = listSpecFiles(workspace);

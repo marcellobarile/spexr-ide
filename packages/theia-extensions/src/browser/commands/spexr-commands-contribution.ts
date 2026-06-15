@@ -613,7 +613,7 @@ export class SpexrCommandsContribution implements CommandContribution, MenuContr
       const planFile = await this.fileService.read(planUri);
       const doc = parseSpecPlan(planFile.value, slug);
       const updated = togglePlanTask(doc, taskId);
-      await this.fileService.write(planUri, serializeSpecPlan(updated));
+      await this.fileService.create(planUri, serializeSpecPlan(updated), { overwrite: true });
     } catch (err) {
       this.messages.error(`Failed to toggle task: ${err instanceof Error ? err.message : String(err)}`);
     }

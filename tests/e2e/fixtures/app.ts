@@ -3,13 +3,14 @@ import path from "path";
 import fs from "fs";
 import os from "os";
 const REPO_ROOT = path.resolve(__dirname, "../../..");
-// `electron` package exports the platform-correct binary path as its default value.
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const ELECTRON_BIN: string = require("electron") as string;
-const ELECTRON_MAIN = path.join(REPO_ROOT, "apps/desktop/src-gen/backend/electron-main.js");
-
-// On Linux CI there is no display server; Electron needs --no-sandbox.
-const EXTRA_ARGS = process.platform === "linux" ? ["--no-sandbox"] : [];
+const DESKTOP_DIR = path.join(REPO_ROOT, "apps/desktop");
+// apps/desktop/package.json "main": "src-gen/backend/electron-main.js"
+const ELECTRON_MAIN = path.join(DESKTOP_DIR, "src-gen/backend/electron-main.js");
+// Do NOT set executablePath: when executablePath is omitted, Playwright uses
+// require("electron/index.js") and injects -r loader.js which splices
+// --remote-debugging-port=0 out of process.argv.  With executablePath set,
+// loader.js is NOT injected, so the Chromium flag stays in argv and Theia's
+// argv.slice(2) picks up ELECTRON_MAIN as the workspace path.
 
 export interface AppFixtures {
   readonly app: ElectronApplication;
@@ -32,8 +33,8 @@ export const test = base.extend<AppFixtures>({
 
   app: async ({ workspace }, use) => {
     const app = await electron.launch({
-      executablePath: ELECTRON_BIN,
-      args: [...EXTRA_ARGS, ELECTRON_MAIN, workspace],
+      cwd: DESKTOP_DIR,
+      args: [ELECTRON_MAIN, workspace],
       env: {
         ...process.env,
         THEIA_DEFAULT_PLUGINS: "local-dir:plugins",
@@ -47,10 +48,17 @@ export const test = base.extend<AppFixtures>({
 
   page: async ({ app }, use) => {
     const page = await app.firstWindow();
-    // Wait for Theia shell DOM, then for the status bar (id="theia-statusBar")
-    // which appears only after Theia finishes JS initialization (keybindings, plugins).
     await page.waitForSelector(".theia-ApplicationShell", { timeout: 30_000 });
+    // Status bar appears after Theia finishes JS init (keybindings, plugins).
     await page.waitForSelector("#theia-statusBar", { timeout: 30_000 });
+    // Dismiss workspace-trust dialog (Theia asks for trust on unknown/temp dirs).
+    const trustDialog = page.locator("#theia-dialog-shell.workspace-trust-dialog");
+    if (await trustDialog.isVisible({ timeout: 3_000 }).catch(() => false)) {
+      await page.locator('button:has-text("Yes, I trust the authors")').click();
+      await trustDialog.waitFor({ state: "hidden", timeout: 5_000 });
+    }
+    // Let Theia panel-layout animations finish before tests start interacting.
+    await page.waitForTimeout(1000);
     await use(page);
   },
 });
@@ -84,7 +92,8 @@ export const sel = {
 
   // Spec lint (bottom panel)
   lintWidget: ".spexr-spec-lint-widget",
-  lintSummary: ".spexr-spec-lint__summary",
+  lintOk: ".spexr-spec-lint__ok",       // rendered when report.total === 0
+  lintSummary: ".spexr-spec-lint__summary", // rendered when report.total > 0
   lintFinding: ".spexr-spec-lint__finding",
 
   // Spec preview
@@ -104,44 +113,108 @@ export const sel = {
  * Theia (lumino) uses .lm-TabBar-tabLabel; .p-TabBar-tabLabel is the legacy alias.
  */
 export async function openSpecView(page: Page): Promise<void> {
-  const tabLabel = page
-    .locator(".lm-TabBar-tabLabel, .p-TabBar-tabLabel")
-    .filter({ hasText: "Active Spec" });
-  await tabLabel.first().click({ timeout: 10_000 });
+  // Widget sets this.title.label = "Spec" (not widgetName "Active Spec").
+  // Lumino tab switching is triggered by pointerdown on the <li> tab element.
+  // Playwright's locator.click() can fail hit-test or dispatch to the wrong
+  // element during layout init, so we dispatch the full pointer-event sequence
+  // ourselves via evaluate.
+  // Lumino's TabBar._evtPointerDown uses clientX/clientY to hit-test which tab
+  // the user clicked. Synthetic PointerEvents default to clientX=0,clientY=0 so
+  // the hit test always misses. We read the tab's real bounding rect and embed
+  // those coordinates in the event so Lumino finds the correct tab.
+  await page.evaluate(() => {
+    const labels = [
+      ...document.querySelectorAll<HTMLElement>(".lm-TabBar-tabLabel, .p-TabBar-tabLabel"),
+    ];
+    const specLabel = labels.find((el) => el.textContent?.trim() === "Spec");
+    if (!specLabel) throw new Error("Spec tab label not found in DOM");
+    const tab = specLabel.closest<HTMLElement>("li") ?? specLabel.parentElement;
+    if (!tab) throw new Error("Spec tab <li> not found");
+    const rect = tab.getBoundingClientRect();
+    const cx = rect.x + rect.width / 2;
+    const cy = rect.y + rect.height / 2;
+    tab.dispatchEvent(
+      new PointerEvent("pointerdown", {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+        buttons: 1,
+        clientX: cx,
+        clientY: cy,
+        pointerId: 1,
+        isPrimary: true,
+      }),
+    );
+  });
   await page.waitForSelector(sel.specPanel, { state: "visible", timeout: 15_000 });
 }
 
 /**
- * Open a file in the Theia editor via the Explorer sidebar tree.
- * More reliable than keyboard-driven quick-open in headless Electron CI where
- * modifier+key CDP events are unreliable.
+ * Open a spec file in the editor via the Spec panel "Open" button.
+ * SPEXR's default layout does not include the file Explorer sidebar, so
+ * tree-based navigation is not available.  We instead surface the spec
+ * through the panel, which is always present.
  * The file must already exist on disk before calling this.
  */
-export async function openFileInEditor(page: Page, filename: string): Promise<void> {
-  // Expand parent folders in the Explorer tree if needed.
-  for (const segment of ["docs", "specs"]) {
-    const folder = page
-      .locator(".theia-FileTreeNode")
-      .filter({ hasText: new RegExp(`^${segment}$`) });
-    if (await folder.count() > 0 && await folder.first().isVisible()) {
-      const isExpanded = await folder.first().getAttribute("aria-expanded");
-      if (isExpanded !== "true") {
-        await folder.first().click();
-        await page.waitForTimeout(200);
-      }
-    }
-  }
-
-  // Find and double-click the file node to open it in the editor.
-  const fileNode = page
-    .locator(".theia-FileTreeNode")
-    .filter({ hasText: filename });
-  await fileNode.first().dblclick({ timeout: 8_000 });
-  // Settle time for editor to open and emit onCurrentEditorChanged.
-  await page.waitForTimeout(800);
+export async function openFileInEditor(page: Page, _filename: string): Promise<void> {
+  await openSpecView(page);
+  await waitForSpecList(page);
+  // Click the "Open" button of the first spec item to open it in the editor.
+  const openBtn = page
+    .locator(sel.specItem)
+    .first()
+    .locator('button[aria-label^="Open"]');
+  await openBtn.click();
+  // Settle for editor to open and emit onCurrentEditorChanged.
+  await page.waitForTimeout(1_000);
 }
 
 /** Wait until at least one spec item appears in the list. */
 export async function waitForSpecList(page: Page): Promise<void> {
+  // If the spec panel tab was deactivated (e.g. after openSpec opened an editor),
+  // re-activate it before waiting for list items.
+  const panel = page.locator(sel.specPanel);
+  if (!(await panel.isVisible().catch(() => false))) {
+    await openSpecView(page);
+    // Brief settle after tab switch before checking list contents.
+    await page.waitForTimeout(500);
+  }
+  // Files seeded directly to disk bypass fileService.onDidRunOperation, so the
+  // spec widget never receives a refresh event.  Click Refresh if items are not
+  // visible within 2 s to trigger refreshSpecs() manually.
+  // Scope the click to the spec panel to avoid hitting the Memory panel's own
+  // "Refresh" button which appears earlier in DOM order.
+  const item = page.locator(sel.specItem);
+  if (!(await item.isVisible({ timeout: 2_000 }).catch(() => false))) {
+    await page.locator(`${sel.specPanel} ${sel.refreshBtn}`).click();
+  }
   await page.waitForSelector(sel.specItem, { timeout: 10_000 });
+}
+
+/**
+ * Click "Create new spec", fill the two Quick Input prompts (slug + title),
+ * and wait for the spec list to populate.
+ * The Quick Input widget is Monaco's `.quick-input-widget`.
+ */
+export async function createSpecViaUI(
+  page: Page,
+  slug = "e2e-test",
+  title = "E2E Test",
+): Promise<void> {
+  await page.click(sel.createBtn);
+  const qi = page.locator(".quick-input-widget input");
+  // First prompt: slug
+  await qi.waitFor({ timeout: 8_000 });
+  await qi.fill(slug);
+  await page.keyboard.press("Enter");
+  // Second prompt: title
+  await qi.waitFor({ timeout: 5_000 });
+  await qi.fill(title);
+  await page.keyboard.press("Enter");
+  // createSpec() fires openSpec(fileUri) asynchronously after the Quick Input
+  // resolves. openSpec activates the editor tab, hiding the Spec panel.
+  // Wait for the editor to finish opening (tab label changes from "Welcome" to
+  // the spec filename) before re-activating the Spec panel.
+  await page.waitForTimeout(2000);
+  await openSpecView(page);
 }

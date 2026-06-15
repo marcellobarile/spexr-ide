@@ -64,25 +64,34 @@ test.describe("Spec markdown preview", () => {
 
     // Wait for debounce + re-render
     await expect(body).toContainText(uniqueText, { timeout: 5_000 });
+
+    // Close editor tab without saving so Electron doesn't hang on teardown.
+    const cmd = process.platform === "darwin" ? "Meta" : "Control";
+    await page.keyboard.press(`${cmd}+W`);
+    const dontSave = page.locator('button:has-text("Don\'t Save")');
+    if (await dontSave.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      await dontSave.click();
+    }
   });
 
   test("toolbar toggle opens preview widget", async ({ page, workspace }) => {
     seedSpecFile(workspace, "0002-preview-spec.md", SPEC_CONTENT);
     await openSpecInEditor(page, "0002-preview-spec.md");
 
-    // Close preview if open, then toggle it back
-    const preview = page.locator(sel.previewWidget);
-    if (await preview.isVisible()) {
-      await preview.locator(".p-TabBar-tabCloseIcon").click();
-      await expect(preview).not.toBeVisible({ timeout: 3_000 });
-    }
-
-    // Click toolbar toggle
     const toggleBtn = page.locator('[title="Toggle markdown preview"]');
     await expect(toggleBtn).toBeVisible({ timeout: 5_000 });
-    await toggleBtn.click();
 
-    await expect(page.locator(sel.previewWidget)).toBeVisible({ timeout: 5_000 });
+    const preview = page.locator(sel.previewWidget);
+
+    // Toggle close: if preview auto-opened, close it via the toolbar toggle
+    if (await preview.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      await toggleBtn.click();
+      await expect(preview).not.toBeVisible({ timeout: 5_000 });
+    }
+
+    // Toggle open: click toggle to reopen the preview
+    await toggleBtn.click();
+    await expect(page.locator(sel.previewWidget)).toBeVisible({ timeout: 10_000 });
   });
 
   test("preview strips script tags from rendered HTML", async ({ page, workspace }) => {

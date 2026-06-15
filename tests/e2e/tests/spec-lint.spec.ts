@@ -5,7 +5,7 @@
  */
 import path from "path";
 import fs from "fs";
-import { test, expect, sel, openSpecView, openFileInEditor } from "../fixtures/app.js";
+import { test, expect, sel, openSpecView, openFileInEditor, waitForSpecList } from "../fixtures/app.js";
 
 const CLEAN_SPEC = `---
 slug: 0001-clean-spec
@@ -73,8 +73,9 @@ test.describe("Spec lint panel", () => {
     // Wait for lint panel to populate
     await page.waitForSelector(sel.lintWidget, { timeout: 10_000 });
 
-    const summary = page.locator(sel.lintSummary);
-    await expect(summary).toContainText("No issues", { timeout: 8_000 });
+    // Clean spec: widget shows .spexr-spec-lint__ok (no findings), not .spexr-spec-lint__summary.
+    const ok = page.locator(sel.lintOk);
+    await expect(ok).toContainText("No issues", { timeout: 8_000 });
   });
 
   test("duplicate AC id surfaces as error finding", async ({ page, workspace }) => {

@@ -69,6 +69,10 @@ export class SpexrSpecPreviewContribution
   async togglePreview(): Promise<void> {
     if (this.preview.isAttached) {
       await this.run(() => { this.preview.close(); });
+      // captureIntent is suppressed while programmatic=true, so set wantOpen
+      // manually — otherwise enforce() would immediately reopen the preview.
+      this.wantOpen = false;
+      this.closedForUri = this.editorManager.currentEditor?.getResourceUri()?.toString();
       return;
     }
     const current = this.editorManager.currentEditor;

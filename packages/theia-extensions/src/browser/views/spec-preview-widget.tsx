@@ -1,7 +1,7 @@
 import * as React from "react";
 import { flushSync } from "react-dom";
 import { injectable, inject, postConstruct } from "@theia/core/shared/inversify";
-import { ReactWidget, type Message } from "@theia/core/lib/browser";
+import { ReactWidget, Widget, type Message } from "@theia/core/lib/browser";
 import { DisposableCollection } from "@theia/core/lib/common/disposable";
 import { EditorManager, type EditorWidget } from "@theia/editor/lib/browser";
 import { marked } from "marked";
@@ -88,6 +88,16 @@ export class SpexrSpecPreviewWidget extends ReactWidget {
     this.node.focus();
   }
 
+  protected override onCloseRequest(_msg: Message): void {
+    // Bypass Theia's default (which calls dispose()) so this singleton can be
+    // reattached to the shell after being closed (e.g. via toolbar toggle).
+    if (this.parent) {
+      this.parent = null;
+    } else if (this.isAttached) {
+      Widget.detach(this);
+    }
+  }
+
   /**
    * Force a synchronous React commit via flushSync so hljs can query live DOM
    * nodes immediately after — React 18's createRoot.render() is async otherwise.
@@ -131,7 +141,8 @@ export class SpexrSpecPreviewWidget extends ReactWidget {
     const uri = widget?.getResourceUri();
     if (!widget || !uri) return;
     const raw = widget.editor.document.getText();
-    const html = DOMPurify.sanitize(marked.parse(raw) as string, {
+    const content = raw.replace(/^---\n[\s\S]*?\n---\n?/, "");
+    const html = DOMPurify.sanitize(marked.parse(content) as string, {
       FORBID_TAGS: ["script", "iframe"],
     });
     this.state = { title: uri.path.base, html };

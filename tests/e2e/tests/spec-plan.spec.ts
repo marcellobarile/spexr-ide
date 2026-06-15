@@ -83,9 +83,10 @@ test.describe("Plan checklist", () => {
     await openSpecView(page);
     await waitForSpecList(page);
 
-    // Click T1 checkbox
+    // Click T1 checkbox — React controlled input; use click(), not check() (check() verifies
+    // immediate DOM state change which won't happen until async refreshSpecs() re-renders).
     const t1box = page.locator(sel.planCheckbox("AC-1")).first();
-    await t1box.check();
+    await t1box.click();
 
     // Wait for file to be written
     await expect

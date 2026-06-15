@@ -109,6 +109,11 @@ test.describe("Workflow edge cases", () => {
       .locator("button[aria-label*='Delete']");
     await deleteBtn.click();
 
+    // deleteSpec shows a ConfirmDialog — click the OK button to confirm.
+    const confirmBtn = page.locator('#theia-dialog-shell button:has-text("Delete")');
+    await confirmBtn.waitFor({ timeout: 3_000 });
+    await confirmBtn.click();
+
     // Spec file should be gone from disk
     await expect
       .poll(() => fs.existsSync(path.join(workspace, "docs/specs/0001-delete-me.md")), {
