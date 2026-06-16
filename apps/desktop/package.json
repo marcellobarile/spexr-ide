@@ -3,6 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "description": "SPEXR desktop shell — Theia + Electron",
+  "homepage": "https://github.com/marcellobarile/spexr-ide",
+  "author": {
+    "name": "SPEXR",
+    "email": "marcello.barile@gmail.com"
+  },
   "license": "MIT",
   "main": "src-gen/backend/electron-main.js",
   "scripts": {
