@@ -129,7 +129,7 @@ jobs:
           for pkg_dir in "$node_modules_dir"/@*/; do
             for pkg in "$pkg_dir"*/; do
               [ -L "${pkg%/}" ] || continue
-              target=$(node -e "console.log(require('fs').realpathSync('${pkg%/}'))")
+              target=$(node -e "console.log(require('fs').realpathSync(process.argv[1]))" -- "${pkg%/}")
               rm -rf "${pkg%/}"
               cp -r "$target" "${pkg%/}"
             done
@@ -137,7 +137,7 @@ jobs:
           # Also handle non-scoped workspace packages directly under node_modules
           for pkg in "$node_modules_dir"/*/; do
             [ -L "${pkg%/}" ] || continue
-            target=$(node -e "console.log(require('fs').realpathSync('${pkg%/}'))")
+            target=$(node -e "console.log(require('fs').realpathSync(process.argv[1]))" -- "${pkg%/}")
             rm -rf "${pkg%/}"
             cp -r "$target" "${pkg%/}"
           done
