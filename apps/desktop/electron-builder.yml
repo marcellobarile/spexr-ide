@@ -31,6 +31,8 @@ asarUnpack:
   - "node_modules/**/*.{node,dll,dylib,so}"
   - "node_modules/node-pty/**/*"
   - "node_modules/nsfw/**/*"
+afterSign: build/after-sign.js
+
 mac:
   category: public.app-category.developer-tools
   target:
