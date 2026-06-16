@@ -20,6 +20,10 @@ files:
   - "!node_modules/**/{CHANGELOG.md,README.md,readme.md,changelog.md}"
   - "!node_modules/**/{test,tests,__tests__,docs,doc,example,examples}/**"
   - "!**/.turbo/**"
+  - "!**/*.tsbuildinfo"
+  - "!**/src/**"
+  - "!**/{test,tests,__tests__,spec,specs}/**"
+  - "!**/{.eslintrc*,.prettierrc*,tsconfig*,.editorconfig}"
 extraMetadata:
   main: src-gen/backend/electron-main.js
 asar: true
