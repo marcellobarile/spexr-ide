@@ -22,7 +22,7 @@ files:
   - "!**/.turbo/**"
   - "!**/*.tsbuildinfo"
   - "!node_modules/@spexr/*/src/**"
-  - "!**/{test,tests,__tests__,spec,specs}/**"
+  - "!**/{test,tests,__tests__}/**"
   - "!**/{.eslintrc*,.prettierrc*,tsconfig*,.editorconfig}"
 extraMetadata:
   main: src-gen/backend/electron-main.js
