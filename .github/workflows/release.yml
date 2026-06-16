@@ -119,28 +119,50 @@ jobs:
         run: pnpm build
 
       - name: Resolve pnpm workspace symlinks for electron-builder
-        shell: bash
+        shell: node {0}
         run: |
-          # electron-builder resolves symlinks to their real paths and then
-          # fails if those real paths are outside apps/desktop/. pnpm uses
-          # symlinks for workspace packages. Replace them with real copies so
-          # electron-builder only sees paths under apps/desktop/node_modules/.
-          node_modules_dir="apps/desktop/node_modules"
-          for pkg_dir in "$node_modules_dir"/@*/; do
-            for pkg in "$pkg_dir"*/; do
-              [ -L "${pkg%/}" ] || continue
-              target=$(node -e "console.log(require('fs').realpathSync(process.argv[1]))" -- "${pkg%/}")
-              rm -rf "${pkg%/}"
-              cp -r "$target" "${pkg%/}"
-            done
-          done
-          # Also handle non-scoped workspace packages directly under node_modules
-          for pkg in "$node_modules_dir"/*/; do
-            [ -L "${pkg%/}" ] || continue
-            target=$(node -e "console.log(require('fs').realpathSync(process.argv[1]))" -- "${pkg%/}")
-            rm -rf "${pkg%/}"
-            cp -r "$target" "${pkg%/}"
-          done
+          // electron-builder resolves symlinks/junctions to real absolute paths
+          // and fails when those paths are outside apps/desktop/. pnpm workspace
+          // packages (packages/*) are linked this way. Replace them with real
+          // directory copies so electron-builder only sees paths under apps/desktop/.
+          // Node.js fs.realpathSync resolves both Unix symlinks and Windows junctions.
+          const fs = require('fs');
+          const path = require('path');
+
+          const workspaceRoot = process.cwd();
+          const nodeModulesRoot = path.join(workspaceRoot, 'node_modules') + path.sep;
+          const nodeModulesDir = path.join(workspaceRoot, 'apps', 'desktop', 'node_modules');
+
+          function isWorkspacePackage(realPath) {
+            // Workspace packages live under the repo root but NOT in node_modules
+            return realPath.startsWith(workspaceRoot + path.sep) &&
+                   !realPath.startsWith(nodeModulesRoot);
+          }
+
+          function processEntry(entryPath) {
+            let real;
+            try { real = fs.realpathSync(entryPath); } catch { return; }
+            if (real === entryPath || !isWorkspacePackage(real)) return;
+            console.log('Replacing workspace link: ' + entryPath + ' -> ' + real);
+            fs.rmSync(entryPath, { recursive: true, force: true });
+            fs.cpSync(real, entryPath, { recursive: true, dereference: true });
+          }
+
+          if (!fs.existsSync(nodeModulesDir)) process.exit(0);
+
+          for (const entry of fs.readdirSync(nodeModulesDir)) {
+            if (entry.startsWith('.')) continue;
+            const full = path.join(nodeModulesDir, entry);
+            if (entry.startsWith('@')) {
+              try {
+                for (const pkg of fs.readdirSync(full)) {
+                  processEntry(path.join(full, pkg));
+                }
+              } catch {}
+            } else {
+              processEntry(full);
+            }
+          }
 
       - name: Package (production)
         # Invoke electron-builder directly (not via pnpm script) so --publish never
