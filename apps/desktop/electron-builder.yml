@@ -21,7 +21,7 @@ files:
   - "!node_modules/**/{test,tests,__tests__,docs,doc,example,examples}/**"
   - "!**/.turbo/**"
   - "!**/*.tsbuildinfo"
-  - "!**/src/**"
+  - "!node_modules/@spexr/*/src/**"
   - "!**/{test,tests,__tests__,spec,specs}/**"
   - "!**/{.eslintrc*,.prettierrc*,tsconfig*,.editorconfig}"
 extraMetadata:
