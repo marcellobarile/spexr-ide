@@ -54,6 +54,7 @@
   },
   "dependencies": {
     "@spexr/theia-extensions": "workspace:*",
+    "electron-updater": "^6.3.9",
     "@theia/core": "^1.71.0",
     "@theia/editor": "^1.71.0",
     "@theia/electron": "^1.71.0",

@@ -73,18 +73,90 @@ else
 fi
 
 # Collect commits: skip chore/release/merge commits for readability
-COMMITS="$(git log "$RANGE" --pretty=format:"- %s" \
+COMMITS="$(git log "$RANGE" --pretty=format:"%s" \
   --no-merges \
-  | grep -v "^- chore: release\|^- Merge " \
+  | grep -v "^chore: release\|^Merge " \
   || true)"
 
-if [[ -z "$COMMITS" ]]; then
-  COMMITS="- Minor improvements and bug fixes."
+[[ -z "$COMMITS" ]] && COMMITS="Minor improvements and bug fixes."
+
+# ── AI-generated ironic changelog via claude CLI ──────────────────────────────
+# One call → JSON { tagline, entries } → writes both CHANGELOG.md and release-notes.ts.
+# Falls back to raw commits if claude is unavailable or returns unparseable output.
+
+TMPJSON="$(mktemp)"
+trap 'rm -f "$TMPJSON"' EXIT
+
+TAGLINE="A new version is available."
+CHANGELOG_BODY=""
+ENTRIES_JSON='[]'
+
+if command -v claude &>/dev/null; then
+  echo "Generating changelog via Claude…"
+
+  CLAUDE_PROMPT="Generate release notes for v${NEW_VERSION} released on ${DATE}.
+
+Commits to describe:
+${COMMITS}
+
+Output ONLY a valid JSON object — no preamble, no explanation, no code fence:
+{
+  \"tagline\": \"<ironic one-liner under 8 words that sums up the release>\",
+  \"entries\": [\"<entry1>\", \"<entry2>\", ...]
+}
+
+Rules for entries:
+- English, dry ironic tone: a developer who has seen too many retrospectives and not enough green CI runs.
+- Each entry is one sentence, max 25 words.
+- Wrap every technical term in a markdown link (MDN for browser/web APIs; tool GitHub/docs for frameworks/CLIs; Wikipedia for architectural concepts).
+- Start with active verb or noun — never 'we added' or 'this version includes'.
+- Most user-visible changes first; internals last.
+- When 5+ entries, interleave heading strings (\"### Features\", \"### Fixes\", \"### Internals\") in the array before each group."
+
+  printf '%s' "$CLAUDE_PROMPT" | claude --print > "$TMPJSON" 2>/dev/null || true
+
+  PARSE_OK="$(node -e "
+    const fs = require('fs');
+    let raw = '';
+    try { raw = fs.readFileSync(process.argv[1], 'utf8').trim(); } catch (e) {}
+    try {
+      const obj = JSON.parse(raw);
+      if (typeof obj.tagline !== 'string' || !Array.isArray(obj.entries) || obj.entries.length === 0) {
+        throw new Error('bad shape');
+      }
+      fs.writeFileSync(process.argv[1], JSON.stringify(obj));
+      process.stdout.write('OK');
+    } catch (e) {
+      process.stdout.write('FAIL');
+    }
+  " "$TMPJSON" 2>/dev/null || echo "FAIL")"
+
+  if [[ "$PARSE_OK" == "OK" ]]; then
+    TAGLINE="$(node -e "process.stdout.write(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).tagline)" \
+      "$TMPJSON" 2>/dev/null || echo "")"
+    ENTRIES_JSON="$(node -e "process.stdout.write(JSON.stringify(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).entries))" \
+      "$TMPJSON" 2>/dev/null || echo "[]")"
+    CHANGELOG_BODY="$(node -e "
+      const arr = JSON.parse(process.argv[1]);
+      const lines = arr.map(function(s){ return /^###/.test(s) ? '\n' + s : '- ' + s; });
+      process.stdout.write(lines.join('\n').replace(/^\n/, ''));
+    " "$ENTRIES_JSON" 2>/dev/null || echo "")"
+  else
+    echo "Claude output parse failed, falling back to raw commits."
+  fi
 fi
+
+if [[ -z "$CHANGELOG_BODY" ]]; then
+  CHANGELOG_BODY="$(printf '%s\n' "$COMMITS" | sed 's/^/- /')"
+  ENTRIES_JSON="$(node -e "process.stdout.write(JSON.stringify(process.argv[1].split('\n').filter(Boolean)))" \
+    "$COMMITS" 2>/dev/null || echo "[]")"
+fi
+
+[[ -z "$TAGLINE" ]] && TAGLINE="A new version is available."
 
 CHANGELOG_SECTION="## ${NEW_VERSION} — ${DATE}
 
-${COMMITS}
+${CHANGELOG_BODY}
 "
 
 CHANGELOG_FILE="${REPO_ROOT}/CHANGELOG.md"
@@ -100,9 +172,44 @@ fi
 
 echo "Changelog updated."
 
+# ── Update release-notes.ts (powers the in-app "What's new" splash panel) ─────
+
+node -e "
+  const fs = require('fs');
+  const tsFile = process.argv[1];
+  const version = process.argv[2];
+  const date = process.argv[3];
+  const tagline = process.argv[4];
+  const allEntries = JSON.parse(process.argv[5]);
+  const entries = allEntries.filter(function(s){ return !/^###/.test(s); });
+
+  const ind = '    ';
+  const changesArr = '[\n' +
+    entries.map(function(c){ return ind + '  ' + JSON.stringify(c) + ','; }).join('\n') +
+    '\n' + ind + ']';
+
+  const newEntry =
+    '  {\n' +
+    '    version: ' + JSON.stringify(version) + ',\n' +
+    '    date: ' + JSON.stringify(date) + ',\n' +
+    '    tagline: ' + JSON.stringify(tagline) + ',\n' +
+    '    changes: ' + changesArr + ',\n' +
+    '  },';
+
+  const marker = 'export const RELEASE_NOTES: readonly ReleaseNote[] = [';
+  let src = fs.readFileSync(tsFile, 'utf8');
+  if (!src.includes(marker)) { console.error('marker not found in release-notes.ts'); process.exit(1); }
+  src = src.replace(marker, marker + '\n' + newEntry);
+  fs.writeFileSync(tsFile, src);
+  console.log('release-notes.ts updated.');
+" \
+  "${REPO_ROOT}/packages/theia-extensions/src/browser/release-notes.ts" \
+  "$NEW_VERSION" "$DATE" "$TAGLINE" "$ENTRIES_JSON"
+
 # ── Commit, tag, push ─────────────────────────────────────────────────────────
 
-git add package.json apps/desktop/package.json CHANGELOG.md
+git add package.json apps/desktop/package.json CHANGELOG.md \
+  packages/theia-extensions/src/browser/release-notes.ts
 git commit -m "chore: release ${TAG}"
 
 git tag -a "$TAG" -m "Release ${TAG}"

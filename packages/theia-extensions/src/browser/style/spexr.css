@@ -1015,6 +1015,95 @@ code {
   margin-top: var(--spexr-space-2);
 }
 
+/* What's new panel */
+.spexr-whats-new {
+  border: 1px solid var(--spexr-accent-default);
+  border-radius: var(--spexr-radius-lg);
+  background: var(--spexr-accent-subtle);
+  padding: var(--spexr-space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spexr-space-3);
+}
+
+.spexr-whats-new__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spexr-space-3);
+}
+
+.spexr-whats-new__eyebrow {
+  margin: 0 0 var(--spexr-space-1);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: var(--spexr-text-xs);
+  color: var(--spexr-accent-default);
+  font-weight: 600;
+}
+
+.spexr-whats-new__title {
+  margin: 0;
+  font-size: var(--spexr-text-lg);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.spexr-whats-new__dismiss {
+  font-size: var(--spexr-text-xs);
+  color: var(--spexr-text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font: inherit;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: color var(--spexr-motion-fast) var(--spexr-ease);
+  padding-top: var(--spexr-space-1);
+}
+
+.spexr-whats-new__dismiss:hover {
+  color: var(--spexr-text-primary);
+}
+
+.spexr-whats-new__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spexr-space-2);
+}
+
+.spexr-whats-new__item {
+  position: relative;
+  padding-left: var(--spexr-space-4);
+  font-size: var(--spexr-text-sm);
+  color: var(--spexr-text-secondary);
+  line-height: var(--spexr-line-relaxed);
+}
+
+.spexr-whats-new__item::before {
+  content: "→";
+  position: absolute;
+  left: 0;
+  color: var(--spexr-accent-default);
+  font-size: 0.75em;
+  top: 0.2em;
+}
+
+.spexr-whats-new__item a {
+  color: var(--spexr-accent-default);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color var(--spexr-motion-fast) var(--spexr-ease);
+}
+
+.spexr-whats-new__item a:hover {
+  border-bottom-color: var(--spexr-accent-default);
+}
+
 /* Tip */
 .spexr-tip {
   border: 1px solid var(--spexr-border-subtle);

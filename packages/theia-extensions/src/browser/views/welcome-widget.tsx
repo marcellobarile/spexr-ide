@@ -10,6 +10,7 @@ import { WELCOME_VIEW_ID } from "./welcome-view-contribution.js";
 import { WelcomeSplash } from "./welcome-splash.js";
 import { WelcomeBackground } from "./welcome-background.js";
 import { specsDir } from "../workspace-paths.js";
+import { RELEASE_NOTES } from "../release-notes.js";
 
 /** Matches a spec file name (`NNNN-<slug>.md`). */
 const SPEC_FILE_RE = /^\d{4}-[a-z0-9][a-z0-9-]*\.md$/;
@@ -98,6 +99,7 @@ export class SpexrWelcomeWidget extends ReactWidget {
         <WelcomeBackground />
         <WelcomeSplash
           emptyProject={this.emptyProject}
+          releaseNote={RELEASE_NOTES[0]}
           onNewProject={() => this.commands.executeCommand("spexr.project.new")}
           onOpenFolder={() => this.commands.executeCommand("workspace:openFolder")}
           onFocusAgent={() => this.commands.executeCommand("spexr.claude.focus")}

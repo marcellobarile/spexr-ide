@@ -197,6 +197,7 @@ jobs:
             apps/desktop/dist-installers/*.exe
             apps/desktop/dist-installers/*.AppImage
             apps/desktop/dist-installers/*.deb
+            apps/desktop/dist-installers/latest*.yml
           if-no-files-found: error
 
   release:
@@ -258,5 +259,6 @@ jobs:
             dist/**/*.exe
             dist/**/*.AppImage
             dist/**/*.deb
+            dist/**/latest*.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

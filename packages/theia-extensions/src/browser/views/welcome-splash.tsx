@@ -1,5 +1,6 @@
 import * as React from "react";
 import { Tip } from "@spexr/ui-kit";
+import type { ReleaseNote } from "../release-notes.js";
 
 export interface WelcomeSplashProps {
   readonly onNewProject: () => void;
@@ -8,6 +9,8 @@ export interface WelcomeSplashProps {
   /** True when a workspace is open but has no specs yet. */
   readonly emptyProject?: boolean;
   readonly onStartFirstSpec?: () => void;
+  /** Latest release note to show in the "What's new" panel. */
+  readonly releaseNote?: ReleaseNote | undefined;
 }
 
 interface ActionCard {
@@ -70,12 +73,75 @@ const WORKFLOW_STEPS: readonly WorkflowStep[] = [
   },
 ];
 
+const WHATS_NEW_STORAGE_KEY = "spexr.whatsNewDismissed";
+
+function renderInline(text: string): React.ReactNode {
+  const result: React.ReactNode[] = [];
+  const re = /\[([^\]]+)\]\(([^)]+)\)/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) result.push(text.slice(last, m.index));
+    result.push(
+      <a key={m.index} href={m[2]} target="_blank" rel="noopener noreferrer">
+        {m[1]}
+      </a>,
+    );
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) result.push(text.slice(last));
+  return result.length === 1 ? result[0] : result;
+}
+
+const WhatsNewPanel: React.FC<{ note: ReleaseNote }> = ({ note }) => {
+  const [dismissed, setDismissed] = React.useState(() => {
+    try {
+      return localStorage.getItem(WHATS_NEW_STORAGE_KEY) === note.version;
+    } catch {
+      return false;
+    }
+  });
+
+  const dismiss = React.useCallback(() => {
+    try {
+      localStorage.setItem(WHATS_NEW_STORAGE_KEY, note.version);
+    } catch {}
+    setDismissed(true);
+  }, [note.version]);
+
+  if (dismissed) return null;
+
+  return (
+    <section className="spexr-whats-new" aria-labelledby="spexr-whats-new-title">
+      <div className="spexr-whats-new__head">
+        <div>
+          <p className="spexr-whats-new__eyebrow">What&rsquo;s new &mdash; v{note.version}</p>
+          <h2 id="spexr-whats-new-title" className="spexr-whats-new__title">
+            {note.tagline}
+          </h2>
+        </div>
+        <button type="button" className="spexr-whats-new__dismiss" onClick={dismiss}>
+          Dismiss
+        </button>
+      </div>
+      <ul className="spexr-whats-new__list">
+        {note.changes.map((change, i) => (
+          <li key={i} className="spexr-whats-new__item">
+            {renderInline(change)}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+};
+
 export const WelcomeSplash: React.FC<WelcomeSplashProps> = ({
   onNewProject,
   onOpenFolder,
   onFocusAgent,
   emptyProject,
   onStartFirstSpec,
+  releaseNote,
 }) => {
   const startFirstSpec: readonly ActionCard[] =
     emptyProject && onStartFirstSpec
@@ -169,6 +235,8 @@ export const WelcomeSplash: React.FC<WelcomeSplashProps> = ({
           ))}
         </ol>
       </section>
+
+      {releaseNote ? <WhatsNewPanel note={releaseNote} /> : null}
 
       <footer className="spexr-welcome__footer">
         <Tip />

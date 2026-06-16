@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Background: near-black with generous radius, matches app dark theme -->
+  <rect width="1024" height="1024" rx="200" fill="#0d1117"/>
+
+  <!-- Spec document skeleton -->
+  <!-- Title bar: bright, reads as "document heading" even at 16px -->
+  <rect x="216" y="256" width="592" height="80" rx="40" fill="#e8eaf0"/>
+
+  <!-- Three body lines: dimmer, simulate spec items / AC list -->
+  <rect x="216" y="396" width="448" height="60" rx="30" fill="#2d3140"/>
+  <rect x="216" y="500" width="512" height="60" rx="30" fill="#2d3140"/>
+  <rect x="216" y="604" width="352" height="60" rx="30" fill="#2d3140"/>
+
+  <!-- Accent orb bottom-right: agent / AI signal, uses SPEXR purple -->
+  <circle cx="716" cy="748" r="88" fill="#7c5cff"/>
+  <!-- Tick inside orb: conveys "done / shipped" -->
+  <path d="M 672 748 L 704 780 L 760 716"
+        fill="none" stroke="#ffffff" stroke-width="18"
+        stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

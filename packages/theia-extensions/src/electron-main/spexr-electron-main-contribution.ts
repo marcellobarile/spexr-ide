@@ -38,7 +38,25 @@ export class SpexrElectronMainContribution implements ElectronMainApplicationCon
   onStart(): void {
     if (process.env.SPEXR_DEVTOOLS === "1") this.openDevToolsOnLoad();
     this.enforceMinimumSize();
-    app.whenReady().then(() => this.overrideOpenDialogHandler());
+    app.whenReady().then(() => {
+      this.overrideOpenDialogHandler();
+      this.scheduleUpdateCheck();
+    });
+  }
+
+  private scheduleUpdateCheck(): void {
+    if (!app.isPackaged) return;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const updater = require("electron-updater") as {
+        autoUpdater: { checkForUpdatesAndNotify(): Promise<unknown> };
+      };
+      updater.autoUpdater.checkForUpdatesAndNotify().catch((err: unknown) => {
+        console.warn("[spexr] update check failed", err);
+      });
+    } catch (err) {
+      console.warn("[spexr] electron-updater not available", err);
+    }
   }
 
   private openDevToolsOnLoad(): void {
