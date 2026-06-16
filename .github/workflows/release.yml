@@ -188,7 +188,15 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: installers-${{ matrix.platform }}
-          path: apps/desktop/dist-installers/
+          # Only upload finished installer files, not the unpacked app directories
+          # (mac/, linux-unpacked/, win-unpacked/) which contain thousands of files
+          # and trigger GitHub's secondary rate limit when published as release assets.
+          path: |
+            apps/desktop/dist-installers/*.dmg
+            apps/desktop/dist-installers/*.zip
+            apps/desktop/dist-installers/*.exe
+            apps/desktop/dist-installers/*.AppImage
+            apps/desktop/dist-installers/*.deb
           if-no-files-found: error
 
   release:
@@ -239,6 +247,11 @@ jobs:
           body: ${{ steps.changelog.outputs.notes }}
           draft: false
           prerelease: ${{ contains(steps.version.outputs.tag, '-') }}
-          files: dist/**/*
+          files: |
+            dist/**/*.dmg
+            dist/**/*.zip
+            dist/**/*.exe
+            dist/**/*.AppImage
+            dist/**/*.deb
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
