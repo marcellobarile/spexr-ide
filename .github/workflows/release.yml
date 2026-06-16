@@ -143,9 +143,11 @@ jobs:
           done
 
       - name: Package (production)
-        # --publish never: publishing is handled exclusively by the release job.
-        # GH_TOKEN is intentionally absent here; this job only needs read access.
-        run: pnpm ${{ matrix.pkg_cmd }} -- --publish never
+        # Invoke electron-builder directly (not via pnpm script) so --publish never
+        # reaches electron-builder without pnpm re-quoting it as a literal "--".
+        # Publishing is handled exclusively by the release job.
+        working-directory: apps/desktop
+        run: pnpm exec electron-builder --${{ matrix.platform }} --config electron-builder.yml --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
