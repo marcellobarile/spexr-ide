@@ -143,11 +143,10 @@ jobs:
           done
 
       - name: Package (production)
-        run: pnpm ${{ matrix.pkg_cmd }}
+        # --publish never: publishing is handled exclusively by the release job.
+        # GH_TOKEN is intentionally absent here; this job only needs read access.
+        run: pnpm ${{ matrix.pkg_cmd }} -- --publish never
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Mac signing: set CSC_LINK + CSC_KEY_PASSWORD + APPLE_ID + APPLE_TEAM_ID
-          # in repo secrets to enable notarized builds.
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
       - name: Upload artifacts
