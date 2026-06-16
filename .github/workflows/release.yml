@@ -118,6 +118,30 @@ jobs:
       - name: Build all packages
         run: pnpm build
 
+      - name: Resolve pnpm workspace symlinks for electron-builder
+        shell: bash
+        run: |
+          # electron-builder resolves symlinks to their real paths and then
+          # fails if those real paths are outside apps/desktop/. pnpm uses
+          # symlinks for workspace packages. Replace them with real copies so
+          # electron-builder only sees paths under apps/desktop/node_modules/.
+          node_modules_dir="apps/desktop/node_modules"
+          for pkg_dir in "$node_modules_dir"/@*/; do
+            for pkg in "$pkg_dir"*/; do
+              [ -L "${pkg%/}" ] || continue
+              target=$(node -e "console.log(require('fs').realpathSync('${pkg%/}'))")
+              rm -rf "${pkg%/}"
+              cp -r "$target" "${pkg%/}"
+            done
+          done
+          # Also handle non-scoped workspace packages directly under node_modules
+          for pkg in "$node_modules_dir"/*/; do
+            [ -L "${pkg%/}" ] || continue
+            target=$(node -e "console.log(require('fs').realpathSync('${pkg%/}'))")
+            rm -rf "${pkg%/}"
+            cp -r "$target" "${pkg%/}"
+          done
+
       - name: Package (production)
         run: pnpm ${{ matrix.pkg_cmd }}
         env:
