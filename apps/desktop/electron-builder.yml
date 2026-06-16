@@ -19,6 +19,7 @@ files:
   - "!**/tsconfig*.json"
   - "!node_modules/**/{CHANGELOG.md,README.md,readme.md,changelog.md}"
   - "!node_modules/**/{test,tests,__tests__,docs,doc,example,examples}/**"
+  - "!**/.turbo/**"
 extraMetadata:
   main: src-gen/backend/electron-main.js
 asar: true
