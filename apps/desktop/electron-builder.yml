@@ -12,6 +12,7 @@ directories:
   buildResources: build
 files:
   - src-gen/**/*
+  - lib/**/*
   - package.json
   - "!**/*.map"
   - "!**/*.ts"
