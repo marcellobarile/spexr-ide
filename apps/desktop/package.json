@@ -1,6 +1,6 @@
 {
   "name": "@spexr/desktop",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "SPEXR desktop shell — Theia + Electron",
   "homepage": "https://github.com/marcellobarile/spexr-ide",

@@ -1777,3 +1777,50 @@ code {
   color: var(--spexr-accent-default);
   margin-right: var(--spexr-space-1);
 }
+
+/* ── About dialog ───────────────────────────────────────────────────────── */
+
+.spexr-about-header {
+  margin-bottom: var(--spexr-space-4);
+  padding-bottom: var(--spexr-space-4);
+  border-bottom: 1px solid var(--spexr-border-subtle);
+}
+
+.spexr-about-title {
+  font-size: var(--spexr-text-xl);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--spexr-text-primary);
+}
+
+.spexr-about-version {
+  font-weight: 400;
+  color: var(--spexr-text-secondary);
+}
+
+.spexr-about-tagline {
+  margin: var(--spexr-space-1) 0 var(--spexr-space-3);
+  font-size: var(--spexr-text-sm);
+  color: var(--spexr-text-secondary);
+}
+
+.spexr-about-links {
+  display: flex;
+  align-items: center;
+  gap: var(--spexr-space-2);
+  font-size: var(--spexr-text-sm);
+}
+
+.spexr-about-links a {
+  color: var(--spexr-accent-default);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.spexr-about-links a:hover {
+  text-decoration: underline;
+}
+
+.spexr-about-links span {
+  color: var(--spexr-text-disabled);
+}

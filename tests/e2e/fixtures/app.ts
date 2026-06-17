@@ -1,11 +1,14 @@
 import { test as base, _electron as electron, type ElectronApplication, type Page } from "@playwright/test";
 import path from "path";
 import fs from "fs";
-import os from "os";
 const REPO_ROOT = path.resolve(__dirname, "../../..");
 const DESKTOP_DIR = path.join(REPO_ROOT, "apps/desktop");
 // apps/desktop/package.json "main": "src-gen/backend/electron-main.js"
 const ELECTRON_MAIN = path.join(DESKTOP_DIR, "src-gen/backend/electron-main.js");
+// Workspaces live under test-results/workspaces/ (gitignored) rather than
+// os.tmpdir() so that the SpexrBootstrapContribution temp-dir check does not
+// close them on startup — the check only targets /tmp and /var/folders paths.
+const WORKSPACE_BASE = path.join(REPO_ROOT, "test-results", "workspaces");
 // Do NOT set executablePath: when executablePath is omitted, Playwright uses
 // require("electron/index.js") and injects -r loader.js which splices
 // --remote-debugging-port=0 out of process.argv.  With executablePath set,
@@ -24,7 +27,8 @@ export interface AppFixtures {
  */
 export const test = base.extend<AppFixtures>({
   workspace: async ({}, use) => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "spexr-e2e-"));
+    fs.mkdirSync(WORKSPACE_BASE, { recursive: true });
+    const dir = fs.mkdtempSync(path.join(WORKSPACE_BASE, "spexr-e2e-"));
     // Minimal workspace structure the app expects
     fs.mkdirSync(path.join(dir, "docs/specs"), { recursive: true });
     await use(dir);

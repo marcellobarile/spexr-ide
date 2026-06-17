@@ -56,6 +56,8 @@ import { PreferenceConfigurations } from "@theia/core/lib/common/preferences/pre
 import { SpexrPreferenceConfigurations } from "./preferences/spexr-preference-configurations.js";
 import { SpexrLanguageGrammarContribution } from "./language/spexr-language-grammar-contribution.js";
 import { LanguageGrammarDefinitionContribution } from "@theia/monaco/lib/browser/textmate/textmate-contribution.js";
+import { AboutDialog } from "@theia/core/lib/browser/about-dialog.js";
+import { SpexrAboutDialog } from "./about/spexr-about-dialog.js";
 
 /**
  * Frontend contributions for SPEXR. Theia handles DI via Inversify and
@@ -171,4 +173,7 @@ export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
   bind(SpexrLanguageGrammarContribution).toSelf().inSingletonScope();
   bind(FrontendApplicationContribution).toService(SpexrLanguageGrammarContribution);
   bind(LanguageGrammarDefinitionContribution).toService(SpexrLanguageGrammarContribution);
+
+  bind(SpexrAboutDialog).toSelf();
+  rebind(AboutDialog).toService(SpexrAboutDialog);
 });

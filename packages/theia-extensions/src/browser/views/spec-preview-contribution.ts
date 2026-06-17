@@ -100,7 +100,8 @@ export class SpexrSpecPreviewContribution
         ref: editorWidget,
         mode: "split-right",
       });
-      await this.shell.activateWidget(this.preview.id);
+      // Do NOT activateWidget here — it would steal focus from whatever the user
+      // last clicked, causing race-condition tab switches on async open.
     });
     this.wantOpen = true;
     this.closedForUri = undefined;

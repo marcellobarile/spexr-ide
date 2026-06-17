@@ -1,11 +1,12 @@
 ---
 slug: 0001-bootstrap
 title: Bootstrap SPEXR skeleton
-status: shipped
+status: in-progress
 owner: marcello.barile@gmail.com
 createdAt: 2026-05-09
+workflowStep: implement
+updatedAt: 2026-06-17
 ---
-
 ## Goal
 
 Establish a working monorepo skeleton for SPEXR so subsequent specs can land features without re-deciding structural questions.
