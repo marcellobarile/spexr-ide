@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.1.2 — 2026-06-20
+
+### Fixes
+
+- **Responsive sidebar lists** — experts and memory panels wrap at ≤320 px via CSS container queries: description goes full-width, action buttons move below.
+- **What's new spacing** — added top margin to the What's new panel for visual separation from the workflow section above.
+- **Local settings untracked** — `.spexr/settings.json` removed from version control (contains machine-specific paths); `settings.example.json` added as onboarding template.
+
+## 0.1.1 — 2026-06-17
+
+### Features
+
+- **About dialog** — version and build info accessible from the menu.
+
+### Fixes
+
+- **Startup UX** — improved loading sequence and initial state on workspace open.
+- **Preview focus** — fixed focus steal on markdown preview open.
+
 ## 0.1.0 — 2026-06-14
 
 Initial public release.

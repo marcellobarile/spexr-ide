@@ -1,6 +1,6 @@
 {
   "name": "spexr-ide",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "private": true,
   "description": "Agent-centric, spec-based IDE built on Theia + Theia AI",
   "license": "MIT",
