@@ -234,6 +234,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: var(--spexr-space-2);
+  container-type: inline-size;
 }
 
 .spexr-memory-list__item {
@@ -285,6 +286,22 @@ body {
   flex-direction: column;
   gap: var(--spexr-space-1);
   flex-shrink: 0;
+}
+
+@container (max-width: 320px) {
+  .spexr-memory-list__item {
+    flex-wrap: wrap;
+  }
+
+  .spexr-memory-list__meta {
+    width: 100%;
+  }
+
+  .spexr-memory-list__buttons {
+    width: 100%;
+    flex-direction: row;
+    justify-content: flex-end;
+  }
 }
 
 .spexr-memory-pill {
@@ -1021,6 +1038,7 @@ code {
   border-radius: var(--spexr-radius-lg);
   background: var(--spexr-accent-subtle);
   padding: var(--spexr-space-5);
+  margin-top: var(--spexr-space-5);
   display: flex;
   flex-direction: column;
   gap: var(--spexr-space-3);
@@ -1475,6 +1493,7 @@ code {
 }
 
 .spexr-experts-list {
+  container-type: inline-size;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -1527,6 +1546,25 @@ code {
   display: flex;
   gap: var(--spexr-space-2);
   flex: 0 0 auto;
+}
+
+@container (max-width: 320px) {
+  .spexr-experts-list__item {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .spexr-experts-list__meta {
+    flex: 1 1 0;
+  }
+
+  .spexr-experts-list__buttons {
+    margin-left: 0;
+    /* indent past icon + gap */
+    padding-left: calc(16px + var(--spexr-space-2));
+    width: 100%;
+    flex-wrap: wrap;
+  }
 }
 
 /* ── Spec preview widget ─────────────────────────────────────── */
