@@ -32,9 +32,9 @@ gen-webpack*.js
 tests/e2e/playwright-report/
 tests/e2e/test-results/
 tests/e2e/dist/
+.last-run.json
 
 # Personal AI-tooling artifacts (not project content)
 .claude/
 .remember/
 .superpowers/
-docs/superpowers/

@@ -1,0 +1,12 @@
+{
+  "specSlug": "0001-bootstrap",
+  "checkedAt": "2026-06-17T08:06:44.974Z",
+  "impliedFiles": [],
+  "findings": [
+    {
+      "criterionId": "coverage",
+      "severity": "warn",
+      "message": "No code linked to this spec yet. Add `Spec: 0001-bootstrap` trailers to relevant commits."
+    }
+  ]
+}
