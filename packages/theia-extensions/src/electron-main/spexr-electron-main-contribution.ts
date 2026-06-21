@@ -1,5 +1,5 @@
 import { injectable } from "@theia/core/shared/inversify";
-import { app, BrowserWindow, dialog, ipcMain } from "@theia/core/electron-shared/electron";
+import { app, BrowserWindow, dialog, ipcMain, shell } from "@theia/core/electron-shared/electron";
 import { ElectronMainApplicationContribution } from "@theia/core/lib/electron-main/electron-main-application";
 
 const CHANNEL_SHOW_OPEN = "ShowOpenDialog";
@@ -46,17 +46,67 @@ export class SpexrElectronMainContribution implements ElectronMainApplicationCon
 
   private scheduleUpdateCheck(): void {
     if (!app.isPackaged) return;
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const updater = require("electron-updater") as {
-        autoUpdater: { checkForUpdatesAndNotify(): Promise<unknown> };
-      };
-      updater.autoUpdater.checkForUpdatesAndNotify().catch((err: unknown) => {
-        console.warn("[spexr] update check failed", err);
-      });
-    } catch (err) {
-      console.warn("[spexr] electron-updater not available", err);
-    }
+    // Delay so the main window is visible before any dialog appears.
+    setTimeout(() => this.checkForUpdate(), 8000);
+  }
+
+  private checkForUpdate(): void {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const https = require("https") as typeof import("https");
+    const currentVersion = app.getVersion();
+
+    const req = https.get(
+      {
+        hostname: "api.github.com",
+        path: "/repos/marcellobarile/spexr-ide/releases/latest",
+        headers: { "User-Agent": "SPEXR-Desktop" },
+      },
+      (res) => {
+        let raw = "";
+        res.on("data", (chunk: Buffer) => { raw += chunk; });
+        res.on("end", () => {
+          try {
+            const release = JSON.parse(raw) as { tag_name: string; html_url: string };
+            const latest = release.tag_name.replace(/^v/, "");
+            if (this.isNewerVersion(latest, currentVersion)) {
+              this.showUpdateDialog(latest, release.html_url);
+            }
+          } catch {
+            // ignore malformed response
+          }
+        });
+      },
+    );
+    req.on("error", () => { /* silently ignore network errors */ });
+  }
+
+  private isNewerVersion(latest: string, current: string): boolean {
+    const parse = (v: string): [number, number, number] => {
+      const parts = v.split(".").map(Number);
+      return [parts[0] ?? 0, parts[1] ?? 0, parts[2] ?? 0];
+    };
+    const [lM, lm, lp] = parse(latest);
+    const [cM, cm, cp] = parse(current);
+    if (lM !== cM) return lM > cM;
+    if (lm !== cm) return lm > cm;
+    return lp > cp;
+  }
+
+  private showUpdateDialog(version: string, url: string): void {
+    dialog
+      .showMessageBox({
+        type: "info",
+        title: "Update available",
+        message: `SPEXR ${version} is available`,
+        detail: "A new version is ready. Click Download to open the releases page.",
+        buttons: ["Download", "Later"],
+        defaultId: 0,
+        cancelId: 1,
+      })
+      .then(({ response }) => {
+        if (response === 0) shell.openExternal(url);
+      })
+      .catch(() => { /* ignore */ });
   }
 
   private openDevToolsOnLoad(): void {
