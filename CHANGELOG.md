@@ -2,11 +2,16 @@
 
 ## 0.1.3 — 2026-06-21
 
+> Updates that actually tell you about updates.
+
 ### Fixes
 
 - **Update check** — replaced `electron-updater` (requires Apple Developer cert) with a direct GitHub API check; shows a dialog with a download link when a newer version is available. Works on unsigned builds across all platforms.
+- **Security** — release URL constructed locally from the validated version tag, never sourced from the GitHub API response.
 
 ## 0.1.2 — 2026-06-20
+
+> Small things that were bothering everyone.
 
 ### Fixes
 
@@ -15,6 +20,8 @@
 - **Local settings untracked** — `.spexr/settings.json` removed from version control (contains machine-specific paths); `settings.example.json` added as onboarding template.
 
 ## 0.1.1 — 2026-06-17
+
+> The one where we learned what version we are.
 
 ### Features
 
@@ -27,7 +34,7 @@
 
 ## 0.1.0 — 2026-06-14
 
-Initial public release.
+> The one where we finally commit.
 
 ### Features
 

@@ -26,7 +26,8 @@
     "test": "turbo run test",
     "clean": "turbo run clean && rm -rf node_modules",
     "format": "prettier --write \"**/*.{ts,tsx,json,md,css}\"",
-    "generate:icon": "node scripts/generate-icon.js"
+    "generate:icon": "node scripts/generate-icon.js",
+    "sync:release-notes": "node scripts/sync-release-notes.js"
   },
   "devDependencies": {
     "@types/node": "^25.6.2",

@@ -116,9 +116,11 @@ const WhatsNewPanel: React.FC<{ note: ReleaseNote }> = ({ note }) => {
       <div className="spexr-whats-new__head">
         <div>
           <p className="spexr-whats-new__eyebrow">What&rsquo;s new &mdash; v{note.version}</p>
-          <h2 id="spexr-whats-new-title" className="spexr-whats-new__title">
-            {note.tagline}
-          </h2>
+          {note.tagline && (
+            <h2 id="spexr-whats-new-title" className="spexr-whats-new__title">
+              {note.tagline}
+            </h2>
+          )}
         </div>
         <button type="button" className="spexr-whats-new__dismiss" onClick={dismiss}>
           Dismiss
