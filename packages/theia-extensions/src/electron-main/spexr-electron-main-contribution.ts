@@ -66,10 +66,15 @@ export class SpexrElectronMainContribution implements ElectronMainApplicationCon
         res.on("data", (chunk: Buffer) => { raw += chunk; });
         res.on("end", () => {
           try {
-            const release = JSON.parse(raw) as { tag_name: string; html_url: string };
-            const latest = release.tag_name.replace(/^v/, "");
+            const release = JSON.parse(raw) as unknown;
+            if (typeof release !== "object" || release === null) return;
+            const { tag_name } = release as Record<string, unknown>;
+            if (typeof tag_name !== "string") return;
+            const latest = tag_name.replace(/^v/, "");
             if (this.isNewerVersion(latest, currentVersion)) {
-              this.showUpdateDialog(latest, release.html_url);
+              // Construct URL locally — never pass html_url from API to shell.openExternal.
+              const releaseUrl = `https://github.com/marcellobarile/spexr-ide/releases/tag/v${latest}`;
+              this.showUpdateDialog(latest, releaseUrl);
             }
           } catch {
             // ignore malformed response
