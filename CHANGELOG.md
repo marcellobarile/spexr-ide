@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.3 — 2026-06-21
+
+### Fixes
+
+- **Update check** — replaced `electron-updater` (requires Apple Developer cert) with a direct GitHub API check; shows a dialog with a download link when a newer version is available. Works on unsigned builds across all platforms.
+
 ## 0.1.2 — 2026-06-20
 
 ### Fixes
