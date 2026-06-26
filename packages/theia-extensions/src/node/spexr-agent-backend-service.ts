@@ -1,4 +1,4 @@
-import { injectable } from "@theia/core/shared/inversify";
+import { injectable, inject } from "@theia/core/shared/inversify";
 import * as child_process from "child_process";
 import * as fs from "fs";
 import * as os from "os";
@@ -18,6 +18,8 @@ import {
   parseSpec,
   StructuralDriftDetector,
 } from "@spexr/spec";
+import { SpexrGitBackendService } from "./spexr-git-backend-service.js";
+import type { GitStatusDto } from "../common/git-protocol.js";
 import type {
   SpexrAgentService,
   ClaudeProfileDto,
@@ -44,6 +46,9 @@ import {
  */
 @injectable()
 export class SpexrAgentBackendService implements SpexrAgentService {
+  @inject(SpexrGitBackendService)
+  private readonly gitService!: SpexrGitBackendService;
+
   async detectClaudeProfiles(): Promise<ClaudeProfileDto[]> {
     return detectClaudeProfiles();
   }
@@ -67,8 +72,16 @@ export class SpexrAgentBackendService implements SpexrAgentService {
         ...(expertPrompt ? { expertPrompt } : {}),
       });
 
+      let gitSection = "";
+      try {
+        const gitStatus = await this.gitService.getStatus(workspaceRoot);
+        gitSection = `\n\n## Git Status\n\n${formatGitContext(gitStatus)}`;
+      } catch {
+        // Non-git workspace: skip silently
+      }
+
       const tmpFile = path.join(os.tmpdir(), `spexr-system-prompt-${Date.now()}.txt`);
-      fs.writeFileSync(tmpFile, prompt, "utf8");
+      fs.writeFileSync(tmpFile, prompt + gitSection, "utf8");
 
       return { appendSystemPromptFile: tmpFile };
     } catch {
@@ -701,4 +714,23 @@ export function resolveAndValidateExecutable(executableOverride?: string): strin
   }
 
   return execPath;
+}
+
+export function formatGitContext(status: GitStatusDto): string {
+  const staged = status.files.filter((f) => f.stagedState).length;
+  const modified = status.files.filter(
+    (f) => f.unstagedState && f.unstagedState !== "U",
+  ).length;
+  const untracked = status.files.filter((f) => f.unstagedState === "U").length;
+
+  const header = `Git: branch=${status.branch}${status.upstream ? `, upstream=${status.upstream}` : ""}, ahead=${status.ahead}, behind=${status.behind}`;
+  if (staged === 0 && modified === 0 && untracked === 0) {
+    return header + "\nWorking tree clean.";
+  }
+  const parts = [
+    staged > 0 ? `Staged: ${staged} file${staged !== 1 ? "s" : ""}` : "",
+    modified > 0 ? `Modified: ${modified} file${modified !== 1 ? "s" : ""}` : "",
+    untracked > 0 ? `Untracked: ${untracked} file${untracked !== 1 ? "s" : ""}` : "",
+  ].filter(Boolean);
+  return header + "\n" + parts.join(" | ");
 }
