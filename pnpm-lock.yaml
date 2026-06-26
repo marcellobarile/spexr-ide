@@ -86,6 +86,9 @@ importers:
       '@theia/process':
         specifier: ^1.71.0
         version: 1.71.0(@theia/electron@1.71.0(electron@39.8.10))
+      '@theia/scm':
+        specifier: ^1.71.0
+        version: 1.73.0(@theia/electron@1.71.0(electron@39.8.10))(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@6.0.3)
       '@theia/terminal':
         specifier: ^1.71.0
         version: 1.71.0(@theia/electron@1.71.0(electron@39.8.10))(typescript@6.0.3)
@@ -302,6 +305,9 @@ importers:
       '@theia/process':
         specifier: ^1.71.0
         version: 1.71.0(@theia/electron@1.71.0(electron@39.8.10))
+      '@theia/scm':
+        specifier: ^1.71.0
+        version: 1.73.0(@theia/electron@1.71.0(electron@39.8.10))(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@6.0.3)
       '@theia/terminal':
         specifier: ^1.71.0
         version: 1.71.0(@theia/electron@1.71.0(electron@39.8.10))(typescript@6.0.3)
@@ -332,6 +338,9 @@ importers:
       reflect-metadata:
         specifier: ^0.2.2
         version: 0.2.2
+      simple-git:
+        specifier: ^3.27.0
+        version: 3.36.0
       tm-grammars:
         specifier: ^1.31.15
         version: 1.31.15
@@ -892,6 +901,10 @@ packages:
     resolution: {integrity: sha512-JiDShH45zKHWyGe4ZNVRrCjBz8Nh9TMmZG1kh4QTK8hCBTWBi8Da+i7s1fJw7/lYpM4ccepSNfqzZ/QvABBi5g==}
     engines: {node: '>=6.9.0'}
 
+  '@babel/runtime@7.29.7':
+    resolution: {integrity: sha512-Nq8OhGWiZIZGV6hLHoyAKLLcJihP/xFeBMGJoUrxTX2psI8dCifzLhZISFb+VWS3wFMRDmCGw5R+dOySCqPLhw==}
+    engines: {node: '>=6.9.0'}
+
   '@babel/template@7.28.6':
     resolution: {integrity: sha512-YA6Ma2KsCdGb+WC6UpBVFJGXL58MDA6oyONbjyF/+5sBgxY/dwkhLogbMT2GXXyU84/IhRw/2D1Os1B/giz+BQ==}
     engines: {node: '>=6.9.0'}
@@ -1195,6 +1208,12 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@kwsites/file-exists@1.1.1':
+    resolution: {integrity: sha512-m9/5YGR18lIwxSFDwfE3oA7bWuq9kdau6ugN4H2rJeyhFQZcG9AgSHkQtSD15a8WvTgfz9aikZMrKPHvbpqFiw==}
+
+  '@kwsites/promise-deferred@1.1.1':
+    resolution: {integrity: sha512-GaHYm+c0O9MjZRu0ongGBRbinu8gVAMd2UZjji6jVmqKtZluZnptXGWhz1E8j8D2HJ3f/yMxKAUC0b+57wncIw==}
 
   '@lumino/algorithm@2.0.4':
     resolution: {integrity: sha512-gddBhESPqu25KWLeAK9Kz8tS9Ph7P45i0CNG7Ia4XMhK9PHLtTsBdJTC9jP+MqhbzC8zDT/4ekvYRV9ojRPj7Q==}
@@ -1822,6 +1841,12 @@ packages:
   '@rolldown/pluginutils@1.0.0-rc.18':
     resolution: {integrity: sha512-CUY5Mnhe64xQBGZEEXQ5WyZwsc1JU3vAZLIxtrsBt3LO6UOb+C8GunVKqe9sT8NeWb4lqSaoJtp2xo6GxT1MNw==}
 
+  '@simple-git/args-pathspec@1.0.3':
+    resolution: {integrity: sha512-ngJMaHlsWDTfjyq9F3VIQ8b7NXbBLq5j9i5bJ6XLYtD6qlDXT7fdKY2KscWWUF8t18xx052Y/PUO1K1TRc9yKA==}
+
+  '@simple-git/argv-parser@1.1.1':
+    resolution: {integrity: sha512-Q9lBcfQ+VQCpQqGJFHe5yooOS5hGdLFFbJ5R+R5aDsnkPCahtn1hSkMcORX65J2Z5lxSkD0lQorMsncuBQxYUw==}
+
   '@sindresorhus/df@1.0.1':
     resolution: {integrity: sha512-1Hyp7NQnD/u4DSxR2DGW78TF9k7R0wZ8ev0BpMAIzA6yTQSHqNb5wTuvtcPYf4FWbVse2rW7RgDsyL8ua2vXHw==}
     engines: {node: '>=0.10.0'}
@@ -1859,6 +1884,9 @@ packages:
   '@theia/application-package@1.71.0':
     resolution: {integrity: sha512-vy1ACOjEqZ3L/JSiwCVIRtdq5E5jUw/sdMC8aXwbTvkG6VH6dK6TMAtPeT++tArtZnLoSzJuNIB0029BofPEiw==}
 
+  '@theia/application-package@1.73.0':
+    resolution: {integrity: sha512-dDWx8ZrTbyXIqOOrOQlUEKU8X/phzhtmoVMnF3IMcDQKFFqGHB3/ihQvHvQ+qeXtHjqgYLUJzov664yLgpy9WQ==}
+
   '@theia/cli@1.71.0':
     resolution: {integrity: sha512-wSzywqfLuN+qynBiJ29u+x/9VUbSvPcmPJdHuUjCL0lZ9tbAuVf0kGSY9VcRhvS+uFCR4P3JiLvYPImf0ac21w==}
     hasBin: true
@@ -1871,8 +1899,27 @@ packages:
       '@theia/electron':
         optional: true
 
+  '@theia/core@1.73.0':
+    resolution: {integrity: sha512-9o3c4L5PEKSW/4VSHE2hS+sISbtlWP27VLMN82xuO5UAKUCqcXUn4IblUE3cmGrYna5m55NC+/TSbJHtGOXxjg==}
+    peerDependencies:
+      '@theia/electron': '*'
+      '@types/react': ^18.3.0 || ^19.0.0
+      '@types/react-dom': ^18.3.0 || ^19.0.0
+      react: ^18.3.1 || ^19.0.0
+      react-dom: ^18.3.1 || ^19.0.0
+    peerDependenciesMeta:
+      '@theia/electron':
+        optional: true
+      '@types/react':
+        optional: true
+      '@types/react-dom':
+        optional: true
+
   '@theia/editor@1.71.0':
     resolution: {integrity: sha512-ilgbjITlah5euEMqZ/BMzOa2FzwHQKxCSNgVGSeMHv+XG+yw0kK7I4tCCixXxwqHUMUEOXZFUQ8e7AhbpVjE8g==}
+
+  '@theia/editor@1.73.0':
+    resolution: {integrity: sha512-aVjn3LhELzI4wlKsRk3O09BOVCL33spp79Twgv+cZmPRZs/mb9EjsHarXBMkzXH2l4h8BmG4duxe3tkwSDQVCQ==}
 
   '@theia/electron@1.71.0':
     resolution: {integrity: sha512-EiOt8RuqLJLDibSI4NhzzXea4uBj3K5oYJsIT4n1fmimu0C6y1tiHorpftXkoFlLWs526XAL83YlmLoXidUtcg==}
@@ -1888,11 +1935,17 @@ packages:
   '@theia/filesystem@1.71.0':
     resolution: {integrity: sha512-8k+G0d0Cp4oPD9/IxXt/Htyf7eU9i0J6utTOVaxL0PH7EpsvRXP5zxi7JbFZV4mFhdE7WS9ZCzg6QX0Gv1B3bw==}
 
+  '@theia/filesystem@1.73.0':
+    resolution: {integrity: sha512-31TgiADzq01Qf8HDqbbhpNQ3HIBHtf+XIpZkcrdvFcXwTLpXJ06X0PN/cPWq6HuBB8QlkKmr4/i5pB5Q/exN5A==}
+
   '@theia/localization-manager@1.71.0':
     resolution: {integrity: sha512-5PYbRSrFCMI6EbdswD2i+3pLI5OaNTj3P4Qs5TaJ6rNlHsri1c676i4jzS8GapcAsO9CouAcHPsixHbzhj2dnw==}
 
   '@theia/markers@1.71.0':
     resolution: {integrity: sha512-PEg2++kr2cyInwc+wBE808n+IkdZj59Ul2rWcQIVJIECdZjWQ1XGIulIaWAjjyw5B4YR864h36+MIUaqr/28pA==}
+
+  '@theia/markers@1.73.0':
+    resolution: {integrity: sha512-5q/HQv3auN7PEOJ/6FmBWsFakTKeIS32m+nzKHI6/1HU7PUXsuoLSVZH93FEAkahPbkrxMGw/96F3uv4208npw==}
 
   '@theia/messages@1.71.0':
     resolution: {integrity: sha512-vD5jqwYyed25kQNCj/KFTC7FhIwQ3WEo0P4hmlfunzIXoheH5hG4zKkuo5tpJxEAAl3QygFX1MyER8m0SA9vVw==}
@@ -1903,6 +1956,9 @@ packages:
   '@theia/monaco@1.71.0':
     resolution: {integrity: sha512-JSG03xI3DqRNfFo9bBiskdJNcLtGdjKz25e2nruPdiMzmQQO4DqnTecSAsur0uMJZhcmM0sfl1gre6SVPfnrGQ==}
 
+  '@theia/monaco@1.73.0':
+    resolution: {integrity: sha512-d+SuIlRMGn5IJJ3i5b94gnZ1aMzXPFuJJvOgj0e6Lcr+oG+CDO6nroygjmRT8zZ7L/tCOamLCELcOsBZfmBt0g==}
+
   '@theia/native-webpack-plugin@1.71.0':
     resolution: {integrity: sha512-6Zbwc9VMo/cpdjGTtpagnoTWLw3q5TCxI7EMtKMz0PP8NCmJT7R8stgxBGgz3YFD7mfkRVmAkj1cDSa7t2WX7w==}
     deprecated: Renamed to @theia/bundle-plugin as of v1.72.0. Please migrate.
@@ -1912,6 +1968,9 @@ packages:
 
   '@theia/outline-view@1.71.0':
     resolution: {integrity: sha512-FX61vCgw4Jxl/KPk+PlHWZdFh+ZLqSjdHHYSwmaNwc4OA0n94Ju7IFcGMKmAroYt2qp/9OR9xZBKU83ERD4Jnw==}
+
+  '@theia/outline-view@1.73.0':
+    resolution: {integrity: sha512-fNqpsazEQCWNOTtui11YjlXTv1CoMtunTFc/VHfmdfSRs9SHAHPFw0Ymq3qDUufJsbfid6ZpFogljYU6H/VJ/A==}
 
   '@theia/ovsx-client@1.71.0':
     resolution: {integrity: sha512-oy6upOPw/3j+O6Z343q26xxDL9cFJRpOa2AiDYSSL6AOYhl2eHe3M9r8qOyQBGQ9Pmlu67Fcoohjn6CUkdnzYw==}
@@ -1925,6 +1984,12 @@ packages:
   '@theia/request@1.71.0':
     resolution: {integrity: sha512-ZCbC6V0GjcsanJjw1RvSo3frXhhKoPt6tcVDV+srE2q+m238ml4tVOBPdXCthpALc7xTY1zmV7Up10Vavx1cpA==}
 
+  '@theia/request@1.73.0':
+    resolution: {integrity: sha512-8LNTQEiKi5EtbZbR5KQioUdd6EBh/drgsP/Xk9SaCUiA2Hz/5NWKA57nWFqwLQnDeZYXNGJ+3m316EyicvzFiQ==}
+
+  '@theia/scm@1.73.0':
+    resolution: {integrity: sha512-KSb5FFJfWIQnK9owL5v4mJcP3wd9DNrHZTmQXrePTz2mG1vIEd1cNV7T+qEjIhtSCmEY1RS1VzrmZBKES7EQKw==}
+
   '@theia/terminal@1.71.0':
     resolution: {integrity: sha512-9wHyd3FsUqOhUaciErfdXkFdAEbNd96ZSSu2VqHZk3PZiz3N7LmZucibPfoqBtWyH3zlyHqxMgADAcxx5QfWSg==}
 
@@ -1934,8 +1999,14 @@ packages:
   '@theia/variable-resolver@1.71.0':
     resolution: {integrity: sha512-rBfrEyi4K9xBdCRpX4utKnyJGDii+9TBjeqgttpkIxMAALzGxg7pwkuFwqKwNNZkYVXiBaI6qP4ZVsT0PeLnbw==}
 
+  '@theia/variable-resolver@1.73.0':
+    resolution: {integrity: sha512-b46pHHTZE8R/IR5wGHMkW9gEeqvKb3AZJ8un1mg30G2JY72wtMSresU5/2/e+M7D5r7WwHWju45nh+7EoYPREQ==}
+
   '@theia/workspace@1.71.0':
     resolution: {integrity: sha512-wGUcZFqOlFsINTqPvtZ56hGdZm3iwyIyLDKDOA0F08tBX5V7rLzDcfD/HijMCXejVzp2pZRhkb+gJgkDiaJlKQ==}
+
+  '@theia/workspace@1.73.0':
+    resolution: {integrity: sha512-ThkmTeV+eovggylLQV7bJ2Nvo3gFVXLdYjx/KVRd4fSlXLdvodn/IczoDIZmoiviWV2xiCmRRsIJdXyeGa/SvA==}
 
   '@tootallnate/once@2.0.1':
     resolution: {integrity: sha512-HqmEUIGRJ5fSXchkVgR5F7qn48bDBzv0kWj/Kfu5e6uci4UlEeng4331LnBkWffb++Ei3FOVLxo8JJWMFBDMeQ==}
@@ -2003,6 +2074,9 @@ packages:
 
   '@types/deep-eql@4.0.2':
     resolution: {integrity: sha512-c9h9dVVMigMPc4bwTvC5dxqtqJZwQPePsWjPlpSOnojbor6pGqdk541lfA7AqFQr5pB1BRdq0juY9db81BwyFw==}
+
+  '@types/diff@5.2.3':
+    resolution: {integrity: sha512-K0Oqlrq3kQMaO2RhfrNQX5trmt+XLyom88zS0u84nnIcLvFnRUMRRHmrGny5GSM+kNO9IZLARsdQHDzkhAgmrQ==}
 
   '@types/eslint-scope@3.7.7':
     resolution: {integrity: sha512-MzMFlSLBqNF2gcHWO0G1vP/YQyfvrxZ0bF+u7mzUdZ1/xK4A4sru+nraZz5i3iEIk1l1uyicaDVTB4QbbEkAYg==}
@@ -2158,6 +2232,9 @@ packages:
 
   '@types/yargs@15.0.20':
     resolution: {integrity: sha512-KIkX+/GgfFitlASYCGoSF+T4XRXhOubJLhkLVtSfsRTe9jWMmuM2g28zQ41BtPTG7TRBb2xHW+LCNVE9QR/vsg==}
+
+  '@types/yargs@17.0.35':
+    resolution: {integrity: sha512-qUHkeCyQFxMXg79wQfTtfndEC+N9ZZg76HJftDJp+qH2tV7Gj4OJi7l+PiWwJ+pWtW8GwSmqsDj/oymhrTWXjg==}
 
   '@types/yauzl@2.10.3':
     resolution: {integrity: sha512-oJoftv0LSuaDZE3Le4DbKX+KS9G36NzOeSap90UIK0yMA/NhKJhqlSGtNDORNRaIbQfzjXDrQa0ytJ6mNRGz/Q==}
@@ -3230,6 +3307,9 @@ packages:
   dompurify@3.2.7:
     resolution: {integrity: sha512-WhL/YuveyGXJaerVlMYGWhvQswa7myDG17P7Vu65EWC05o8vfeNbvNf4d/BOvH99+ZW+LlQsc1GDKMa1vNK6dw==}
 
+  dompurify@3.4.11:
+    resolution: {integrity: sha512-zhlUV12GsaRzMsf9q5M254YhA4+VuF0fG+QFqu6aYpoGlKtz+w8//jBcGVYBgQkR5GHjUomejY84AV+/uPbWdw==}
+
   dompurify@3.4.2:
     resolution: {integrity: sha512-lHeS9SA/IKeIFFyYciHBr2n0v1VMPlSj843HdLOwjb2OxNwdq9Xykxqhk+FE42MzAdHvInbAolSE4mhahPpjXA==}
 
@@ -3492,6 +3572,10 @@ packages:
 
   express@4.22.1:
     resolution: {integrity: sha512-F2X8g9P1X7uCPZMA3MVf9wcTqlyNp7IhH5qPCI0izhaOIYXaW9L535tGA3qmjRzpH+bZczqq7hVKxTR4NWnu+g==}
+    engines: {node: '>= 0.10.0'}
+
+  express@4.22.2:
+    resolution: {integrity: sha512-IuL+Elrou2ZvCFHs18/CIzy2Nzvo25nZ1/D2eIZlz7c+QUayAcYoiM2BthCjs+EBHVpjYjcuLDAiCWgeIX3X1Q==}
     engines: {node: '>= 0.10.0'}
 
   extend-shallow@2.0.1:
@@ -4179,6 +4263,9 @@ packages:
   jsonc-parser@2.3.1:
     resolution: {integrity: sha512-H8jvkz1O50L3dMZCsLqiuB2tA7muqbSg1AtGEkN0leAqGjsUzDJir3Zwr02BhqdcITPg3ei3mZ+HjMocAknhhg==}
 
+  jsonc-parser@3.3.1:
+    resolution: {integrity: sha512-HUgH65KyejrUFPvHFPbqOY0rsFip3Bo5wb4ngvdi1EpCYWUQDC5V+Y7mZws+DLkr4M//zQJoanu1SP+87Dv1oQ==}
+
   jsonfile@4.0.0:
     resolution: {integrity: sha512-m6F1R3z8jjlf2imQHS2Qez5sjKWQzbuuhuJ/FKYFRZvPE3PuHcSMVZzfsLhGVOkfd20obL5SWEBew5ShlquNxg==}
 
@@ -4298,6 +4385,9 @@ packages:
 
   linkify-it@5.0.0:
     resolution: {integrity: sha512-5aHCbzQRADcdP+ATqnDuhhJ/MRIqDkZX5pyjFHRRysS8vZ5AbqGEoFIb6pYHPZ+L/OC2Lc+xT8uHVVR5CAK/wQ==}
+
+  linkify-it@5.0.1:
+    resolution: {integrity: sha512-wVoTjP4Q6R0NW5hiZkVJaFZPWgtXfoGF+6LucL3/FtiNjmcHhYjEr5f1Kqjirc1nBW07J/ZuRFumqr2oqccEWg==}
 
   listenercount@1.0.1:
     resolution: {integrity: sha512-3mk/Zag0+IJxeDrxSgaDPy4zZ3w05PRZeJNnlWhzFz5OkX49J4krc+A8X2d2M69vGMBEX0uyl8M+W+8gH+kBqQ==}
@@ -4420,6 +4510,10 @@ packages:
 
   markdown-it@14.1.1:
     resolution: {integrity: sha512-BuU2qnTti9YKgK5N+IeMubp14ZUKUUw7yeJbkjtosvHiP0AZ5c8IAgEMk79D0eC8F23r4Ac/q8cAIFdm2FtyoA==}
+    hasBin: true
+
+  markdown-it@14.2.0:
+    resolution: {integrity: sha512-1TGiQiJVRQ3NPmZH6sx5Cfnmg6GQm9jvC1ch4TK511NjSJvjzKLzn5pPfZRNZkRPZP0HqCioSndqH8v2nRaWVQ==}
     hasBin: true
 
   marked@14.0.0:
@@ -5164,6 +5258,12 @@ packages:
       '@types/react':
         optional: true
 
+  react-textarea-autosize@8.5.9:
+    resolution: {integrity: sha512-U1DGlIQN5AwgjTyOEnI1oCcMuEr1pv1qOtklB2l4nyMGbHzWrI0eFsYK0zos2YWqAolJyG0IWJaqWmWj5ETh0A==}
+    engines: {node: '>=10'}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+
   react-tooltip@4.5.1:
     resolution: {integrity: sha512-Zo+CSFUGXar1uV+bgXFFDe7VeS2iByeIp5rTgTcc2HqtuOS5D76QapejNNfx320MCY91TlhTQat36KGFTqgcvw==}
     engines: {npm: '>=6.13'}
@@ -5384,6 +5484,11 @@ packages:
     engines: {node: '>=10'}
     hasBin: true
 
+  semver@7.8.5:
+    resolution: {integrity: sha512-Y7/KDsb8LjooZpwaqGyulO6DQlksgCncchHGk+sZIY4SBvUocMBEFH5Ur1fI4dV+Jvl0w6cjvucaIi40puRioA==}
+    engines: {node: '>=10'}
+    hasBin: true
+
   send@0.19.2:
     resolution: {integrity: sha512-VMbMxbDeehAxpOtWJXlcUS5E8iXh6QmN+BkRX1GARS3wRaXEEgzCcB10gTQazO42tpNIya8xIyNx8fll1OFPrg==}
     engines: {node: '>= 0.8.0'}
@@ -5470,6 +5575,9 @@ packages:
 
   simple-get@4.0.1:
     resolution: {integrity: sha512-brv7p5WgH0jmQJr1ZDDfKDOSeWWg+OVypG99A/5vYGPqJ6pxiaHLy8nxtFjBA7oMa01ebA9gfh1uMCFqOuXxvA==}
+
+  simple-git@3.36.0:
+    resolution: {integrity: sha512-cGQjLjK8bxJw4QuYT7gxHw3/IouVESbhahSsHrX97MzCL1gu2u7oy38W6L2ZIGECEfIBG4BabsWDPjBxJENv9Q==}
 
   simple-update-notifier@2.0.0:
     resolution: {integrity: sha512-a2B9Y0KlNXl9u/vsW6sTIu9vGEpfKu2wRV6l1H3XEas/0gUIzGzBoP/IouTcUQbm9JWZLH3COxyn03TYlFax6w==}
@@ -5893,6 +6001,10 @@ packages:
     resolution: {integrity: sha512-xXnp4kTyor2Zq+J1FfPI6Eq3ew5h6Vl0F/8d9XU5zZQf1tX9s2Su1/3PiMmUANFULpmksxkClamIZcaUqryHsQ==}
     engines: {node: '>=20.18.1'}
 
+  undici@7.28.0:
+    resolution: {integrity: sha512-cRZYrTDwWznlnRiPjggAGxZXanty6M8RV1ff8Wm4LWXBp7/IG8v5DnOm74DtUBp9OONpK75YlPnIjQqX0dBDtA==}
+    engines: {node: '>=20.18.1'}
+
   unicode-canonical-property-names-ecmascript@2.0.1:
     resolution: {integrity: sha512-dA8WbNeb2a6oQzAQ55YlT5vQAWGV9WXOsi3SskE3bcCdM0P4SDd+24zS/OCacdRq5BkdsRj9q3Pg6YyQoxIGqg==}
     engines: {node: '>=4'}
@@ -5961,6 +6073,33 @@ packages:
       '@types/react':
         optional: true
 
+  use-composed-ref@1.4.0:
+    resolution: {integrity: sha512-djviaxuOOh7wkj0paeO1Q/4wMZ8Zrnag5H6yBvzN7AKKe8beOaED9SF5/ByLqsku8NP4zQqsvM2u3ew/tJK8/w==}
+    peerDependencies:
+      '@types/react': '*'
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+
+  use-isomorphic-layout-effect@1.2.1:
+    resolution: {integrity: sha512-tpZZ+EX0gaghDAiFR37hj5MgY6ZN55kLiPkJsKxBMZ6GZdOSPJXiOzPM984oPYZ5AnehYx5WQp1+ME8I/P/pRA==}
+    peerDependencies:
+      '@types/react': '*'
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+
+  use-latest@1.3.0:
+    resolution: {integrity: sha512-mhg3xdm9NaM8q+gLT8KryJPnRFOz1/5XPBhmDEVZK1webPzDjrPk7f/mbpeLqTgB9msytYWANxgALOCJKnLvcQ==}
+    peerDependencies:
+      '@types/react': '*'
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+
   use-sidecar@1.1.3:
     resolution: {integrity: sha512-Fedw0aZvkhynoPYlA5WXrMCAMm+nSWdZt6lzJQ7Ok8S6Q+VsHmHpRWndVRJ8Be0ZbkfPc5LRYH+5XrzXcEeLRQ==}
     engines: {node: '>=10'}
@@ -5984,6 +6123,10 @@ packages:
   utils-merge@1.0.1:
     resolution: {integrity: sha512-pMZTvIkT1d+TFGvDOqodOclx0QWkkgi6Tdoa8gC8ffGAAqz9pzPTZWAybbsHHoED/ztMtkv/VoYTYyShUn81hA==}
     engines: {node: '>= 0.4.0'}
+
+  uuid@11.1.1:
+    resolution: {integrity: sha512-vIYxrBCC/N/K+Js3qSN88go7kIfNPssr/hHCesKCQNAjmgvYS2oqr69kIufEG+O4+PfezOH4EbIeHCfFov8ZgQ==}
+    hasBin: true
 
   uuid@7.0.3:
     resolution: {integrity: sha512-DPSke0pXhTZgoF/d+WSt2QaKMCFSfx7QegxEWT+JOuHF5aWrKEn0G+ztjuJg/gG8/ItK+rbPCD/yNv8yyih6Cg==}
@@ -6252,6 +6395,18 @@ packages:
 
   ws@8.20.0:
     resolution: {integrity: sha512-sAt8BhgNbzCtgGbt2OxmpuryO63ZoDk/sqaB/znQm94T4fCEsy/yV+7CdC1kJhOU9lboAEU7R3kquuycDoibVA==}
+    engines: {node: '>=10.0.0'}
+    peerDependencies:
+      bufferutil: ^4.0.1
+      utf-8-validate: '>=5.0.2'
+    peerDependenciesMeta:
+      bufferutil:
+        optional: true
+      utf-8-validate:
+        optional: true
+
+  ws@8.21.0:
+    resolution: {integrity: sha512-Vsp28b7DRcimFQvrqu2Wek3z1iYxDCWqHYB8Qsnk/S4RfaCQzPGPyBNuVjJV3cd6UiKtUtp6sNM77gWvzcCH+g==}
     engines: {node: '>=10.0.0'}
     peerDependencies:
       bufferutil: ^4.0.1
@@ -7024,6 +7179,8 @@ snapshots:
 
   '@babel/runtime@7.29.2': {}
 
+  '@babel/runtime@7.29.7': {}
+
   '@babel/template@7.28.6':
     dependencies:
       '@babel/code-frame': 7.29.0
@@ -7362,6 +7519,14 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
+
+  '@kwsites/file-exists@1.1.1':
+    dependencies:
+      debug: 4.4.3(supports-color@8.1.1)
+    transitivePeerDependencies:
+      - supports-color
+
+  '@kwsites/promise-deferred@1.1.1': {}
 
   '@lumino/algorithm@2.0.4': {}
 
@@ -7949,6 +8114,12 @@ snapshots:
 
   '@rolldown/pluginutils@1.0.0-rc.18': {}
 
+  '@simple-git/args-pathspec@1.0.3': {}
+
+  '@simple-git/argv-parser@1.1.1':
+    dependencies:
+      '@simple-git/args-pathspec': 1.0.3
+
   '@sindresorhus/df@1.0.1': {}
 
   '@sindresorhus/df@3.1.1':
@@ -8038,6 +8209,23 @@ snapshots:
       nano: 10.1.4
       resolve-package-path: 4.0.3
       semver: 7.8.0
+      tslib: 2.8.1
+      write-json-file: 2.3.0
+    transitivePeerDependencies:
+      - debug
+
+  '@theia/application-package@1.73.0':
+    dependencies:
+      '@theia/request': 1.73.0
+      '@types/fs-extra': 4.0.15
+      '@types/semver': 7.7.1
+      '@types/write-json-file': 2.2.1
+      deepmerge: 4.3.1
+      fs-extra: 4.0.3
+      is-electron: 2.2.2
+      nano: 10.1.4
+      resolve-package-path: 4.0.3
+      semver: 7.8.5
       tslib: 2.8.1
       write-json-file: 2.3.0
     transitivePeerDependencies:
@@ -8178,6 +8366,85 @@ snapshots:
       - supports-color
       - utf-8-validate
 
+  '@theia/core@1.73.0(@theia/electron@1.71.0(electron@39.8.10))(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+    dependencies:
+      '@babel/runtime': 7.29.7
+      '@lumino/algorithm': 2.0.4
+      '@lumino/commands': 2.3.3
+      '@lumino/coreutils': 2.2.2
+      '@lumino/domutils': 2.0.4
+      '@lumino/dragdrop': 2.1.8
+      '@lumino/messaging': 2.0.4
+      '@lumino/properties': 2.0.4
+      '@lumino/signaling': 2.1.5
+      '@lumino/virtualdom': 2.0.4
+      '@lumino/widgets': 2.7.5
+      '@parcel/watcher': 2.5.6
+      '@theia/application-package': 1.73.0
+      '@theia/request': 1.73.0
+      '@types/body-parser': 1.19.6
+      '@types/express': 4.17.25
+      '@types/fs-extra': 4.0.15
+      '@types/lodash.debounce': 4.0.3
+      '@types/lodash.throttle': 4.1.9
+      '@types/markdown-it': 14.1.2
+      '@types/markdown-it-emoji': 3.0.1
+      '@types/route-parser': 0.1.7
+      '@types/safer-buffer': 2.1.3
+      '@types/ws': 8.18.1
+      '@types/yargs': 17.0.35
+      '@vscode/codicons': 0.0.45
+      ajv: 6.15.0
+      async-mutex: 0.4.1
+      body-parser: 1.20.5
+      cookie: 1.1.1
+      dompurify: 3.4.11
+      drivelist: 12.0.2
+      express: 4.22.2
+      fast-json-stable-stringify: 2.1.0
+      file-icons-js: 1.0.3
+      font-awesome: 4.7.0
+      fs-extra: 4.0.3
+      fuzzy: 0.1.3
+      http-proxy-agent: 5.0.0
+      https-proxy-agent: 5.0.1
+      iconv-lite: 0.6.3
+      inversify: 6.2.2(reflect-metadata@0.2.2)
+      jschardet: 2.3.0
+      keytar: 7.9.0
+      lodash.debounce: 4.0.8
+      lodash.throttle: 4.1.1
+      markdown-it: 14.2.0
+      markdown-it-anchor: 9.2.0(@types/markdown-it@14.1.2)(markdown-it@14.2.0)
+      markdown-it-emoji: 3.0.0
+      msgpackr: 1.11.12
+      p-debounce: 2.1.0
+      perfect-scrollbar: 1.5.5
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+      react-tooltip: 4.5.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      react-virtuoso: 2.19.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      reflect-metadata: 0.2.2
+      route-parser: 0.0.5
+      safer-buffer: 2.1.2
+      socket.io: 4.8.3
+      socket.io-client: 4.8.3
+      tslib: 2.8.1
+      uuid: 11.1.1
+      vscode-languageserver-protocol: 3.17.5
+      vscode-uri: 3.0.8
+      ws: 8.21.0
+      yargs: 17.7.2
+    optionalDependencies:
+      '@theia/electron': 1.71.0(electron@39.8.10)
+      '@types/react': 18.3.28
+      '@types/react-dom': 18.3.7(@types/react@18.3.28)
+    transitivePeerDependencies:
+      - bufferutil
+      - debug
+      - supports-color
+      - utf-8-validate
+
   '@theia/editor@1.71.0(@theia/electron@1.71.0(electron@39.8.10))':
     dependencies:
       '@theia/core': 1.71.0(@theia/electron@1.71.0(electron@39.8.10))
@@ -8187,6 +8454,22 @@ snapshots:
       - '@theia/electron'
       - bufferutil
       - debug
+      - supports-color
+      - utf-8-validate
+
+  '@theia/editor@1.73.0(@theia/electron@1.71.0(electron@39.8.10))(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+    dependencies:
+      '@theia/core': 1.73.0(@theia/electron@1.71.0(electron@39.8.10))(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@theia/variable-resolver': 1.73.0(@theia/electron@1.71.0(electron@39.8.10))(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - '@theia/electron'
+      - '@types/react'
+      - '@types/react-dom'
+      - bufferutil
+      - debug
+      - react
+      - react-dom
       - supports-color
       - utf-8-validate
 
@@ -8257,6 +8540,42 @@ snapshots:
       - typescript
       - utf-8-validate
 
+  '@theia/filesystem@1.73.0(@theia/electron@1.71.0(electron@39.8.10))(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@6.0.3)':
+    dependencies:
+      '@theia/core': 1.73.0(@theia/electron@1.71.0(electron@39.8.10))(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@types/body-parser': 1.19.6
+      '@types/multer': 1.4.13
+      '@types/tar-fs': 1.16.3
+      '@types/tar-stream': 3.1.4
+      async-mutex: 0.3.2
+      body-parser: 1.20.5
+      http-status-codes: 1.4.0
+      ignore: 6.0.2
+      minimatch: 10.2.5
+      multer: 2.1.1
+      opfs-worker: 1.3.1(typescript@6.0.3)
+      rimraf: 5.0.10
+      stat-mode: 1.0.0
+      tar-fs: 3.1.2
+      tar-stream: 3.2.0
+      trash: 7.2.0
+      tslib: 2.8.1
+      vscode-languageserver-textdocument: 1.0.12
+    transitivePeerDependencies:
+      - '@theia/electron'
+      - '@types/react'
+      - '@types/react-dom'
+      - bare-abort-controller
+      - bare-buffer
+      - bufferutil
+      - debug
+      - react
+      - react-dom
+      - react-native-b4a
+      - supports-color
+      - typescript
+      - utf-8-validate
+
   '@theia/localization-manager@1.71.0':
     dependencies:
       '@types/bent': 7.3.8
@@ -8282,6 +8601,27 @@ snapshots:
       - bare-buffer
       - bufferutil
       - debug
+      - react-native-b4a
+      - supports-color
+      - typescript
+      - utf-8-validate
+
+  '@theia/markers@1.73.0(@theia/electron@1.71.0(electron@39.8.10))(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@6.0.3)':
+    dependencies:
+      '@theia/core': 1.73.0(@theia/electron@1.71.0(electron@39.8.10))(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@theia/filesystem': 1.73.0(@theia/electron@1.71.0(electron@39.8.10))(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@6.0.3)
+      '@theia/workspace': 1.73.0(@theia/electron@1.71.0(electron@39.8.10))(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@6.0.3)
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - '@theia/electron'
+      - '@types/react'
+      - '@types/react-dom'
+      - bare-abort-controller
+      - bare-buffer
+      - bufferutil
+      - debug
+      - react
+      - react-dom
       - react-native-b4a
       - supports-color
       - typescript
@@ -8328,6 +8668,36 @@ snapshots:
       - bare-buffer
       - bufferutil
       - debug
+      - react-native-b4a
+      - supports-color
+      - typescript
+      - utf-8-validate
+
+  '@theia/monaco@1.73.0(@theia/electron@1.71.0(electron@39.8.10))(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@6.0.3)':
+    dependencies:
+      '@theia/core': 1.73.0(@theia/electron@1.71.0(electron@39.8.10))(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@theia/editor': 1.73.0(@theia/electron@1.71.0(electron@39.8.10))(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@theia/filesystem': 1.73.0(@theia/electron@1.71.0(electron@39.8.10))(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@6.0.3)
+      '@theia/markers': 1.73.0(@theia/electron@1.71.0(electron@39.8.10))(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@6.0.3)
+      '@theia/monaco-editor-core': 1.108.201
+      '@theia/outline-view': 1.73.0(@theia/electron@1.71.0(electron@39.8.10))(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@theia/workspace': 1.73.0(@theia/electron@1.71.0(electron@39.8.10))(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@6.0.3)
+      fast-plist: 0.1.3
+      idb: 4.0.5
+      jsonc-parser: 3.3.1
+      tslib: 2.8.1
+      vscode-oniguruma: 2.0.1
+      vscode-textmate: 9.3.2
+    transitivePeerDependencies:
+      - '@theia/electron'
+      - '@types/react'
+      - '@types/react-dom'
+      - bare-abort-controller
+      - bare-buffer
+      - bufferutil
+      - debug
+      - react
+      - react-dom
       - react-native-b4a
       - supports-color
       - typescript
@@ -8382,6 +8752,21 @@ snapshots:
       - supports-color
       - utf-8-validate
 
+  '@theia/outline-view@1.73.0(@theia/electron@1.71.0(electron@39.8.10))(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+    dependencies:
+      '@theia/core': 1.73.0(@theia/electron@1.71.0(electron@39.8.10))(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - '@theia/electron'
+      - '@types/react'
+      - '@types/react-dom'
+      - bufferutil
+      - debug
+      - react
+      - react-dom
+      - supports-color
+      - utf-8-validate
+
   '@theia/ovsx-client@1.71.0':
     dependencies:
       '@theia/request': 1.71.0
@@ -8431,6 +8816,39 @@ snapshots:
     dependencies:
       tslib: 2.8.1
       undici: 7.25.0
+
+  '@theia/request@1.73.0':
+    dependencies:
+      tslib: 2.8.1
+      undici: 7.28.0
+
+  '@theia/scm@1.73.0(@theia/electron@1.71.0(electron@39.8.10))(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@6.0.3)':
+    dependencies:
+      '@theia/core': 1.73.0(@theia/electron@1.71.0(electron@39.8.10))(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@theia/editor': 1.73.0(@theia/electron@1.71.0(electron@39.8.10))(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@theia/filesystem': 1.73.0(@theia/electron@1.71.0(electron@39.8.10))(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@6.0.3)
+      '@theia/monaco': 1.73.0(@theia/electron@1.71.0(electron@39.8.10))(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@6.0.3)
+      '@theia/monaco-editor-core': 1.108.201
+      '@types/diff': 5.2.3
+      diff: 5.2.2
+      p-debounce: 2.1.0
+      react-textarea-autosize: 8.5.9(@types/react@18.3.28)(react@18.3.1)
+      ts-md5: 1.3.1
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - '@theia/electron'
+      - '@types/react'
+      - '@types/react-dom'
+      - bare-abort-controller
+      - bare-buffer
+      - bufferutil
+      - debug
+      - react
+      - react-dom
+      - react-native-b4a
+      - supports-color
+      - typescript
+      - utf-8-validate
 
   '@theia/terminal@1.71.0(@theia/electron@1.71.0(electron@39.8.10))(typescript@6.0.3)':
     dependencies:
@@ -8484,6 +8902,21 @@ snapshots:
       - supports-color
       - utf-8-validate
 
+  '@theia/variable-resolver@1.73.0(@theia/electron@1.71.0(electron@39.8.10))(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+    dependencies:
+      '@theia/core': 1.73.0(@theia/electron@1.71.0(electron@39.8.10))(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - '@theia/electron'
+      - '@types/react'
+      - '@types/react-dom'
+      - bufferutil
+      - debug
+      - react
+      - react-dom
+      - supports-color
+      - utf-8-validate
+
   '@theia/workspace@1.71.0(@theia/electron@1.71.0(electron@39.8.10))(typescript@6.0.3)':
     dependencies:
       '@theia/core': 1.71.0(@theia/electron@1.71.0(electron@39.8.10))
@@ -8498,6 +8931,29 @@ snapshots:
       - bare-buffer
       - bufferutil
       - debug
+      - react-native-b4a
+      - supports-color
+      - typescript
+      - utf-8-validate
+
+  '@theia/workspace@1.73.0(@theia/electron@1.71.0(electron@39.8.10))(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@6.0.3)':
+    dependencies:
+      '@theia/core': 1.73.0(@theia/electron@1.71.0(electron@39.8.10))(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@theia/filesystem': 1.73.0(@theia/electron@1.71.0(electron@39.8.10))(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@6.0.3)
+      '@theia/variable-resolver': 1.73.0(@theia/electron@1.71.0(electron@39.8.10))(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      jsonc-parser: 3.3.1
+      tslib: 2.8.1
+      valid-filename: 2.0.1
+    transitivePeerDependencies:
+      - '@theia/electron'
+      - '@types/react'
+      - '@types/react-dom'
+      - bare-abort-controller
+      - bare-buffer
+      - bufferutil
+      - debug
+      - react
+      - react-dom
       - react-native-b4a
       - supports-color
       - typescript
@@ -8566,6 +9022,8 @@ snapshots:
       '@types/ms': 2.1.0
 
   '@types/deep-eql@4.0.2': {}
+
+  '@types/diff@5.2.3': {}
 
   '@types/eslint-scope@3.7.7':
     dependencies:
@@ -8751,6 +9209,10 @@ snapshots:
   '@types/yargs-parser@21.0.3': {}
 
   '@types/yargs@15.0.20':
+    dependencies:
+      '@types/yargs-parser': 21.0.3
+
+  '@types/yargs@17.0.35':
     dependencies:
       '@types/yargs-parser': 21.0.3
 
@@ -9986,6 +10448,10 @@ snapshots:
     optionalDependencies:
       '@types/trusted-types': 2.0.7
 
+  dompurify@3.4.11:
+    optionalDependencies:
+      '@types/trusted-types': 2.0.7
+
   dompurify@3.4.2:
     optionalDependencies:
       '@types/trusted-types': 2.0.7
@@ -10348,6 +10814,42 @@ snapshots:
       path-to-regexp: 0.1.13
       proxy-addr: 2.0.7
       qs: 6.14.2
+      range-parser: 1.2.1
+      safe-buffer: 5.2.1
+      send: 0.19.2
+      serve-static: 1.16.3
+      setprototypeof: 1.2.0
+      statuses: 2.0.2
+      type-is: 1.6.18
+      utils-merge: 1.0.1
+      vary: 1.1.2
+    transitivePeerDependencies:
+      - supports-color
+
+  express@4.22.2:
+    dependencies:
+      accepts: 1.3.8
+      array-flatten: 1.1.1
+      body-parser: 1.20.5
+      content-disposition: 0.5.4
+      content-type: 1.0.5
+      cookie: 0.7.2
+      cookie-signature: 1.0.7
+      debug: 2.6.9
+      depd: 2.0.0
+      encodeurl: 2.0.0
+      escape-html: 1.0.3
+      etag: 1.8.1
+      finalhandler: 1.3.2
+      fresh: 0.5.2
+      http-errors: 2.0.1
+      merge-descriptors: 1.0.3
+      methods: 1.1.2
+      on-finished: 2.4.1
+      parseurl: 1.3.3
+      path-to-regexp: 0.1.13
+      proxy-addr: 2.0.7
+      qs: 6.15.1
       range-parser: 1.2.1
       safe-buffer: 5.2.1
       send: 0.19.2
@@ -11043,6 +11545,8 @@ snapshots:
 
   jsonc-parser@2.3.1: {}
 
+  jsonc-parser@3.3.1: {}
+
   jsonfile@4.0.0:
     optionalDependencies:
       graceful-fs: 4.2.11
@@ -11152,6 +11656,10 @@ snapshots:
   lines-and-columns@1.2.4: {}
 
   linkify-it@5.0.0:
+    dependencies:
+      uc.micro: 2.1.0
+
+  linkify-it@5.0.1:
     dependencies:
       uc.micro: 2.1.0
 
@@ -11283,6 +11791,11 @@ snapshots:
       '@types/markdown-it': 14.1.2
       markdown-it: 14.1.1
 
+  markdown-it-anchor@9.2.0(@types/markdown-it@14.1.2)(markdown-it@14.2.0):
+    dependencies:
+      '@types/markdown-it': 14.1.2
+      markdown-it: 14.2.0
+
   markdown-it-emoji@3.0.0: {}
 
   markdown-it@14.1.1:
@@ -11290,6 +11803,15 @@ snapshots:
       argparse: 2.0.1
       entities: 4.5.0
       linkify-it: 5.0.0
+      mdurl: 2.0.0
+      punycode.js: 2.3.1
+      uc.micro: 2.1.0
+
+  markdown-it@14.2.0:
+    dependencies:
+      argparse: 2.0.1
+      entities: 4.5.0
+      linkify-it: 5.0.1
       mdurl: 2.0.0
       punycode.js: 2.3.1
       uc.micro: 2.1.0
@@ -12049,6 +12571,15 @@ snapshots:
     optionalDependencies:
       '@types/react': 18.3.28
 
+  react-textarea-autosize@8.5.9(@types/react@18.3.28)(react@18.3.1):
+    dependencies:
+      '@babel/runtime': 7.29.2
+      react: 18.3.1
+      use-composed-ref: 1.4.0(@types/react@18.3.28)(react@18.3.1)
+      use-latest: 1.3.0(@types/react@18.3.28)(react@18.3.1)
+    transitivePeerDependencies:
+      - '@types/react'
+
   react-tooltip@4.5.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
     dependencies:
       prop-types: 15.8.1
@@ -12288,6 +12819,8 @@ snapshots:
 
   semver@7.8.0: {}
 
+  semver@7.8.5: {}
+
   send@0.19.2:
     dependencies:
       debug: 2.6.9
@@ -12435,6 +12968,16 @@ snapshots:
       decompress-response: 6.0.0
       once: 1.4.0
       simple-concat: 1.0.1
+
+  simple-git@3.36.0:
+    dependencies:
+      '@kwsites/file-exists': 1.1.1
+      '@kwsites/promise-deferred': 1.1.1
+      '@simple-git/args-pathspec': 1.0.3
+      '@simple-git/argv-parser': 1.1.1
+      debug: 4.4.3(supports-color@8.1.1)
+    transitivePeerDependencies:
+      - supports-color
 
   simple-update-notifier@2.0.0:
     dependencies:
@@ -12879,6 +13422,8 @@ snapshots:
 
   undici@7.25.0: {}
 
+  undici@7.28.0: {}
+
   unicode-canonical-property-names-ecmascript@2.0.1: {}
 
   unicode-match-property-ecmascript@2.0.0:
@@ -12941,6 +13486,25 @@ snapshots:
     optionalDependencies:
       '@types/react': 18.3.28
 
+  use-composed-ref@1.4.0(@types/react@18.3.28)(react@18.3.1):
+    dependencies:
+      react: 18.3.1
+    optionalDependencies:
+      '@types/react': 18.3.28
+
+  use-isomorphic-layout-effect@1.2.1(@types/react@18.3.28)(react@18.3.1):
+    dependencies:
+      react: 18.3.1
+    optionalDependencies:
+      '@types/react': 18.3.28
+
+  use-latest@1.3.0(@types/react@18.3.28)(react@18.3.1):
+    dependencies:
+      react: 18.3.1
+      use-isomorphic-layout-effect: 1.2.1(@types/react@18.3.28)(react@18.3.1)
+    optionalDependencies:
+      '@types/react': 18.3.28
+
   use-sidecar@1.1.3(@types/react@18.3.28)(react@18.3.1):
     dependencies:
       detect-node-es: 1.1.0
@@ -12958,6 +13522,8 @@ snapshots:
   util-deprecate@1.0.2: {}
 
   utils-merge@1.0.1: {}
+
+  uuid@11.1.1: {}
 
   uuid@7.0.3: {}
 
@@ -13198,6 +13764,8 @@ snapshots:
   ws@8.18.3: {}
 
   ws@8.20.0: {}
+
+  ws@8.21.0: {}
 
   xdg-basedir@4.0.0: {}
 
