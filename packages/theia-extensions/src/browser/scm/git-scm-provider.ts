@@ -205,6 +205,7 @@ export class SpexrGitScmProvider implements ScmProvider, FrontendApplicationCont
   async fetch(): Promise<void> {
     if (!this.rootFsPath) return;
     await this.gitService.fetch(this.rootFsPath);
+    await this.refresh();
   }
 
   async checkout(branch: string): Promise<void> {
