@@ -58,6 +58,9 @@ import { SpexrLanguageGrammarContribution } from "./language/spexr-language-gram
 import { LanguageGrammarDefinitionContribution } from "@theia/monaco/lib/browser/textmate/textmate-contribution.js";
 import { AboutDialog } from "@theia/core/lib/browser/about-dialog.js";
 import { SpexrAboutDialog } from "./about/spexr-about-dialog.js";
+import { SpexrGitScmProvider } from "./scm/git-scm-provider.js";
+import { SpexrGitServiceProxySymbol, GIT_SERVICE_PATH } from "./scm/git-service-proxy.js";
+import { SpexrGitCommandsContribution } from "./scm/git-commands-contribution.js";
 
 /**
  * Frontend contributions for SPEXR. Theia handles DI via Inversify and
@@ -176,4 +179,18 @@ export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
 
   bind(SpexrAboutDialog).toSelf();
   rebind(AboutDialog).toService(SpexrAboutDialog);
+
+  // --- Git SCM ---
+  bind(SpexrGitServiceProxySymbol)
+    .toDynamicValue((ctx) => {
+      const connection = ctx.container.get(WebSocketConnectionProvider);
+      return connection.createProxy(GIT_SERVICE_PATH);
+    })
+    .inSingletonScope();
+
+  bind(SpexrGitScmProvider).toSelf().inSingletonScope();
+  bind(FrontendApplicationContribution).toService(SpexrGitScmProvider);
+
+  bind(SpexrGitCommandsContribution).toSelf().inSingletonScope();
+  bind(CommandContribution).toService(SpexrGitCommandsContribution);
 });
