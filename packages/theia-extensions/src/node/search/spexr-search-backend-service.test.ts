@@ -37,9 +37,9 @@ afterEach(async () => {
 });
 
 /** Wait until the index reports "ready" (or "error"), polling status. */
-async function waitReady(service: SpexrSearchBackendService): Promise<void> {
+async function waitReady(service: SpexrSearchBackendService, workspaceRoot: string = root): Promise<void> {
   for (let i = 0; i < 50; i++) {
-    const s = await service.getIndexStatus(root);
+    const s = await service.getIndexStatus(workspaceRoot);
     if (s.state === "ready" || s.state === "error") return;
     await new Promise((r) => setTimeout(r, 10));
   }
@@ -105,7 +105,7 @@ describe("SpexrSearchBackendService", () => {
     await writeFile(join(root, "auth.ts"), "auth token logic");
     const service = new SpexrSearchBackendService(new FakeEmbedder());
     await service.ensureIndexed(uriRoot);
-    await waitReady(service);
+    await waitReady(service, uriRoot);
     // With a URI root, the indexer reads from a nonexistent directory — error state.
     const status = await service.getIndexStatus(uriRoot);
     expect(status.state).toBe("error");

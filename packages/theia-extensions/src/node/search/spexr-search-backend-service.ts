@@ -62,6 +62,15 @@ export class SpexrSearchBackendService implements SpexrSearchService {
     ws.building = (async () => {
       try {
         if (await ws.indexer.load()) {
+          if (ws.pendingChanges) {
+            const { changed, removed } = ws.pendingChanges;
+            delete ws.pendingChanges;
+            for (const rel of removed) ws.indexer.removeFile(rel);
+            for (const rel of changed) {
+              try { await ws.indexer.updateFile(rel); } catch { /* ignore */ }
+            }
+            await ws.indexer.save();
+          }
           ws.status = { state: "ready", indexed: ws.indexer.index.size, total: ws.indexer.index.size };
           return;
         }
