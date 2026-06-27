@@ -78,6 +78,7 @@ module.exports = async (port, host, argv) => {
         await load(require('@theia/workspace/lib/node/workspace-backend-module'));
         await load(require('@theia/file-search/lib/node/file-search-backend-module'));
         await load(require('@theia/markers/lib/node/problem-backend-module'));
+        await load(require('@theia/scm/lib/node/scm-backend-module'));
         await load(require('@theia/messages/lib/node/messages-backend-module'));
         await load(require('@theia/navigator/lib/node/navigator-backend-module'));
         await load(require('@theia/preferences/lib/node/preference-backend-module'));

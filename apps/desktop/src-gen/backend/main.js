@@ -50,15 +50,19 @@ globalThis.extensionInfo = [
         "version": "1.71.0"
     },
     {
-        "name": "@theia/messages",
-        "version": "1.71.0"
-    },
-    {
         "name": "@theia/outline-view",
         "version": "1.71.0"
     },
     {
         "name": "@theia/monaco",
+        "version": "1.71.0"
+    },
+    {
+        "name": "@theia/scm",
+        "version": "1.71.0"
+    },
+    {
+        "name": "@theia/messages",
         "version": "1.71.0"
     },
     {

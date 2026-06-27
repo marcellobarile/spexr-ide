@@ -1862,3 +1862,40 @@ code {
 .spexr-about-links span {
   color: var(--spexr-text-disabled);
 }
+
+/* --- Git blame inline annotations (left margin column) --- */
+.spexr-blame {
+  white-space: pre;
+  font-style: normal;
+  font-feature-settings: "tnum";
+}
+/* Commit hash — accent, the anchor of each row. */
+.spexr-blame-hash {
+  color: var(--theia-textLink-foreground);
+  opacity: 0.75;
+}
+/* Author — readable but recessive against code. */
+.spexr-blame-author {
+  color: var(--theia-editor-foreground);
+  opacity: 0.5;
+}
+/* Relative date — faintest, italic, trailing metadata. */
+.spexr-blame-date {
+  color: var(--theia-descriptionForeground);
+  opacity: 0.65;
+  font-style: italic;
+}
+
+/* Commit link in the blame hover (and editor hovers): violet, no underline. */
+.monaco-editor .monaco-hover a,
+.monaco-editor .monaco-hover a:hover {
+  color: var(--theia-textLink-foreground) !important;
+  text-decoration: none !important;
+}
+
+/* Nudge ALL icons in the SCM panel toolbar (Theia's view-mode/collapse plus our
+   git actions) down a few pixels so they align vertically with the panel title.
+   Scoped to the SCM view-container part (id ends with "--scm-view"). */
+[id$="--scm-view"] .lm-TabBar-toolbar .item .codicon {
+  margin-top: 5px;
+}

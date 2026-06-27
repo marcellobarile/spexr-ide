@@ -1,0 +1,233 @@
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
+import { execSync } from "child_process";
+import {
+  SpexrGitBackendService,
+  parseBlamePorcelain,
+  normalizeRemoteUrl,
+} from "./spexr-git-backend-service.js";
+
+describe("SpexrGitBackendService", () => {
+  let tmpDir: string;
+  let service: SpexrGitBackendService;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "spexr-git-test-"));
+    execSync("git init", { cwd: tmpDir });
+    execSync('git config user.email "test@test.com"', { cwd: tmpDir });
+    execSync('git config user.name "Test"', { cwd: tmpDir });
+    fs.writeFileSync(path.join(tmpDir, "README.md"), "init");
+    execSync("git add README.md", { cwd: tmpDir });
+    execSync('git commit -m "init"', { cwd: tmpDir });
+    service = new SpexrGitBackendService();
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("getStatus: returns clean state on fresh repo", async () => {
+    const status = await service.getStatus(tmpDir);
+    expect(status.isClean).toBe(true);
+    expect(status.files).toHaveLength(0);
+    expect(typeof status.branch).toBe("string");
+    expect(status.branch.length).toBeGreaterThan(0);
+  });
+
+  it("getStatus: detects untracked file", async () => {
+    fs.writeFileSync(path.join(tmpDir, "new.txt"), "hello");
+    const status = await service.getStatus(tmpDir);
+    expect(status.isClean).toBe(false);
+    const f = status.files.find((x) => x.path === "new.txt");
+    expect(f).toBeDefined();
+    expect(f!.unstagedState).toBe("U");
+    expect(f!.stagedState).toBeUndefined();
+  });
+
+  it("stage: moves untracked file to staged (A)", async () => {
+    fs.writeFileSync(path.join(tmpDir, "new.txt"), "hello");
+    await service.stage(tmpDir, ["new.txt"]);
+    const status = await service.getStatus(tmpDir);
+    const f = status.files.find((x) => x.path === "new.txt");
+    expect(f?.stagedState).toBe("A");
+  });
+
+  it("unstage: reverts staged new file back to untracked", async () => {
+    fs.writeFileSync(path.join(tmpDir, "new.txt"), "hello");
+    await service.stage(tmpDir, ["new.txt"]);
+    await service.unstage(tmpDir, ["new.txt"]);
+    const status = await service.getStatus(tmpDir);
+    const f = status.files.find((x) => x.path === "new.txt");
+    expect(f?.stagedState).toBeUndefined();
+    expect(f?.unstagedState).toBe("U");
+  });
+
+  it("commit: staged file produces clean status", async () => {
+    fs.writeFileSync(path.join(tmpDir, "new.txt"), "hello");
+    await service.stage(tmpDir, ["new.txt"]);
+    await service.commit(tmpDir, "test commit");
+    const status = await service.getStatus(tmpDir);
+    expect(status.isClean).toBe(true);
+  });
+
+  it("getDiff: returns diff for unstaged modification", async () => {
+    fs.writeFileSync(path.join(tmpDir, "README.md"), "changed content");
+    const diff = await service.getDiff(tmpDir, "README.md", false);
+    expect(diff).toContain("-init");
+    expect(diff).toContain("+changed content");
+  });
+
+  it("getDiff: returns diff for staged modification", async () => {
+    fs.writeFileSync(path.join(tmpDir, "README.md"), "staged change");
+    await service.stage(tmpDir, ["README.md"]);
+    const diff = await service.getDiff(tmpDir, "README.md", true);
+    expect(diff).toContain("+staged change");
+  });
+
+  it("getLog: returns at least the initial commit", async () => {
+    const log = await service.getLog(tmpDir, 5);
+    expect(log.length).toBeGreaterThanOrEqual(1);
+    expect(log[0].message).toBe("init");
+    expect(log[0].hash).toHaveLength(7);
+  });
+
+  it("getBranches: returns current branch", async () => {
+    const branches = await service.getBranches(tmpDir);
+    const current = branches.find((b) => b.isCurrent);
+    expect(current).toBeDefined();
+    expect(current!.isRemote).toBe(false);
+  });
+
+  it("createBranch + checkout: switches to new branch", async () => {
+    await service.createBranch(tmpDir, "feature/test", true);
+    const status = await service.getStatus(tmpDir);
+    expect(status.branch).toBe("feature/test");
+  });
+
+  it("getBlame: maps committed lines to their commit", async () => {
+    fs.writeFileSync(path.join(tmpDir, "code.txt"), "line one\nline two\n");
+    execSync("git add code.txt", { cwd: tmpDir });
+    execSync('git commit -m "add code"', { cwd: tmpDir });
+
+    const blame = await service.getBlame(tmpDir, "code.txt");
+    expect(blame.lines).toHaveLength(2);
+    expect(blame.lines[0].line).toBe(1);
+    expect(blame.lines[1].line).toBe(2);
+
+    const commit = blame.commits[blame.lines[0].hash];
+    expect(commit).toBeDefined();
+    expect(commit.author).toBe("Test");
+    expect(commit.authorMail).toBe("test@test.com");
+    expect(commit.summary).toBe("add code");
+    expect(commit.authorTime).toBeGreaterThan(0);
+    // Both lines share the same commit.
+    expect(blame.lines[1].hash).toBe(blame.lines[0].hash);
+  });
+
+  it("getBlame: marks uncommitted working-tree lines with the all-zero hash", async () => {
+    fs.writeFileSync(path.join(tmpDir, "wip.txt"), "committed\n");
+    execSync("git add wip.txt", { cwd: tmpDir });
+    execSync('git commit -m "base"', { cwd: tmpDir });
+    fs.writeFileSync(path.join(tmpDir, "wip.txt"), "committed\nuncommitted\n");
+
+    const blame = await service.getBlame(tmpDir, "wip.txt");
+    expect(blame.lines).toHaveLength(2);
+    expect(blame.lines[1].hash).toMatch(/^0{40}$/);
+  });
+
+  it("getBlame: rejects path traversal", async () => {
+    await expect(service.getBlame(tmpDir, "../etc/passwd")).rejects.toThrow();
+  });
+
+  it("getRemoteUrl: returns undefined without a remote", async () => {
+    expect(await service.getRemoteUrl(tmpDir)).toBeUndefined();
+  });
+
+  it("getRemoteUrl: normalizes the origin remote", async () => {
+    execSync("git remote add origin git@github.com:foo/bar.git", { cwd: tmpDir });
+    expect(await service.getRemoteUrl(tmpDir)).toBe("https://github.com/foo/bar");
+  });
+});
+
+describe("normalizeRemoteUrl", () => {
+  it.each([
+    ["git@github.com:foo/bar.git", "https://github.com/foo/bar"],
+    ["https://github.com/foo/bar.git", "https://github.com/foo/bar"],
+    ["https://gitlab.com/group/sub/repo.git", "https://gitlab.com/group/sub/repo"],
+    ["ssh://git@github.com/foo/bar.git", "https://github.com/foo/bar"],
+    ["git://github.com/foo/bar.git", "https://github.com/foo/bar"],
+    ["https://github.com/foo/bar/", "https://github.com/foo/bar"],
+  ])("normalizes %s", (input, expected) => {
+    expect(normalizeRemoteUrl(input)).toBe(expected);
+  });
+
+  it("returns undefined for empty or non-http input", () => {
+    expect(normalizeRemoteUrl("")).toBeUndefined();
+    expect(normalizeRemoteUrl("file:///local/path")).toBeUndefined();
+  });
+});
+
+describe("parseBlamePorcelain", () => {
+  it("deduplicates commits and parses fields", () => {
+    const raw = [
+      "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0 1 1 2",
+      "author Jane Doe",
+      "author-mail <jane@example.com>",
+      "author-time 1700000000",
+      "author-tz +0000",
+      "summary first commit",
+      "filename code.txt",
+      "\tline one",
+      "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0 2 2",
+      "author Jane Doe",
+      "author-mail <jane@example.com>",
+      "author-time 1700000000",
+      "author-tz +0000",
+      "summary first commit",
+      "filename code.txt",
+      "\tline two",
+      "",
+    ].join("\n");
+
+    const result = parseBlamePorcelain(raw);
+    expect(result.lines).toEqual([
+      { line: 1, hash: "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0" },
+      { line: 2, hash: "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0" },
+    ]);
+    expect(Object.keys(result.commits)).toHaveLength(1);
+    const commit = result.commits["a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0"];
+    expect(commit.author).toBe("Jane Doe");
+    expect(commit.authorMail).toBe("jane@example.com");
+    expect(commit.authorTime).toBe(1700000000);
+    expect(commit.summary).toBe("first commit");
+  });
+});
+
+describe("SpexrGitBackendService — virgin repo (no commits)", () => {
+  let tmpDir: string;
+  let service: SpexrGitBackendService;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "spexr-git-virgin-"));
+    execSync("git init", { cwd: tmpDir });
+    execSync('git config user.email "test@test.com"', { cwd: tmpDir });
+    execSync('git config user.name "Test"', { cwd: tmpDir });
+    service = new SpexrGitBackendService();
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("unstage: works on repo without HEAD (no commits yet)", async () => {
+    fs.writeFileSync(path.join(tmpDir, "new.txt"), "hello");
+    await service.stage(tmpDir, ["new.txt"]);
+    await expect(service.unstage(tmpDir, ["new.txt"])).resolves.not.toThrow();
+    const status = await service.getStatus(tmpDir);
+    const f = status.files.find((x) => x.path === "new.txt");
+    expect(f?.stagedState).toBeUndefined();
+    expect(f?.unstagedState).toBe("U");
+  });
+});
