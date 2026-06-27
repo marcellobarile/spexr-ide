@@ -105,9 +105,10 @@ module.exports = (async () => {
         await load(container, import('@theia/workspace/lib/browser/workspace-frontend-module'));
         await load(container, import('@theia/file-search/lib/browser/file-search-frontend-module'));
         await load(container, import('@theia/markers/lib/browser/problem/problem-frontend-module'));
-        await load(container, import('@theia/messages/lib/browser/messages-frontend-module'));
         await load(container, import('@theia/outline-view/lib/browser/outline-view-frontend-module'));
         await load(container, import('@theia/monaco/lib/browser/monaco-frontend-module'));
+        await load(container, import('@theia/scm/lib/browser/scm-frontend-module'));
+        await load(container, import('@theia/messages/lib/browser/messages-frontend-module'));
         await load(container, import('@theia/navigator/lib/browser/navigator-frontend-module'));
         await load(container, import('@theia/navigator/lib/electron-browser/electron-navigator-module'));
         await load(container, import('@theia/userstorage/lib/browser/user-storage-frontend-module'));

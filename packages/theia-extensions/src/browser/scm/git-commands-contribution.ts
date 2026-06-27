@@ -6,6 +6,7 @@ import {
   MessageService,
 } from "@theia/core";
 import { QuickInputService } from "@theia/core/lib/browser";
+import { ProgressService } from "@theia/core/lib/common/progress-service";
 import { SpexrGitScmProvider } from "./git-scm-provider.js";
 
 export const GitCommands = {
@@ -18,6 +19,7 @@ export const GitCommands = {
   FETCH: { id: "spexr.git.fetch", label: "Git: Fetch" } satisfies Command,
   CHECKOUT: { id: "spexr.git.checkout", label: "Git: Checkout Branch" } satisfies Command,
   CREATE_BRANCH: { id: "spexr.git.createBranch", label: "Git: Create Branch" } satisfies Command,
+  REFRESH: { id: "spexr.git.refresh", label: "Git: Refresh" } satisfies Command,
 } as const;
 
 @injectable()
@@ -31,36 +33,44 @@ export class SpexrGitCommandsContribution implements CommandContribution {
   @inject(MessageService)
   private readonly messages!: MessageService;
 
+  @inject(ProgressService)
+  private readonly progressService!: ProgressService;
+
   registerCommands(commands: CommandRegistry): void {
     commands.registerCommand(GitCommands.STAGE_ALL, {
-      execute: () => this.runGitOp(() => this.stageAll()),
+      execute: () => this.runGitOp("Stage changes", () => this.stageAll()),
     });
     commands.registerCommand(GitCommands.UNSTAGE_ALL, {
-      execute: () => this.runGitOp(() => this.unstageAll()),
+      execute: () => this.runGitOp("Unstage changes", () => this.unstageAll()),
     });
     commands.registerCommand(GitCommands.COMMIT, {
-      execute: () => this.runGitOp(() => this.promptCommit()),
+      execute: () => this.commitWithPrompt(),
     });
     commands.registerCommand(GitCommands.COMMIT_FROM_PANEL, {
       execute: (message: unknown) =>
-        this.runGitOp(() =>
-          this.provider.commit(typeof message === "string" ? message : ""),
+        this.runGitOp(
+          "Commit",
+          () => this.provider.commit(typeof message === "string" ? message : ""),
+          "Changes committed.",
         ),
     });
     commands.registerCommand(GitCommands.PUSH, {
-      execute: () => this.runGitOp(() => this.provider.push()),
+      execute: () => this.runGitOp("Push", () => this.provider.push(), "Pushed to remote."),
     });
     commands.registerCommand(GitCommands.PULL, {
-      execute: () => this.runGitOp(() => this.provider.pull()),
+      execute: () => this.runGitOp("Pull", () => this.provider.pull(), "Pulled from remote."),
     });
     commands.registerCommand(GitCommands.FETCH, {
-      execute: () => this.runGitOp(() => this.provider.fetch()),
+      execute: () => this.runGitOp("Fetch", () => this.provider.fetch(), "Fetched from remote."),
     });
     commands.registerCommand(GitCommands.CHECKOUT, {
-      execute: () => this.runGitOp(() => this.promptCheckout()),
+      execute: () => this.checkoutWithPrompt(),
     });
     commands.registerCommand(GitCommands.CREATE_BRANCH, {
-      execute: () => this.runGitOp(() => this.promptCreateBranch()),
+      execute: () => this.createBranchWithPrompt(),
+    });
+    commands.registerCommand(GitCommands.REFRESH, {
+      execute: () => this.runGitOp("Refresh", () => this.provider.refresh()),
     });
   }
 
@@ -80,7 +90,7 @@ export class SpexrGitCommandsContribution implements CommandContribution {
     await this.provider.unstage(paths);
   }
 
-  private async promptCommit(): Promise<void> {
+  private async commitWithPrompt(): Promise<void> {
     const message = await this.quickInput.input({
       prompt: "Commit message",
       placeHolder: "feat: describe your change",
@@ -90,22 +100,24 @@ export class SpexrGitCommandsContribution implements CommandContribution {
           : Promise.resolve("Commit message cannot be empty."),
     });
     if (!message) return;
-    await this.provider.commit(message);
-    this.messages.info("Changes committed.");
+    await this.runGitOp("Commit", () => this.provider.commit(message), "Changes committed.");
   }
 
-  private async promptCheckout(): Promise<void> {
+  private async checkoutWithPrompt(): Promise<void> {
     const branches = await this.provider.getBranches();
     const items = branches
       .filter((b) => !b.isRemote)
       .map((b) => ({ label: b.name, description: b.isCurrent ? "(current)" : "" }));
     const picked = await this.quickInput.pick(items, { placeHolder: "Select branch to checkout" });
     if (!picked) return;
-    await this.provider.checkout(picked.label);
-    this.messages.info(`Checked out branch: ${picked.label}`);
+    await this.runGitOp(
+      `Checkout ${picked.label}`,
+      () => this.provider.checkout(picked.label),
+      `Checked out branch: ${picked.label}`,
+    );
   }
 
-  private async promptCreateBranch(): Promise<void> {
+  private async createBranchWithPrompt(): Promise<void> {
     const name = await this.quickInput.input({
       prompt: "New branch name",
       placeHolder: "feat/my-feature",
@@ -115,17 +127,39 @@ export class SpexrGitCommandsContribution implements CommandContribution {
           : Promise.resolve("Use alphanumeric characters, hyphens, underscores, dots, or slashes."),
     });
     if (!name) return;
-    await this.provider.createBranch(name.trim(), true);
-    this.messages.info(`Created and checked out branch: ${name.trim()}`);
+    const branchName = name.trim();
+    await this.runGitOp(
+      `Create branch ${branchName}`,
+      () => this.provider.createBranch(branchName, true),
+      `Created and checked out branch: ${branchName}`,
+    );
   }
 
-  private async runGitOp(op: () => Promise<void>): Promise<void> {
+  /**
+   * Runs a git operation behind an indeterminate progress bar shown at the top
+   * of the SCM panel (the `scm` progress location wired by Theia's view
+   * container) and reports the outcome: the optional success message on
+   * completion, an error notification on failure. The progress is always
+   * dismissed.
+   */
+  private async runGitOp(
+    label: string,
+    op: () => Promise<void>,
+    successMessage?: string,
+  ): Promise<void> {
+    const progress = await this.progressService.showProgress({
+      text: `${label}…`,
+      options: { location: "scm" },
+    });
     try {
       await op();
+      if (successMessage) this.messages.info(successMessage);
     } catch (err) {
       await this.provider.showError(
-        `Git operation failed: ${err instanceof Error ? err.message : String(err)}`,
+        `${label} failed: ${err instanceof Error ? err.message : String(err)}`,
       );
+    } finally {
+      progress.cancel();
     }
   }
 }

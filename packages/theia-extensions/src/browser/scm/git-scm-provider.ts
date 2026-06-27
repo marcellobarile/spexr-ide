@@ -1,7 +1,8 @@
 import { injectable, inject } from "@theia/core/shared/inversify";
 import { Emitter, DisposableCollection } from "@theia/core";
 import type { Event } from "@theia/core";
-import { FrontendApplicationContribution } from "@theia/core/lib/browser";
+import { FrontendApplicationContribution, OpenerService, open } from "@theia/core/lib/browser";
+import { DiffUris } from "@theia/core/lib/browser/diff-uris";
 import URI from "@theia/core/lib/common/uri";
 import { FileService } from "@theia/filesystem/lib/browser/file-service";
 import { WorkspaceService } from "@theia/workspace/lib/browser";
@@ -14,6 +15,7 @@ import type {
   ScmResourceDecorations,
 } from "@theia/scm/lib/browser/scm-provider";
 import { SpexrGitServiceProxySymbol } from "./git-service-proxy.js";
+import { GIT_ORIGINAL_SCHEME } from "./git-original-resource.js";
 import type { SpexrGitService, GitFileState, GitBranchDto } from "../../common/git-protocol.js";
 
 const STATE_LETTER: Record<GitFileState, string> = {
@@ -33,10 +35,11 @@ class GitScmResource {
     readonly group: GitScmResourceGroup,
     readonly sourceUri: URI,
     readonly decorations: ScmResourceDecorations,
+    private readonly openHandler: () => Promise<void>,
   ) {}
 
   async open(): Promise<void> {
-    // No-op for v1: clicking a file in the SCM panel opens it via Theia default.
+    await this.openHandler();
   }
 }
 
@@ -87,6 +90,9 @@ export class SpexrGitScmProvider implements ScmProvider, FrontendApplicationCont
   @inject(MessageService)
   private readonly messages!: MessageService;
 
+  @inject(OpenerService)
+  private readonly openerService!: OpenerService;
+
   private readonly _onDidChangeEmitter = new Emitter<void>();
   readonly onDidChange: Event<void> = this._onDidChangeEmitter.event;
 
@@ -122,7 +128,9 @@ export class SpexrGitScmProvider implements ScmProvider, FrontendApplicationCont
     this.rootFsPath = first.resource.path.toString();
     this.rootUriStr = first.resource.toString();
 
-    this.toDispose.push(this.scmService.registerScmProvider(this as unknown as ScmProvider));
+    const repository = this.scmService.registerScmProvider(this as unknown as ScmProvider);
+    repository.input.placeholder = "Message (press Ctrl/Cmd+Enter to commit)";
+    this.toDispose.push(repository);
     this.toDispose.push(
       this.fileService.onDidFilesChange(() => this.scheduleRefresh()),
     );
@@ -143,21 +151,29 @@ export class SpexrGitScmProvider implements ScmProvider, FrontendApplicationCont
 
       const staged = status.files
         .filter((f) => f.stagedState !== undefined)
-        .map((f) =>
-          new GitScmResource(this.indexGroup, buildFileUri(root, f.path), {
-            letter: STATE_LETTER[f.stagedState!],
-            tooltip: stateLabel(f.stagedState!),
-          }),
-        );
+        .map((f) => {
+          const isNew = f.stagedState === "A";
+          const fileUri = buildFileUri(root, f.path);
+          return new GitScmResource(
+            this.indexGroup,
+            fileUri,
+            { letter: STATE_LETTER[f.stagedState!], tooltip: stateLabel(f.stagedState!) },
+            () => this.openDiff(fileUri, f.path, ":0", isNew),
+          );
+        });
 
       const unstaged = status.files
         .filter((f) => f.unstagedState !== undefined)
-        .map((f) =>
-          new GitScmResource(this.workingTreeGroup, buildFileUri(root, f.path), {
-            letter: STATE_LETTER[f.unstagedState!],
-            tooltip: stateLabel(f.unstagedState!),
-          }),
-        );
+        .map((f) => {
+          const isNew = f.unstagedState === "U";
+          const fileUri = buildFileUri(root, f.path);
+          return new GitScmResource(
+            this.workingTreeGroup,
+            fileUri,
+            { letter: STATE_LETTER[f.unstagedState!], tooltip: stateLabel(f.unstagedState!) },
+            () => this.openDiff(fileUri, f.path, "HEAD", isNew),
+          );
+        });
 
       this.indexGroup.updateResources(staged);
       this.workingTreeGroup.updateResources(unstaged);
@@ -167,6 +183,24 @@ export class SpexrGitScmProvider implements ScmProvider, FrontendApplicationCont
       this.indexGroup.updateResources([]);
       this.workingTreeGroup.updateResources([]);
     }
+  }
+
+  private async openDiff(fileUri: URI, filePath: string, rev: string, isNew: boolean): Promise<void> {
+    if (isNew || !this.rootFsPath) {
+      await open(this.openerService, fileUri);
+      return;
+    }
+    const root = this.rootFsPath;
+    const originalUri = URI.fromComponents({
+      scheme: GIT_ORIGINAL_SCHEME,
+      authority: "",
+      path: `/${filePath}`,
+      query: `root=${encodeURIComponent(root)}&rev=${encodeURIComponent(rev)}`,
+      fragment: "",
+    });
+    const label = `${filePath.split("/").pop() ?? filePath} (${rev === ":0" ? "Index" : "Working Tree"})`;
+    const diffUri = DiffUris.encode(originalUri, fileUri, label);
+    await open(this.openerService, diffUri);
   }
 
   // --- Operations called by git-commands-contribution.ts ---

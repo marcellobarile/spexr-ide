@@ -32,6 +32,32 @@ export interface GitLogEntryDto {
   readonly date: string;
 }
 
+/** A commit referenced by one or more blamed lines. */
+export interface BlameCommitDto {
+  readonly hash: string;
+  readonly author: string;
+  readonly authorMail: string;
+  /** Author time, unix seconds. */
+  readonly authorTime: number;
+  readonly summary: string;
+}
+
+/** Maps a 1-based file line to the hash of the commit that last touched it. */
+export interface BlameLineDto {
+  readonly line: number;
+  readonly hash: string;
+}
+
+/**
+ * Blame for a whole file. Commits are deduplicated into `commits` (keyed by
+ * full hash); `lines` references them by hash. Lines not yet committed carry
+ * the all-zero hash, present in `commits` with empty author fields.
+ */
+export interface BlameResultDto {
+  readonly commits: Record<string, BlameCommitDto>;
+  readonly lines: readonly BlameLineDto[];
+}
+
 export interface SpexrGitService {
   getStatus(root: string): Promise<GitStatusDto>;
   stage(root: string, paths: string[]): Promise<void>;
@@ -45,4 +71,8 @@ export interface SpexrGitService {
   pull(root: string): Promise<void>;
   fetch(root: string): Promise<void>;
   getLog(root: string, maxCount?: number): Promise<GitLogEntryDto[]>;
+  getFileAtRevision(root: string, filePath: string, rev: string): Promise<string>;
+  getBlame(root: string, filePath: string): Promise<BlameResultDto>;
+  /** Normalized https URL of the `origin` remote, or undefined if none. */
+  getRemoteUrl(root: string): Promise<string | undefined>;
 }

@@ -3,6 +3,7 @@ import { CommandContribution, MenuContribution } from "@theia/core";
 import {
   bindViewContribution,
   FrontendApplicationContribution,
+  KeybindingContribution,
   WidgetFactory,
 } from "@theia/core/lib/browser";
 import { TabBarToolbarContribution } from "@theia/core/lib/browser/shell/tab-bar-toolbar";
@@ -61,6 +62,11 @@ import { SpexrAboutDialog } from "./about/spexr-about-dialog.js";
 import { SpexrGitScmProvider } from "./scm/git-scm-provider.js";
 import { SpexrGitServiceProxySymbol, GIT_SERVICE_PATH } from "./scm/git-service-proxy.js";
 import { SpexrGitCommandsContribution } from "./scm/git-commands-contribution.js";
+import { SpexrGitToolbarContribution } from "./scm/git-toolbar-contribution.js";
+import { GitOriginalResourceResolver } from "./scm/git-original-resource.js";
+import { ResourceResolver } from "@theia/core/lib/common/resource";
+import { SpexrGitBlameDecorator } from "./blame/blame-decorator.js";
+import { SpexrGitBlameCommandsContribution } from "./blame/blame-commands-contribution.js";
 
 /**
  * Frontend contributions for SPEXR. Theia handles DI via Inversify and
@@ -193,4 +199,18 @@ export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
 
   bind(SpexrGitCommandsContribution).toSelf().inSingletonScope();
   bind(CommandContribution).toService(SpexrGitCommandsContribution);
+
+  bind(SpexrGitToolbarContribution).toSelf().inSingletonScope();
+  bind(TabBarToolbarContribution).toService(SpexrGitToolbarContribution);
+
+  bind(GitOriginalResourceResolver).toSelf().inSingletonScope();
+  bind(ResourceResolver).toService(GitOriginalResourceResolver);
+
+  // --- Git blame ---
+  bind(SpexrGitBlameDecorator).toSelf().inSingletonScope();
+  bind(FrontendApplicationContribution).toService(SpexrGitBlameDecorator);
+  bind(SpexrGitBlameCommandsContribution).toSelf().inSingletonScope();
+  bind(CommandContribution).toService(SpexrGitBlameCommandsContribution);
+  bind(KeybindingContribution).toService(SpexrGitBlameCommandsContribution);
+  bind(MenuContribution).toService(SpexrGitBlameCommandsContribution);
 });
