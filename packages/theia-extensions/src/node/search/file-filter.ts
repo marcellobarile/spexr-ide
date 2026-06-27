@@ -21,6 +21,7 @@ const SKIPPED_EXTENSIONS: ReadonlySet<string> = new Set([
   "mp3", "mp4", "mov", "avi", "wav", "ogg", "webm",
   "exe", "dll", "dylib", "so", "node", "wasm", "onnx", "bin",
   "class", "jar", "lock", "map",
+  "gitignore",
 ]);
 
 /** True when the file's extension is a known non-text/binary type. */

@@ -23,6 +23,13 @@ describe("isSkippedExtension", () => {
     expect(isSkippedExtension("src/index.ts")).toBe(false);
     expect(isSkippedExtension("README.md")).toBe(false);
   });
+  it("skips .gitignore (extension is 'gitignore')", () => {
+    expect(isSkippedExtension(".gitignore")).toBe(true);
+  });
+  it("does not skip other dotfiles whose extension is indexable", () => {
+    // .eslintrc.js → extension is "js", must remain indexable
+    expect(isSkippedExtension(".eslintrc.js")).toBe(false);
+  });
 });
 
 describe("isBinaryBuffer", () => {

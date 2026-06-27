@@ -59,6 +59,14 @@ export class VectorIndex {
     }));
   }
 
+  /** Replace all records in this index with the records from `other`. */
+  replaceWith(other: VectorIndex): void {
+    this.records.clear();
+    for (const [path, record] of other.records) {
+      this.records.set(path, record);
+    }
+  }
+
   toJSON(): SerializedIndex {
     return {
       version: INDEX_VERSION,

@@ -58,6 +58,23 @@ describe("VectorIndex", () => {
     expect(VectorIndex.fromJSON(stale).size).toBe(0);
   });
 
+  it("replaceWith swaps all records from another index", () => {
+    const a = new VectorIndex();
+    a.upsert(rec("old", [1, 0]));
+
+    const b = new VectorIndex();
+    b.upsert(rec("new1", [0, 1]));
+    b.upsert(rec("new2", [1, 1]));
+
+    a.replaceWith(b);
+
+    expect(a.size).toBe(2);
+    expect(a.has("new1", "h")).toBe(true);
+    expect(a.has("new2", "h")).toBe(true);
+    expect(a.has("old", "h")).toBe(false);
+    expect(a.search(new Float32Array([0, 1]), 1, 0)[0]!.path).toBe("new1");
+  });
+
   it("fromJSON returns an empty index on malformed data", () => {
     expect(VectorIndex.fromJSON(null).size).toBe(0);
     expect(VectorIndex.fromJSON({ version: INDEX_VERSION }).size).toBe(0);
