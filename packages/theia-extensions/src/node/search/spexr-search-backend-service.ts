@@ -15,6 +15,8 @@ interface Workspace {
   indexer: WorkspaceIndexer;
   status: IndexStatus;
   building?: Promise<void>;
+  /** Changes that arrived while an index build was in progress, queued for replay. */
+  pendingChanges?: { changed: string[]; removed: string[] };
 }
 
 /**
@@ -67,6 +69,15 @@ export class SpexrSearchBackendService implements SpexrSearchService {
           ws.status = { state: "indexing", indexed, total };
         });
         await ws.indexer.save();
+        if (ws.pendingChanges) {
+          const { changed, removed } = ws.pendingChanges;
+          delete ws.pendingChanges;
+          for (const rel of removed) ws.indexer.removeFile(rel);
+          for (const rel of changed) {
+            try { await ws.indexer.updateFile(rel); } catch { /* ignore */ }
+          }
+          await ws.indexer.save();
+        }
         ws.status = { state: "ready", indexed: ws.indexer.index.size, total: ws.indexer.index.size };
       } catch (err) {
         ws.status = {
@@ -105,7 +116,14 @@ export class SpexrSearchBackendService implements SpexrSearchService {
 
   async applyChanges(root: string, changedPaths: string[], removedPaths: string[]): Promise<void> {
     const ws = this.workspaces.get(root);
-    if (!ws || ws.status.state !== "ready") return;
+    if (!ws) return;
+    if (ws.status.state !== "ready") {
+      // Queue for replay once the build completes.
+      const p = ws.pendingChanges ?? (ws.pendingChanges = { changed: [], removed: [] });
+      p.changed.push(...changedPaths);
+      p.removed.push(...removedPaths);
+      return;
+    }
     for (const rel of removedPaths) ws.indexer.removeFile(rel);
     for (const rel of changedPaths) {
       try {

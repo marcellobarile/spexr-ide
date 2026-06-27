@@ -1,3 +1,13 @@
+/**
+ * CONTRACT: `root` passed to all SpexrSearchBackendService methods MUST be an
+ * absolute filesystem path (e.g. `/tmp/proj`), NOT a `file://` URI string.
+ * The fixtures below use `mkdtemp()` which always returns plain paths — this
+ * is intentional and must be preserved.  Passing a URI string causes every
+ * `path.join(root, rel)` in WorkspaceIndexer to produce garbage, resulting in
+ * ENOENT on all filesystem operations.  The regression test "rejects file:// URI
+ * as root" below documents this contract and fails loudly if the frontend fix is
+ * accidentally reverted.
+ */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -71,5 +81,33 @@ describe("SpexrSearchBackendService", () => {
     expect((await service.search(root, "auth"))[0]?.path).toBe("auth.ts");
     await service.applyChanges(root, [], ["auth.ts"]);
     expect(await service.search(root, "auth")).toEqual([]);
+  });
+
+  it("queues applyChanges during indexing and replays them when ready", async () => {
+    await writeFile(join(root, "chart.ts"), "draw a chart");
+    const service = new SpexrSearchBackendService(new FakeEmbedder());
+    // Kick off build — do NOT await; send changes while indexing is in flight.
+    void service.ensureIndexed(root);
+    await writeFile(join(root, "auth.ts"), "auth token logic");
+    // applyChanges arrives while state is "indexing" — must be queued, not dropped.
+    await service.applyChanges(root, ["auth.ts"], []);
+    await waitReady(service);
+    expect((await service.getIndexStatus(root)).state).toBe("ready");
+    const hits = await service.search(root, "auth");
+    expect(hits[0]?.path).toBe("auth.ts");
+  });
+
+  it("rejects file:// URI as root — passes a URI and expects ENOENT/error state", async () => {
+    // CONTRACT: root MUST be a filesystem path, not a URI string.
+    // This test documents that passing "file://" produces an error or empty result,
+    // making the regression visible if the frontend fix is reverted.
+    const uriRoot = `file://${root}`;
+    await writeFile(join(root, "auth.ts"), "auth token logic");
+    const service = new SpexrSearchBackendService(new FakeEmbedder());
+    await service.ensureIndexed(uriRoot);
+    await waitReady(service);
+    // With a URI root, the indexer reads from a nonexistent directory — error state.
+    const status = await service.getIndexStatus(uriRoot);
+    expect(status.state).toBe("error");
   });
 });

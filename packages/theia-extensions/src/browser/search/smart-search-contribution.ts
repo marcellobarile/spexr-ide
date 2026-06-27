@@ -9,6 +9,7 @@ import { EXPLORER_VIEW_CONTAINER_ID } from "@theia/navigator/lib/browser/navigat
 import { FileService } from "@theia/filesystem/lib/browser/file-service";
 import { WorkspaceService } from "@theia/workspace/lib/browser";
 import URI from "@theia/core/lib/common/uri";
+import type { Disposable } from "@theia/core/lib/common/disposable";
 import type { SpexrSearchService } from "../../common/search-protocol.js";
 import { SpexrSearchServiceProxy } from "./smart-search-service.js";
 import { SmartSearchWidget } from "./smart-search-widget.js";
@@ -29,9 +30,15 @@ export class SpexrSmartSearchContribution implements FrontendApplicationContribu
   private changed = new Set<string>();
   private removed = new Set<string>();
   private readonly flush = debounce(() => void this.flushChanges(), 500);
+  private fileWatcher?: Disposable;
 
   private root(): string | undefined {
-    return this.workspace.tryGetRoots()[0]?.resource.toString();
+    return this.workspace.tryGetRoots()[0]?.resource.path.toString();
+  }
+
+  private rootUri(): URI | undefined {
+    const r = this.workspace.tryGetRoots()[0];
+    return r ? r.resource : undefined;
   }
 
   async onDidInitializeLayout(): Promise<void> {
@@ -51,13 +58,19 @@ export class SpexrSmartSearchContribution implements FrontendApplicationContribu
     const root = this.root();
     if (!root) return;
     await this.service.ensureIndexed(root);
-    this.fileService.onDidFilesChange((event) => this.onFilesChanged(event.changes));
+    this.fileWatcher = this.fileService.onDidFilesChange(
+      (event) => this.onFilesChanged(event.changes),
+    );
+  }
+
+  onStop(): void {
+    this.fileWatcher?.dispose();
+    this.flush.cancel();
   }
 
   private onFilesChanged(changes: readonly { resource: URI; type: number }[]): void {
-    const root = this.root();
-    if (!root) return;
-    const rootUri = new URI(root);
+    const rootUri = this.rootUri();
+    if (!rootUri) return;
     for (const change of changes) {
       const rel = rootUri.relative(change.resource);
       if (!rel) continue;

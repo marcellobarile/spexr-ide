@@ -22,6 +22,12 @@ export interface IndexStatus {
 /**
  * Backend search service. Methods are root-first: the workspace root identifies
  * the (stateful) per-workspace index, mirroring {@link SpexrGitService}.
+ *
+ * IMPORTANT: `root` MUST be an absolute filesystem path (e.g. `/Users/me/proj`),
+ * NOT a `file://` URI string. Callers must derive it via
+ * `WorkspaceService.tryGetRoots()[0]?.resource.path.toString()`.
+ * Passing a URI string causes every `path.join(root, rel)` call in the backend
+ * to produce garbage paths, resulting in ENOENT on all filesystem operations.
  */
 export interface SpexrSearchService {
   /** Build the index in the background if it does not exist yet; returns at once. */

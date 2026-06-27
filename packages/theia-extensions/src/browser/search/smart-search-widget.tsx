@@ -1,7 +1,6 @@
 import * as React from "@theia/core/shared/react";
 import { inject, injectable, postConstruct } from "@theia/core/shared/inversify";
 import { ReactWidget } from "@theia/core/lib/browser/widgets/react-widget";
-import URI from "@theia/core/lib/common/uri";
 import { CommandService } from "@theia/core/lib/common/command";
 import { OpenerService, open } from "@theia/core/lib/browser/opener-service";
 import { WorkspaceService } from "@theia/workspace/lib/browser";
@@ -45,7 +44,7 @@ export class SmartSearchWidget extends ReactWidget {
   }
 
   private root(): string | undefined {
-    return this.workspace.tryGetRoots()[0]?.resource.toString();
+    return this.workspace.tryGetRoots()[0]?.resource.path.toString();
   }
 
   private pollStatus(): void {
@@ -92,9 +91,9 @@ export class SmartSearchWidget extends ReactWidget {
   };
 
   private openHit = (hit: SearchHit): void => {
-    const root = this.root();
-    if (!root) return;
-    const uri = new URI(root).resolve(hit.path);
+    const rootResource = this.workspace.tryGetRoots()[0]?.resource;
+    if (!rootResource) return;
+    const uri = rootResource.resolve(hit.path);
     void open(this.openerService, uri);
     void this.commands.executeCommand("navigator.reveal", uri).catch(() => undefined);
   };
