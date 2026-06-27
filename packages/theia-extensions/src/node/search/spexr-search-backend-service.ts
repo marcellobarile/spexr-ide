@@ -48,6 +48,7 @@ export class SpexrSearchBackendService implements SpexrSearchService {
 
   async reindex(root: string): Promise<void> {
     const ws = this.getOrCreate(root);
+    if (ws.building) await ws.building; // drain in-flight build first
     ws.status = { state: "idle", indexed: 0, total: 0 };
     await this.build(ws, root);
   }
@@ -78,7 +79,6 @@ export class SpexrSearchBackendService implements SpexrSearchService {
         delete ws.building;
       }
     })();
-    void root;
     return ws.building;
   }
 
