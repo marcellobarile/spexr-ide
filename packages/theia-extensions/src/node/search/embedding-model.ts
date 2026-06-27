@@ -1,3 +1,4 @@
+import { injectable } from "@theia/core/shared/inversify";
 import { env, pipeline, type FeatureExtractionPipeline } from "@xenova/transformers";
 import { resolve } from "node:path";
 
@@ -20,6 +21,7 @@ function resolveModelsDir(): string {
  * In-process ONNX embedder over `all-MiniLM-L6-v2`, configured for offline use.
  * The pipeline is loaded lazily on first `embed` and reused afterwards.
  */
+@injectable()
 export class TransformersEmbedder implements Embedder {
   private pipelinePromise?: Promise<FeatureExtractionPipeline>;
 
@@ -42,3 +44,6 @@ export class TransformersEmbedder implements Embedder {
     return rows.map((row) => Float32Array.from(row));
   }
 }
+
+/** Inversify token for the {@link Embedder} implementation. */
+export const EmbedderToken = Symbol("Embedder");
