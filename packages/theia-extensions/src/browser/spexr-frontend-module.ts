@@ -67,6 +67,12 @@ import { GitOriginalResourceResolver } from "./scm/git-original-resource.js";
 import { ResourceResolver } from "@theia/core/lib/common/resource";
 import { SpexrGitBlameDecorator } from "./blame/blame-decorator.js";
 import { SpexrGitBlameCommandsContribution } from "./blame/blame-commands-contribution.js";
+import {
+  SpexrSmartSearchContribution,
+  bindSmartSearchWidgetFactory,
+} from "./search/smart-search-contribution.js";
+import { SmartSearchWidget } from "./search/smart-search-widget.js";
+import { SpexrSearchServiceProxy, SEARCH_SERVICE_PATH } from "./search/smart-search-service.js";
 
 /**
  * Frontend contributions for SPEXR. Theia handles DI via Inversify and
@@ -213,4 +219,21 @@ export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
   bind(CommandContribution).toService(SpexrGitBlameCommandsContribution);
   bind(KeybindingContribution).toService(SpexrGitBlameCommandsContribution);
   bind(MenuContribution).toService(SpexrGitBlameCommandsContribution);
+
+  // --- Smart Search ---
+  bind(SpexrSearchServiceProxy)
+    .toDynamicValue((ctx) => {
+      const connection = ctx.container.get(WebSocketConnectionProvider);
+      return connection.createProxy(SEARCH_SERVICE_PATH);
+    })
+    .inSingletonScope();
+  bindSmartSearchWidgetFactory(bind);
+  bind(WidgetFactory)
+    .toDynamicValue((ctx) => ({
+      id: SmartSearchWidget.ID,
+      createWidget: () => ctx.container.get(SmartSearchWidget),
+    }))
+    .inSingletonScope();
+  bind(SpexrSmartSearchContribution).toSelf().inSingletonScope();
+  bind(FrontendApplicationContribution).toService(SpexrSmartSearchContribution);
 });

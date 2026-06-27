@@ -1899,3 +1899,17 @@ code {
 [id$="--scm-view"] .lm-TabBar-toolbar .item .codicon {
   margin-top: 5px;
 }
+
+/* Smart Search (Explorer) */
+.spexr-smart-search__body { padding: 6px 8px; display: flex; flex-direction: column; gap: 6px; }
+.spexr-smart-search__input { width: 100%; box-sizing: border-box; }
+.spexr-smart-search__status { font-size: 11px; opacity: 0.7; }
+.spexr-smart-search__results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.spexr-smart-search__hit { padding: 4px 6px; border-radius: 4px; cursor: pointer; }
+.spexr-smart-search__hit:hover { background: var(--theia-list-hoverBackground); }
+.spexr-smart-search__hit-head { display: flex; justify-content: space-between; gap: 8px; }
+.spexr-smart-search__hit-name { font-weight: 600; }
+.spexr-smart-search__hit-score { opacity: 0.6; font-variant-numeric: tabular-nums; }
+.spexr-smart-search__hit-path { font-size: 11px; opacity: 0.6; }
+.spexr-smart-search__hit-snippet { font-size: 11px; opacity: 0.75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.spexr-smart-search__empty { padding: 4px 6px; opacity: 0.6; font-size: 12px; }
