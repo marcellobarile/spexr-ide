@@ -4,12 +4,19 @@ import type {
   SearchHit,
   IndexStatus,
 } from "../../common/search-protocol.js";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import type { Embedder as EmbedderType } from "./embedding-model.js";
 import { EmbedderToken } from "./embedding-model.js";
+import { DescriptionGeneratorToken, type DescriptionGenerator } from "./description-generator.js";
 import { WorkspaceIndexer } from "./workspace-indexer.js";
+import { expandQuery } from "./query-expander.js";
 
 const TOP_K = 30;
-const MIN_SCORE = 0.2;
+const MIN_SCORE = 0.18;
+const DENSE_CANDIDATE_THRESHOLD = 0.05;
+const DENSE_WEIGHT = 0.65;
+const BM25_WEIGHT = 0.35;
 
 interface Workspace {
   indexer: WorkspaceIndexer;
@@ -28,7 +35,10 @@ interface Workspace {
 export class SpexrSearchBackendService implements SpexrSearchService {
   private readonly workspaces = new Map<string, Workspace>();
 
-  constructor(@inject(EmbedderToken) private readonly embedder: EmbedderType) {}
+  constructor(
+    @inject(EmbedderToken) private readonly embedder: EmbedderType,
+    @inject(DescriptionGeneratorToken) private readonly generator: DescriptionGenerator,
+  ) {}
 
   private getOrCreate(root: string): Workspace {
     let ws = this.workspaces.get(root);
@@ -51,17 +61,41 @@ export class SpexrSearchBackendService implements SpexrSearchService {
   async reindex(root: string): Promise<void> {
     const ws = this.getOrCreate(root);
     if (ws.building) await ws.building; // drain in-flight build first
+    // Discard the persisted index and the in-memory state so the rebuild starts
+    // empty: this is the only path that picks up changes to extraction logic
+    // (descriptions, categories, symbols, embeddings) for unchanged files.
+    delete ws.pendingChanges;
+    ws.indexer = new WorkspaceIndexer(root, this.embedder);
     ws.status = { state: "idle", indexed: 0, total: 0 };
-    await this.build(ws, root);
+    await this.build(ws, root, true);
+  }
+
+  async describeFile(root: string, path: string): Promise<string | null> {
+    const ws = this.workspaces.get(root);
+    const record = ws?.indexer.index.getRecord(path);
+    if (!ws || !record) return null;
+    if (record.aiDescription) return record.aiDescription;
+    if (!this.generator.isAvailable()) return null;
+    let content: string;
+    try {
+      content = await readFile(join(root, path), "utf8");
+    } catch {
+      return null;
+    }
+    const text = await this.generator.generate(path, content);
+    if (!text) return null;
+    ws.indexer.index.setAiDescription(path, text);
+    await ws.indexer.save();
+    return text;
   }
 
   /** Build (or rebuild) an index, updating status; never throws. */
-  private build(ws: Workspace, root: string): Promise<void> {
+  private build(ws: Workspace, root: string, force = false): Promise<void> {
     if (ws.building) return ws.building;
     ws.status = { state: "indexing", indexed: 0, total: 0 };
     ws.building = (async () => {
       try {
-        if (await ws.indexer.load()) {
+        if (!force && await ws.indexer.load()) {
           if (ws.pendingChanges) {
             const { changed, removed } = ws.pendingChanges;
             delete ws.pendingChanges;
@@ -110,8 +144,42 @@ export class SpexrSearchBackendService implements SpexrSearchService {
     const ws = this.workspaces.get(root);
     if (!ws || ws.indexer.index.size === 0 || query.trim().length === 0) return [];
     try {
-      const [vector] = await this.embedder.embed([query]);
-      return ws.indexer.index.search(vector!, TOP_K, MIN_SCORE);
+      const expanded = expandQuery(query);
+      const [vector] = await this.embedder.embed([expanded]);
+
+      // Dense pass with low threshold to widen the candidate pool.
+      const denseCandidates = ws.indexer.index.search(vector!, TOP_K * 3, DENSE_CANDIDATE_THRESHOLD);
+      const denseMap = new Map(denseCandidates.map((h) => [h.path, h]));
+
+      // BM25 pass over all indexed docs.
+      const bm25Raw = ws.indexer.bm25.score(expanded);
+      const maxBm25 = Math.max(...bm25Raw.values(), 0.001);
+
+      // Union: dense candidates + BM25-strong docs not in dense.
+      const candidatePaths = new Set(denseCandidates.map((h) => h.path));
+      for (const [path, score] of bm25Raw) {
+        if (score / maxBm25 >= 0.3) candidatePaths.add(path);
+      }
+
+      const results: SearchHit[] = [];
+      for (const path of candidatePaths) {
+        const denseHit = denseMap.get(path);
+        const cosine = denseHit?.score ?? 0;
+        const bm25 = (bm25Raw.get(path) ?? 0) / maxBm25;
+        const hybrid = DENSE_WEIGHT * cosine + BM25_WEIGHT * bm25;
+        if (hybrid < MIN_SCORE) continue;
+        const rec = denseHit ?? ws.indexer.index.getRecord(path);
+        results.push({
+          path,
+          score: hybrid,
+          snippet: rec?.snippet ?? "",
+          category: rec?.category ?? "other",
+          description: rec?.description ?? "",
+        });
+      }
+
+      results.sort((a, b) => b.score - a.score);
+      return results.slice(0, TOP_K);
     } catch (err) {
       ws.status = {
         state: "error",

@@ -6,6 +6,7 @@ import { SpexrAgentBackendService } from "./spexr-agent-backend-service.js";
 import { SpexrGitBackendService } from "./spexr-git-backend-service.js";
 import { SEARCH_SERVICE_PATH } from "../common/search-protocol.js";
 import { EmbedderToken, TransformersEmbedder } from "./search/embedding-model.js";
+import { DescriptionGeneratorToken, TransformersDescriptionGenerator } from "./search/description-generator.js";
 import { SpexrSearchBackendService } from "./search/spexr-search-backend-service.js";
 
 export default new ContainerModule((bind) => {
@@ -26,6 +27,7 @@ export default new ContainerModule((bind) => {
     .inSingletonScope();
 
   bind(EmbedderToken).to(TransformersEmbedder).inSingletonScope();
+  bind(DescriptionGeneratorToken).to(TransformersDescriptionGenerator).inSingletonScope();
   bind(SpexrSearchBackendService).toSelf().inSingletonScope();
   bind(ConnectionHandler)
     .toDynamicValue((ctx) => {

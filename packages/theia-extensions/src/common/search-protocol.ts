@@ -8,6 +8,10 @@ export interface SearchHit {
   score: number;
   /** Short text excerpt for display. */
   snippet: string;
+  /** File category: "frontend" | "backend" | "test" | "config" | "other". */
+  category: string;
+  /** Short description extracted from doc comments or export names. */
+  description: string;
 }
 
 export type IndexState = "idle" | "indexing" | "ready" | "error";
@@ -38,4 +42,10 @@ export interface SpexrSearchService {
   applyChanges(root: string, changedPaths: string[], removedPaths: string[]): Promise<void>;
   /** Force a full rebuild. */
   reindex(root: string): Promise<void>;
+  /**
+   * Return an AI-generated description for a file, generating and caching it on
+   * first request. Returns null if the file is not indexed or the local model
+   * is unavailable.
+   */
+  describeFile(root: string, path: string): Promise<string | null>;
 }
