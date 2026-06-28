@@ -1,8 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
+import { Container } from "@theia/core/shared/inversify";
 import {
   TransformersDescriptionGenerator,
+  DescriptionGeneratorToken,
   buildPrompt,
   cleanGenerated,
+  type DescriptionGenerator,
   type TextGenerateFn,
 } from "./description-generator.js";
 
@@ -78,5 +81,15 @@ describe("TransformersDescriptionGenerator", () => {
   it("returns null when the model yields empty text", async () => {
     const gen = new TransformersDescriptionGenerator(async () => async () => "   ");
     expect(await gen.generate("a.ts", "x")).toBeNull();
+  });
+
+  it("resolves via inversify DI without binding the optional loader", () => {
+    // Mirrors the backend module: bind the token to the class, resolve it.
+    // The constructor's loader param must be @optional() or inversify throws
+    // "No matching bindings found for serviceIdentifier: Function".
+    const container = new Container();
+    container.bind(DescriptionGeneratorToken).to(TransformersDescriptionGenerator);
+    const gen = container.get<DescriptionGenerator>(DescriptionGeneratorToken);
+    expect(gen.isAvailable()).toBe(true);
   });
 });

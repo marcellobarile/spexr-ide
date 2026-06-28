@@ -1,4 +1,4 @@
-import { injectable } from "@theia/core/shared/inversify";
+import { injectable, unmanaged } from "@theia/core/shared/inversify";
 import { env, pipeline } from "@huggingface/transformers";
 import { resolveModelsDir } from "./models-dir.js";
 
@@ -66,7 +66,11 @@ export class TransformersDescriptionGenerator implements DescriptionGenerator {
   private queue: Promise<unknown> = Promise.resolve();
   private readonly inflight = new Map<string, Promise<string | null>>();
 
-  constructor(private readonly loader: () => Promise<TextGenerateFn> = defaultLoader) {}
+  // @unmanaged(): inversify ignores JS default params and would otherwise try to
+  // inject the `loader` (reflected as `Function`) and fail with "No matching
+  // bindings". Marked unmanaged so DI leaves it undefined and the default applies;
+  // tests still pass a fake loader via plain construction.
+  constructor(@unmanaged() private readonly loader: () => Promise<TextGenerateFn> = defaultLoader) {}
 
   isAvailable(): boolean {
     return !this.loadFailed;
