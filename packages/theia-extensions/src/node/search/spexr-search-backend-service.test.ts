@@ -14,17 +14,33 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { SpexrSearchBackendService } from "./spexr-search-backend-service.js";
 import type { Embedder } from "./embedding-model.js";
-import { TransformersDescriptionGenerator, type TextGenerateFn } from "./description-generator.js";
+import type { DescriptionGenerator, OnToken } from "./description-format.js";
+import type { DescriptionUpdate } from "../../common/search-protocol.js";
 
-/** A generator backed by a fixed low-level text-generation function. */
-function generatorWith(genFn: TextGenerateFn): TransformersDescriptionGenerator {
-  return new TransformersDescriptionGenerator(async () => genFn);
+/** Fake generator: returns a fixed text (or null), optionally streaming tokens. */
+class FakeGenerator implements DescriptionGenerator {
+  constructor(private readonly fn: (path: string) => string | null = () => "desc.") {}
+  available = true;
+  isAvailable(): boolean { return this.available; }
+  async generate(relPath: string, _content: string, onToken?: OnToken): Promise<string | null> {
+    const text = this.fn(relPath);
+    if (text) { onToken?.(text.slice(0, 1)); onToken?.(text); }
+    return text;
+  }
 }
-const noopGenerator = (): TransformersDescriptionGenerator => generatorWith(async () => "");
 
-/** Build a service with a fake embedder and the given generation function. */
-function serviceWith(genFn: TextGenerateFn): SpexrSearchBackendService {
-  return new SpexrSearchBackendService(new FakeEmbedder(), generatorWith(genFn));
+const noopGenerator = (): FakeGenerator => new FakeGenerator(() => "");
+
+/** Build a service with a fake embedder and a generator returning `text`. */
+function serviceWith(text: string | null): SpexrSearchBackendService {
+  return new SpexrSearchBackendService(new FakeEmbedder(), new FakeGenerator(() => text));
+}
+
+/** Collects streamed description updates as a client. */
+function collectClient(svc: SpexrSearchBackendService): DescriptionUpdate[] {
+  const updates: DescriptionUpdate[] = [];
+  svc.setClient({ onDescriptionUpdate: (u) => updates.push(u) });
+  return updates;
 }
 
 class FakeEmbedder implements Embedder {
@@ -128,32 +144,44 @@ describe("SpexrSearchBackendService", () => {
     expect(await service.search(root, "auth")).toEqual([]);
   });
 
-  it("describeFile generates, persists, and caches by hash", async () => {
+  it("describeFiles streams tokens then a final done, and caches by hash", async () => {
     await writeFile(join(root, "auth.ts"), "auth token logic");
-    const service = serviceWith(async () => "Handles authentication.");
+    const service = serviceWith("Handles authentication.");
+    const updates = collectClient(service);
     await service.ensureIndexed(root);
     await waitReady(service);
 
-    expect(await service.describeFile(root, "auth.ts")).toBe("Handles authentication.");
-    // second call is served from cache
-    expect(await service.describeFile(root, "auth.ts")).toBe("Handles authentication.");
+    await service.describeFiles(root, ["auth.ts"]);
+    expect(updates.some((u) => !u.done && u.path === "auth.ts")).toBe(true); // streamed
+    const final = updates.find((u) => u.done && u.path === "auth.ts");
+    expect(final).toMatchObject({ text: "Handles authentication.", done: true });
+
+    // second pass is served from cache: a single done update, no failure
+    updates.length = 0;
+    await service.describeFiles(root, ["auth.ts"]);
+    expect(updates).toEqual([{ path: "auth.ts", text: "Handles authentication.", done: true }]);
   });
 
-  it("describeFile returns null for an unknown path", async () => {
+  it("describeFiles ignores unknown paths (no update emitted)", async () => {
     await writeFile(join(root, "auth.ts"), "auth");
-    const service = serviceWith(async () => "x");
+    const service = serviceWith("x");
+    const updates = collectClient(service);
     await service.ensureIndexed(root);
     await waitReady(service);
-    expect(await service.describeFile(root, "missing.ts")).toBeNull();
+    await service.describeFiles(root, ["missing.ts"]);
+    expect(updates).toEqual([]);
   });
 
-  it("describeFile returns null when the model is unavailable", async () => {
+  it("describeFiles emits a failed update when the model is unavailable", async () => {
     await writeFile(join(root, "auth.ts"), "auth");
-    const generator = new TransformersDescriptionGenerator(async () => { throw new Error("no model"); });
+    const generator = new FakeGenerator(() => "x");
+    generator.available = false;
     const service = new SpexrSearchBackendService(new FakeEmbedder(), generator);
+    const updates = collectClient(service);
     await service.ensureIndexed(root);
     await waitReady(service);
-    expect(await service.describeFile(root, "auth.ts")).toBeNull();
+    await service.describeFiles(root, ["auth.ts"]);
+    expect(updates).toEqual([{ path: "auth.ts", text: "", done: true, failed: true }]);
   });
 
   it("rejects file:// URI as root — passes a URI and expects ENOENT/error state", async () => {

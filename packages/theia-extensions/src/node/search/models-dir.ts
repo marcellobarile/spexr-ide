@@ -1,17 +1,28 @@
-import { resolve } from "node:path";
+import { resolve, join } from "node:path";
 import { existsSync } from "node:fs";
 
 /**
- * Directory holding vendored ONNX models: env override, else <package>/resources/models.
+ * Root of the theia-extensions package at runtime.
  *
- * Two resolution strategies because __dirname differs between dev and webpack:
- * - Source tree: lib/node/search/*.js → ../../../resources/models
- * - Webpack bundle (apps/desktop/lib/backend/main.js): ../../../ lands in apps/desktop/,
- *   so fall back to node_modules/@spexr/theia-extensions (a workspace symlink).
+ * Two strategies because __dirname differs between dev and webpack:
+ * - Source tree: lib/node/search/*.js → ../../.. is the package root.
+ * - Webpack bundle (apps/desktop/lib/backend/main.js): ../../.. is not the
+ *   package, so fall back to node_modules/@spexr/theia-extensions (a workspace
+ *   symlink reachable from the bundle).
  */
+function resolvePackageDir(): string {
+  const fromSource = resolve(__dirname, "..", "..", "..");
+  if (existsSync(join(fromSource, "resources", "models"))) return fromSource;
+  return resolve(__dirname, "..", "..", "node_modules", "@spexr", "theia-extensions");
+}
+
+/** Directory holding vendored ONNX models: env override, else <package>/resources/models. */
 export function resolveModelsDir(): string {
   if (process.env.SPEXR_MODELS_DIR) return process.env.SPEXR_MODELS_DIR;
-  const fromSource = resolve(__dirname, "..", "..", "..", "resources", "models");
-  if (existsSync(fromSource)) return fromSource;
-  return resolve(__dirname, "..", "..", "node_modules", "@spexr", "theia-extensions", "resources", "models");
+  return join(resolvePackageDir(), "resources", "models");
+}
+
+/** Absolute path to the compiled description worker entry. */
+export function resolveWorkerPath(): string {
+  return join(resolvePackageDir(), "lib", "node", "search", "description-worker.js");
 }

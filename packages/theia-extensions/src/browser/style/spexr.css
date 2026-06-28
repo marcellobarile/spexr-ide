@@ -2033,3 +2033,24 @@ code {
   0%, 100% { opacity: 0.25; }
   50% { opacity: 1; }
 }
+.spexr-smart-search__ai-progress {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  font-size: 11px;
+  opacity: 0.85;
+}
+.spexr-smart-search__ai-progress-track {
+  flex: 1;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(168, 85, 247, 0.18);
+  overflow: hidden;
+}
+.spexr-smart-search__ai-progress-fill {
+  display: block;
+  height: 100%;
+  background: var(--theia-textLink-foreground, #b18cff);
+  transition: width 0.3s ease;
+}

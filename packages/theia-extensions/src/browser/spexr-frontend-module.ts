@@ -73,6 +73,7 @@ import {
 } from "./search/smart-search-contribution.js";
 import { SmartSearchWidget } from "./search/smart-search-widget.js";
 import { SpexrSearchServiceProxy, SEARCH_SERVICE_PATH } from "./search/smart-search-service.js";
+import { SpexrSearchClientDispatcher, SpexrSearchClientToken } from "./search/smart-search-client.js";
 
 /**
  * Frontend contributions for SPEXR. Theia handles DI via Inversify and
@@ -221,10 +222,13 @@ export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
   bind(MenuContribution).toService(SpexrGitBlameCommandsContribution);
 
   // --- Smart Search ---
+  bind(SpexrSearchClientDispatcher).toSelf().inSingletonScope();
+  bind(SpexrSearchClientToken).toService(SpexrSearchClientDispatcher);
   bind(SpexrSearchServiceProxy)
     .toDynamicValue((ctx) => {
       const connection = ctx.container.get(WebSocketConnectionProvider);
-      return connection.createProxy(SEARCH_SERVICE_PATH);
+      const client = ctx.container.get(SpexrSearchClientDispatcher);
+      return connection.createProxy(SEARCH_SERVICE_PATH, client);
     })
     .inSingletonScope();
   bindSmartSearchWidgetFactory(bind);
@@ -236,4 +240,5 @@ export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
     .inSingletonScope();
   bind(SpexrSmartSearchContribution).toSelf().inSingletonScope();
   bind(FrontendApplicationContribution).toService(SpexrSmartSearchContribution);
+  bind(CommandContribution).toService(SpexrSmartSearchContribution);
 });

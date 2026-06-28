@@ -5,9 +5,10 @@ import { CommandService } from "@theia/core/lib/common/command";
 import { OpenerService, open } from "@theia/core/lib/browser/opener-service";
 import { PreferenceService } from "@theia/core/lib/common/preferences/preference-service";
 import { WorkspaceService } from "@theia/workspace/lib/browser";
-import type { SearchHit, IndexStatus, SpexrSearchService } from "../../common/search-protocol.js";
+import type { SearchHit, IndexStatus, SpexrSearchService, DescriptionUpdate } from "../../common/search-protocol.js";
 import { SPEXR_SEARCH_AI_DESCRIPTIONS_PREFERENCE } from "../preferences/spexr-preferences.js";
 import { SpexrSearchServiceProxy } from "./smart-search-service.js";
+import { SpexrSearchClientDispatcher } from "./smart-search-client.js";
 import { formatScore, scoreColor, statusLabel, debounce, CATEGORY_LABELS, CATEGORY_ORDER } from "./smart-search-format.js";
 
 const INDEXING_MESSAGES = [
@@ -53,12 +54,18 @@ export class SmartSearchWidget extends ReactWidget {
   @inject(PreferenceService)
   private readonly preferences!: PreferenceService;
 
+  @inject(SpexrSearchClientDispatcher)
+  private readonly searchClient!: SpexrSearchClientDispatcher;
+
   private query = "";
   private hits: SearchHit[] = [];
-  /** path → AI description text once resolved. */
-  private aiDescriptions = new Map<string, string>();
-  /** paths with an in-flight describeFile request (pulsing icon). */
+  /** path → latest AI text (grows while streaming, final when done). */
+  private aiText = new Map<string, string>();
+  /** paths still generating (pulsing icon). */
   private aiPending = new Set<string>();
+  /** progress counters for the current search's AI descriptions. */
+  private aiTotal = 0;
+  private aiDone = 0;
   private status: IndexStatus = { state: "idle", indexed: 0, total: 0 };
   private statusTimer?: ReturnType<typeof setInterval>;
   private indexingStart: number | undefined;
@@ -73,6 +80,7 @@ export class SmartSearchWidget extends ReactWidget {
     this.title.caption = "Smart Search";
     this.title.closable = false;
     this.addClass("spexr-smart-search");
+    this.toDispose.push(this.searchClient.onDescriptionUpdate$((u) => this.onDescriptionUpdate(u)));
     this.pollStatus();
     this.update();
   }
@@ -107,14 +115,12 @@ export class SmartSearchWidget extends ReactWidget {
     const root = this.root();
     if (!root || q.trim().length === 0) {
       this.hits = [];
-      this.aiDescriptions.clear();
-      this.aiPending.clear();
+      this.resetAiState();
       this.update();
       return;
     }
     this.hits = await this.service.search(root, q);
-    this.aiDescriptions.clear();
-    this.aiPending.clear();
+    this.resetAiState();
     this.update();
     this.requestAiDescriptions(root);
   }
@@ -125,16 +131,30 @@ export class SmartSearchWidget extends ReactWidget {
     return this.preferences.get<boolean>(SPEXR_SEARCH_AI_DESCRIPTIONS_PREFERENCE, true);
   }
 
+  private resetAiState(): void {
+    this.aiText.clear();
+    this.aiPending.clear();
+    this.aiTotal = 0;
+    this.aiDone = 0;
+  }
+
   private requestAiDescriptions(root: string): void {
     if (!this.aiEnabled()) return;
-    for (const hit of this.hits.slice(0, SmartSearchWidget.AI_TOP_N)) {
-      if (this.aiDescriptions.has(hit.path) || this.aiPending.has(hit.path)) continue;
-      this.aiPending.add(hit.path);
-      void this.service.describeFile(root, hit.path).then((text) => {
-        this.aiPending.delete(hit.path);
-        if (text) this.aiDescriptions.set(hit.path, text);
-        this.update();
-      });
+    const paths = this.hits.slice(0, SmartSearchWidget.AI_TOP_N).map((h) => h.path);
+    if (paths.length === 0) return;
+    this.aiTotal = paths.length;
+    for (const p of paths) this.aiPending.add(p);
+    this.update();
+    void this.service.describeFiles(root, paths);
+  }
+
+  /** Streamed progress from the backend for one file's AI description. */
+  private onDescriptionUpdate(u: DescriptionUpdate): void {
+    if (!this.aiPending.has(u.path) && !this.aiText.has(u.path)) return; // stale (old search)
+    if (!u.failed) this.aiText.set(u.path, u.text);
+    if (u.done) {
+      this.aiPending.delete(u.path);
+      this.aiDone++;
     }
     this.update();
   }
@@ -149,6 +169,7 @@ export class SmartSearchWidget extends ReactWidget {
     if (e.key === "Escape") {
       this.query = "";
       this.hits = [];
+      this.resetAiState();
       this.runSearch.cancel();
       this.update();
     }
@@ -200,9 +221,9 @@ export class SmartSearchWidget extends ReactWidget {
   }
 
   private renderDesc(hit: SearchHit): React.ReactNode {
-    const ai = this.aiDescriptions.get(hit.path);
+    const ai = this.aiText.get(hit.path);
     const pending = this.aiPending.has(hit.path);
-    const text = ai ?? hit.description;
+    const text = (ai && ai.length > 0 ? ai : undefined) ?? hit.description;
     if (!text && !pending) return null;
     const showIcon = this.aiEnabled() && (pending || ai !== undefined);
     const iconClass =
@@ -279,7 +300,22 @@ export class SmartSearchWidget extends ReactWidget {
             ? <div className="spexr-smart-search__status--ready"><span className="spexr-smart-search__led" /><span>Ready</span></div>
             : <div className="spexr-smart-search__status">{statusLabel(this.status)}</div>
         }
+        {this.query.trim().length > 0 && this.renderAiProgress()}
         {this.query.trim().length > 0 && this.renderResults()}
+      </div>
+    );
+  }
+
+  private renderAiProgress(): React.ReactNode {
+    if (!this.aiEnabled() || this.aiTotal === 0 || this.aiDone >= this.aiTotal) return null;
+    const pct = Math.round((this.aiDone / this.aiTotal) * 100);
+    return (
+      <div className="spexr-smart-search__ai-progress">
+        <span className="spexr-smart-search__ai-icon spexr-smart-search__ai-icon--pulsing">✦</span>
+        <span>Generating AI descriptions… {this.aiDone}/{this.aiTotal}</span>
+        <span className="spexr-smart-search__ai-progress-track">
+          <span className="spexr-smart-search__ai-progress-fill" style={{ width: `${pct}%` }} />
+        </span>
       </div>
     );
   }

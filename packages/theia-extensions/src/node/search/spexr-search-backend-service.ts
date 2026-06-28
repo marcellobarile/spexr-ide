@@ -1,6 +1,7 @@
 import { inject, injectable } from "@theia/core/shared/inversify";
 import type {
   SpexrSearchService,
+  SpexrSearchClient,
   SearchHit,
   IndexStatus,
 } from "../../common/search-protocol.js";
@@ -8,7 +9,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { Embedder as EmbedderType } from "./embedding-model.js";
 import { EmbedderToken } from "./embedding-model.js";
-import { DescriptionGeneratorToken, type DescriptionGenerator } from "./description-generator.js";
+import { DescriptionGeneratorToken, type DescriptionGenerator } from "./description-format.js";
 import { WorkspaceIndexer } from "./workspace-indexer.js";
 import { expandQuery } from "./query-expander.js";
 
@@ -34,11 +35,17 @@ interface Workspace {
 @injectable()
 export class SpexrSearchBackendService implements SpexrSearchService {
   private readonly workspaces = new Map<string, Workspace>();
+  private client: SpexrSearchClient | undefined;
 
   constructor(
     @inject(EmbedderToken) private readonly embedder: EmbedderType,
     @inject(DescriptionGeneratorToken) private readonly generator: DescriptionGenerator,
   ) {}
+
+  /** Wired by the RPC connection handler so the backend can stream to the frontend. */
+  setClient(client: SpexrSearchClient | undefined): void {
+    this.client = client;
+  }
 
   private getOrCreate(root: string): Workspace {
     let ws = this.workspaces.get(root);
@@ -70,23 +77,47 @@ export class SpexrSearchBackendService implements SpexrSearchService {
     await this.build(ws, root, true);
   }
 
-  async describeFile(root: string, path: string): Promise<string | null> {
+  async describeFiles(root: string, paths: string[]): Promise<void> {
     const ws = this.workspaces.get(root);
-    const record = ws?.indexer.index.getRecord(path);
-    if (!ws || !record) return null;
-    if (record.aiDescription) return record.aiDescription;
-    if (!this.generator.isAvailable()) return null;
+    if (!ws) return;
+    for (const path of paths) {
+      await this.describeOne(ws, root, path);
+    }
+  }
+
+  /** Generate (or replay cached) a description for one file, streaming progress. */
+  private async describeOne(ws: Workspace, root: string, path: string): Promise<void> {
+    const record = ws.indexer.index.getRecord(path);
+    if (!record) return;
+    if (record.aiDescription) {
+      this.emit({ path, text: record.aiDescription, done: true });
+      return;
+    }
+    if (!this.generator.isAvailable()) {
+      this.emit({ path, text: "", done: true, failed: true });
+      return;
+    }
     let content: string;
     try {
       content = await readFile(join(root, path), "utf8");
     } catch {
-      return null;
+      this.emit({ path, text: "", done: true, failed: true });
+      return;
     }
-    const text = await this.generator.generate(path, content);
-    if (!text) return null;
+    const text = await this.generator.generate(path, content, (partial) =>
+      this.emit({ path, text: partial, done: false }),
+    );
+    if (!text) {
+      this.emit({ path, text: "", done: true, failed: true });
+      return;
+    }
     ws.indexer.index.setAiDescription(path, text);
     await ws.indexer.save();
-    return text;
+    this.emit({ path, text, done: true });
+  }
+
+  private emit(update: { path: string; text: string; done: boolean; failed?: boolean }): void {
+    this.client?.onDescriptionUpdate(update);
   }
 
   /** Build (or rebuild) an index, updating status; never throws. */

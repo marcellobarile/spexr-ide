@@ -14,6 +14,23 @@ export interface SearchHit {
   description: string;
 }
 
+/** Streamed progress of an AI description for one file. */
+export interface DescriptionUpdate {
+  /** Workspace-relative POSIX path the description belongs to. */
+  path: string;
+  /** Text so far (grows as tokens stream); final text when `done`. */
+  text: string;
+  /** True once generation finished (success or, with `failed`, giving up). */
+  done: boolean;
+  /** True when generation failed or the model is unavailable. */
+  failed?: boolean;
+}
+
+/** Client callbacks the backend pushes description progress to. */
+export interface SpexrSearchClient {
+  onDescriptionUpdate(update: DescriptionUpdate): void;
+}
+
 export type IndexState = "idle" | "indexing" | "ready" | "error";
 
 export interface IndexStatus {
@@ -43,9 +60,9 @@ export interface SpexrSearchService {
   /** Force a full rebuild. */
   reindex(root: string): Promise<void>;
   /**
-   * Return an AI-generated description for a file, generating and caching it on
-   * first request. Returns null if the file is not indexed or the local model
-   * is unavailable.
+   * Generate AI descriptions for the given files, one at a time, streaming
+   * progress back to the client via {@link SpexrSearchClient.onDescriptionUpdate}.
+   * Cached descriptions are emitted immediately. Resolves when all are handled.
    */
-  describeFile(root: string, path: string): Promise<string | null>;
+  describeFiles(root: string, paths: string[]): Promise<void>;
 }
