@@ -65,7 +65,7 @@ externalized in the desktop webpack config alongside `onnxruntime-node`.
 
 | Decision | Choice |
 |---|---|
-| Model | `onnx-community/Qwen2.5-Coder-1.5B-Instruct` (ONNX, q4). Code-aware; ~1.8 GB installer add (measured). |
+| Model | `onnx-community/Qwen2.5-Coder-0.5B-Instruct` (ONNX, q4). Code-aware; ~0.83 GB installer add (measured). |
 | When to generate | Lazy, on-demand for files shown in results; cached. Never at index time. |
 | Cache key | File content hash (already stored per index record). |
 | Fallback while generating / on failure | Show the heuristic description immediately; swap in the AI text when ready. |
@@ -76,7 +76,7 @@ externalized in the desktop webpack config alongside `onnxruntime-node`.
 ### Backend (node)
 
 **`description-generator.ts`** (new) — wraps
-`pipeline("text-generation", "onnx-community/Qwen2.5-Coder-1.5B-Instruct", { dtype: "q4" })`.
+`pipeline("text-generation", "onnx-community/Qwen2.5-Coder-0.5B-Instruct", { dtype: "q4" })`.
 
 - Offline: `env.allowRemoteModels = false`, `env.localModelPath = resolveModelsDir()`
   (the resolver is shared with the embedder; extract it to a small shared module
@@ -164,7 +164,7 @@ English/Italian intent.)
   embedding fetch).
 - electron-builder already includes `resources/models/**` (extraFiles +
   asarUnpack), so no electron-builder config change is required.
-- Installer grows by ~1.8 GB (measured: `model_q4.onnx` for Qwen2.5-Coder-1.5B).
+- Installer grows by ~0.83 GB (measured: `model_q4.onnx` for Qwen2.5-Coder-0.5B).
   Documented as an accepted trade-off.
 
 ## Data flow
