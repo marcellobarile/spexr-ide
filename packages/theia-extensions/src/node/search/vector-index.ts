@@ -1,6 +1,6 @@
 import { cosineSimilarity, topKIndices } from "./vector-math.js";
 
-export const INDEX_VERSION = 1;
+export const INDEX_VERSION = 7;
 
 export interface IndexRecord {
   path: string;
@@ -8,12 +8,17 @@ export interface IndexRecord {
   mtimeMs: number;
   hash: string;
   snippet: string;
+  category: string;
+  description: string;
+  aiDescription?: string;
 }
 
 export interface IndexHit {
   path: string;
   score: number;
   snippet: string;
+  category: string;
+  description: string;
 }
 
 interface SerializedRecord {
@@ -22,6 +27,9 @@ interface SerializedRecord {
   mtimeMs: number;
   hash: string;
   snippet: string;
+  category: string;
+  description: string;
+  aiDescription?: string;
 }
 
 export interface SerializedIndex {
@@ -41,12 +49,22 @@ export class VectorIndex {
     this.records.set(record.path, record);
   }
 
+  /** Attach an AI-generated description to an existing record, if present. */
+  setAiDescription(path: string, text: string): void {
+    const rec = this.records.get(path);
+    if (rec) rec.aiDescription = text;
+  }
+
   remove(path: string): void {
     this.records.delete(path);
   }
 
   has(path: string, hash: string): boolean {
     return this.records.get(path)?.hash === hash;
+  }
+
+  getRecord(path: string): IndexRecord | undefined {
+    return this.records.get(path);
   }
 
   search(queryVector: Float32Array, k: number, minScore: number): IndexHit[] {
@@ -56,6 +74,8 @@ export class VectorIndex {
       path: records[i]!.path,
       score: scores[i]!,
       snippet: records[i]!.snippet,
+      category: records[i]!.category,
+      description: records[i]!.description,
     }));
   }
 
@@ -76,6 +96,9 @@ export class VectorIndex {
         mtimeMs: r.mtimeMs,
         hash: r.hash,
         snippet: r.snippet,
+        category: r.category,
+        description: r.description,
+        ...(r.aiDescription !== undefined ? { aiDescription: r.aiDescription } : {}),
       })),
     };
   }
@@ -98,6 +121,9 @@ export class VectorIndex {
         mtimeMs: r.mtimeMs,
         hash: r.hash,
         snippet: r.snippet,
+        category: r.category ?? "other",
+        description: r.description ?? "",
+        ...(r.aiDescription !== undefined ? { aiDescription: r.aiDescription } : {}),
       });
     }
     return index;
