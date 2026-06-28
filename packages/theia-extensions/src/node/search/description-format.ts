@@ -2,10 +2,12 @@
 // and the worker host (which does not). Kept free of @huggingface/transformers
 // so the host and its tests never pull the model runtime.
 
-export const GEN_MODEL_ID = "onnx-community/Qwen2.5-Coder-1.5B-Instruct";
+// 0.5B (not 1.5B): ~10x faster on CPU (~33 vs ~3 tok/s) with ample quality for
+// one-line descriptions, and a much smaller vendored model (~0.83GB vs ~1.8GB).
+export const GEN_MODEL_ID = "onnx-community/Qwen2.5-Coder-0.5B-Instruct";
 export const MAX_INPUT_CHARS = 1500;
 export const MAX_DESC_CHARS = 120;
-export const MAX_NEW_TOKENS = 40;
+export const MAX_NEW_TOKENS = 32;
 
 /** Called with the growing description text as tokens stream in. */
 export type OnToken = (partial: string) => void;
