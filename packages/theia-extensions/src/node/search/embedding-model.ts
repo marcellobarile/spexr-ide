@@ -1,6 +1,6 @@
 import { injectable } from "@theia/core/shared/inversify";
 import { env, pipeline, type FeatureExtractionPipeline } from "@xenova/transformers";
-import { resolve } from "node:path";
+import { resolveModelsDir } from "./models-dir.js";
 
 export const EMBEDDING_DIM = 384;
 export const MODEL_ID = "Xenova/all-MiniLM-L6-v2";
@@ -8,13 +8,6 @@ export const MODEL_ID = "Xenova/all-MiniLM-L6-v2";
 /** Produces sentence embeddings for a batch of texts. */
 export interface Embedder {
   embed(texts: string[]): Promise<Float32Array[]>;
-}
-
-/** Directory holding the vendored model: env override, else <package>/resources/models. */
-function resolveModelsDir(): string {
-  if (process.env.SPEXR_MODELS_DIR) return process.env.SPEXR_MODELS_DIR;
-  // this file is compiled to lib/node/search/embedding-model.js → ../../../resources/models
-  return resolve(__dirname, "..", "..", "..", "resources", "models");
 }
 
 /**
