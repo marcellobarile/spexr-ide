@@ -73,6 +73,15 @@ externalized in the desktop webpack config alongside `onnxruntime-node`.
 
 ## Architecture
 
+> **Evolved during implementation.** The sections below describe the original
+> single-call `describeFile` + in-process serialized generator design. It shipped
+> instead as: generation runs in a **worker thread** (`description-worker.ts` via
+> `worker-description-generator.ts`) to keep the backend event loop responsive;
+> the frontend makes one `describeFiles(paths)` call and the backend **streams**
+> per-file progress token-by-token via an RPC client (`SpexrSearchClient.onDescriptionUpdate`),
+> with a reliable N/M progress bar. Pure helpers live in `description-format.ts`.
+> The caching, fallback, preference, and icon behavior below still hold.
+
 ### Backend (node)
 
 **`description-generator.ts`** (new) — wraps
