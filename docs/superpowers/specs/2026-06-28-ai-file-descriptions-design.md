@@ -46,20 +46,26 @@ bundled `claude` CLI).
 
 ## Key constraint that shapes the design
 
-Embeddings already run through `@xenova/transformers` (transformers.js over the
-Open Neural Network Exchange (ONNX) Runtime), loaded offline from `resources/models` (see
+Embeddings run through transformers.js over the Open Neural Network Exchange
+(ONNX) Runtime, loaded offline from `resources/models` (see
 `packages/theia-extensions/src/node/search/embedding-model.ts`). The same runtime
 runs **text generation** with small instruct models in ONNX format. Therefore we
-reuse it — **no `node-llama-cpp`, no native module, no electron-builder rebuild
-changes.** Only a second ONNX model is vendored, the same way the embedding model
-already is (`scripts/fetch-search-model.mjs` →
-electron-builder globs `resources/models/**`).
+reuse it — **no `node-llama-cpp`, no native module.** Only a second ONNX model is
+vendored, the same way the embedding model already is
+(`scripts/fetch-search-model.mjs` → electron-builder globs `resources/models/**`).
+
+**Runtime note (resolved during implementation):** the pinned `@xenova/transformers`
+v2 cannot load the Qwen2 architecture / v3 model layout, so both embeddings and
+generation were moved to its maintained successor `@huggingface/transformers`
+(^4.2.0), which uses `dtype`-based quantization (`q8` embeddings, `q4` generation)
+instead of `quantized: true`. v4 also pulls `sharp` (image pipelines we never use),
+externalized in the desktop webpack config alongside `onnxruntime-node`.
 
 ## Decisions (resolved during brainstorming)
 
 | Decision | Choice |
 |---|---|
-| Model | `Qwen2.5-Coder-1.5B-Instruct` (ONNX, quantized). Code-aware; ~1 GB installer add. |
+| Model | `onnx-community/Qwen2.5-Coder-1.5B-Instruct` (ONNX, q4). Code-aware; ~1.8 GB installer add (measured). |
 | When to generate | Lazy, on-demand for files shown in results; cached. Never at index time. |
 | Cache key | File content hash (already stored per index record). |
 | Fallback while generating / on failure | Show the heuristic description immediately; swap in the AI text when ready. |
@@ -70,7 +76,7 @@ electron-builder globs `resources/models/**`).
 ### Backend (node)
 
 **`description-generator.ts`** (new) — wraps
-`pipeline("text-generation", "Qwen2.5-Coder-1.5B-Instruct", { quantized: true })`.
+`pipeline("text-generation", "onnx-community/Qwen2.5-Coder-1.5B-Instruct", { dtype: "q4" })`.
 
 - Offline: `env.allowRemoteModels = false`, `env.localModelPath = resolveModelsDir()`
   (the resolver is shared with the embedder; extract it to a small shared module
@@ -158,7 +164,8 @@ English/Italian intent.)
   embedding fetch).
 - electron-builder already includes `resources/models/**` (extraFiles +
   asarUnpack), so no electron-builder config change is required.
-- Installer grows by ~1 GB. Documented as an accepted trade-off.
+- Installer grows by ~1.8 GB (measured: `model_q4.onnx` for Qwen2.5-Coder-1.5B).
+  Documented as an accepted trade-off.
 
 ## Data flow
 
