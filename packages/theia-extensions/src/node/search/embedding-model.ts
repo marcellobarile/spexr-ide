@@ -1,5 +1,5 @@
 import { injectable } from "@theia/core/shared/inversify";
-import { env, pipeline, type FeatureExtractionPipeline } from "@xenova/transformers";
+import { env, pipeline, type FeatureExtractionPipeline } from "@huggingface/transformers";
 import { resolveModelsDir } from "./models-dir.js";
 
 export const EMBEDDING_DIM = 384;
@@ -23,7 +23,7 @@ export class TransformersEmbedder implements Embedder {
       env.allowRemoteModels = false;
       env.localModelPath = resolveModelsDir();
       this.pipelinePromise = pipeline("feature-extraction", MODEL_ID, {
-        quantized: true,
+        dtype: "q8",
       });
     }
     return this.pipelinePromise;

@@ -48,7 +48,7 @@
     "@theia/userstorage": "^1.71.0",
     "@theia/variable-resolver": "^1.71.0",
     "@theia/workspace": "^1.71.0",
-    "@xenova/transformers": "^2.17.2",
+    "@huggingface/transformers": "^4.2.0",
     "dompurify": "^3.0.0",
     "highlight.js": "^11.11.1",
     "ignore": "^7.0.0",

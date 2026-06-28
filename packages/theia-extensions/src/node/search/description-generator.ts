@@ -1,5 +1,5 @@
 import { injectable } from "@theia/core/shared/inversify";
-import { env, pipeline } from "@xenova/transformers";
+import { env, pipeline } from "@huggingface/transformers";
 import { resolveModelsDir } from "./models-dir.js";
 
 export const GEN_MODEL_ID = "onnx-community/Qwen2.5-Coder-1.5B-Instruct";
@@ -22,21 +22,27 @@ export function buildPrompt(relPath: string, content: string): string {
   return (
     `File path: ${relPath}\n\n` +
     `Code:\n${content}\n\n` +
-    `In one short sentence, describe what this file does. ` +
+    `In one short sentence (max 15 words), describe what this file does. ` +
     `Reply with only the sentence, no preamble.`
   );
 }
 
 export function cleanGenerated(raw: string): string {
   const firstLine = raw.split("\n").map((l) => l.trim()).find((l) => l.length > 0) ?? "";
-  return firstLine.replace(/^["'`]+|["'`]+$/g, "").trim().slice(0, MAX_DESC_CHARS);
+  const stripped = firstLine.replace(/^["'`]+|["'`]+$/g, "").trim();
+  if (stripped.length <= MAX_DESC_CHARS) return stripped;
+  // Truncate on a word boundary and mark the cut, rather than slicing mid-word.
+  const cut = stripped.slice(0, MAX_DESC_CHARS - 1);
+  const lastSpace = cut.lastIndexOf(" ");
+  const body = lastSpace > 40 ? cut.slice(0, lastSpace) : cut;
+  return body.replace(/[.,;:]+$/, "") + "…";
 }
 
 /** Default loader: an offline Qwen2.5-Coder ONNX text-generation pipeline. */
 async function defaultLoader(): Promise<TextGenerateFn> {
   env.allowRemoteModels = false;
   env.localModelPath = resolveModelsDir();
-  const pipe = await pipeline("text-generation", GEN_MODEL_ID, { quantized: true });
+  const pipe = await pipeline("text-generation", GEN_MODEL_ID, { dtype: "q4" });
   return async (prompt: string): Promise<string> => {
     const out = (await pipe([{ role: "user", content: prompt }], {
       max_new_tokens: MAX_NEW_TOKENS,

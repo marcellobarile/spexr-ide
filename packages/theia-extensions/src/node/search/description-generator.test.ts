@@ -14,6 +14,13 @@ describe("cleanGenerated", () => {
   it("trims surrounding whitespace and quotes", () => {
     expect(cleanGenerated('  "Does X."  ')).toBe("Does X.");
   });
+  it("truncates over-long text on a word boundary with an ellipsis", () => {
+    const long = "word ".repeat(40).trim(); // 199 chars of "word word …"
+    const out = cleanGenerated(long);
+    expect(out.length).toBeLessThanOrEqual(120);
+    expect(out.endsWith("…")).toBe(true);
+    expect(out.endsWith("word…")).toBe(true); // cut at a boundary, not mid-word
+  });
 });
 
 describe("buildPrompt", () => {
