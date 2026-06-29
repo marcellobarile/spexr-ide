@@ -77,6 +77,7 @@ export class SpexrSearchBackendService implements SpexrSearchService {
     // empty: this is the only path that picks up changes to extraction logic
     // (descriptions, categories, symbols, embeddings) for unchanged files.
     delete ws.pendingChanges;
+    delete ws.descriptionJob;
     ws.indexer = new WorkspaceIndexer(root, this.embedder);
     ws.status = { state: "idle", indexed: 0, total: 0 };
     await this.build(ws, root, true);
@@ -162,7 +163,7 @@ export class SpexrSearchBackendService implements SpexrSearchService {
   private getJob(ws: Workspace, root: string): DescriptionJob {
     if (!ws.descriptionJob) {
       ws.descriptionJob = new DescriptionJob({
-        index: ws.indexer.index,
+        index: () => ws.indexer.index,
         generator: this.generator,
         readContent: (rel) => readFile(join(root, rel), "utf8"),
         save: () => ws.indexer.save(),

@@ -6,7 +6,8 @@ const BATCH_SIZE = 5;
 const SAVE_EVERY_BATCHES = 5;
 
 export interface DescriptionJobDeps {
-  index: VectorIndex;
+  /** Getter that always returns the current live index, even after a reindex swap. */
+  index: () => VectorIndex;
   generator: DescriptionGenerator;
   /** Read a workspace-relative file's content. */
   readContent: (relPath: string) => Promise<string>;
@@ -43,7 +44,7 @@ export class DescriptionJob {
 
   async start(opts: { regenerate: boolean }): Promise<void> {
     if (this.state === "running") return;
-    this.targets = this.deps.index
+    this.targets = this.deps.index()
       .allRecords()
       .filter((r) => opts.regenerate || r.aiDescription === undefined)
       .map((r) => r.path);
@@ -98,7 +99,7 @@ export class DescriptionJob {
         const texts = await this.deps.generator.generateBatch(items);
         items.forEach((it, i) => {
           const text = texts[i];
-          if (text) this.deps.index.setAiDescription(it.relPath, text);
+          if (text) this.deps.index().setAiDescription(it.relPath, text);
         });
         this.cursor += batch.length;
         this.done = this.cursor;

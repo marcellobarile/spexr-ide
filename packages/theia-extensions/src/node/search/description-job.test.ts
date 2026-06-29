@@ -31,7 +31,7 @@ function deps(index: VectorIndex, gen: DescriptionGenerator, over: Partial<Descr
   const statuses: DescriptionJobStatus[] = [];
   const state = { saves: 0, artifacts: 0 };
   const d: DescriptionJobDeps = {
-    index, generator: gen,
+    index: () => index, generator: gen,
     readContent: async (rel) => `content of ${rel}`,
     save: async () => { state.saves++; },
     writeArtifacts: async () => { state.artifacts++; },
