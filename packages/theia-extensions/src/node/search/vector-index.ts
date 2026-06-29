@@ -67,6 +67,11 @@ export class VectorIndex {
     return this.records.get(path);
   }
 
+  /** All records, in insertion order. */
+  allRecords(): IndexRecord[] {
+    return [...this.records.values()];
+  }
+
   search(queryVector: Float32Array, k: number, minScore: number): IndexHit[] {
     const records = [...this.records.values()];
     const scores = records.map((r) => cosineSimilarity(queryVector, r.vector));

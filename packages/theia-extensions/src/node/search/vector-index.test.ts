@@ -80,3 +80,12 @@ describe("VectorIndex", () => {
     expect(VectorIndex.fromJSON({ version: INDEX_VERSION }).size).toBe(0);
   });
 });
+
+describe("allRecords", () => {
+  it("returns every upserted record in insertion order", () => {
+    const idx = new VectorIndex();
+    idx.upsert({ path: "b.ts", vector: new Float32Array([1]), mtimeMs: 0, hash: "h1", snippet: "", category: "other", description: "B" });
+    idx.upsert({ path: "a.ts", vector: new Float32Array([1]), mtimeMs: 0, hash: "h2", snippet: "", category: "other", description: "A" });
+    expect(idx.allRecords().map((r) => r.path)).toEqual(["b.ts", "a.ts"]);
+  });
+});
