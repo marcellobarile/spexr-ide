@@ -74,6 +74,7 @@ import {
 import { SmartSearchWidget } from "./search/smart-search-widget.js";
 import { SpexrSearchServiceProxy, SEARCH_SERVICE_PATH } from "./search/smart-search-service.js";
 import { SpexrSearchClientDispatcher, SpexrSearchClientToken } from "./search/smart-search-client.js";
+import { DescriptionJobStatusBarContribution } from "./search/description-job-status-bar-contribution.js";
 
 /**
  * Frontend contributions for SPEXR. Theia handles DI via Inversify and
@@ -241,4 +242,6 @@ export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
   bind(SpexrSmartSearchContribution).toSelf().inSingletonScope();
   bind(FrontendApplicationContribution).toService(SpexrSmartSearchContribution);
   bind(CommandContribution).toService(SpexrSmartSearchContribution);
+  bind(DescriptionJobStatusBarContribution).toSelf().inSingletonScope();
+  bind(FrontendApplicationContribution).toService(DescriptionJobStatusBarContribution);
 });
