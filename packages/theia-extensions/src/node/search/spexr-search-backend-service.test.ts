@@ -14,16 +14,16 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { SpexrSearchBackendService } from "./spexr-search-backend-service.js";
 import type { Embedder } from "./embedding-model.js";
-import type { BatchItem, DescriptionGenerator } from "./description-format.js";
+import type { DescriptionGenerator } from "./description-format.js";
 import type { DescriptionUpdate } from "../../common/search-protocol.js";
 
-/** Fake generator: returns a fixed text (or null) per item, in one batch. */
+/** Fake generator: returns a fixed text (or null) per file. */
 class FakeGenerator implements DescriptionGenerator {
   constructor(private readonly fn: (path: string) => string | null = () => "desc.") {}
   available = true;
   isAvailable(): boolean { return this.available; }
-  async generateBatch(items: BatchItem[]): Promise<(string | null)[]> {
-    return items.map((it) => this.fn(it.relPath));
+  async generate(relPath: string, _content: string): Promise<string | null> {
+    return this.fn(relPath);
   }
 }
 

@@ -88,40 +88,24 @@ export class SpexrSearchBackendService implements SpexrSearchService {
     if (!ws) return;
     const seq = (this.descBatchSeq.get(root) ?? 0) + 1;
     this.descBatchSeq.set(root, seq);
-
-    // Emit anything already resolvable (cached AI text or genuine static prose)
-    // immediately, and collect only the files that actually need the model.
-    const toGenerate: { path: string; content: string }[] = [];
     for (const path of paths) {
       if (this.descBatchSeq.get(root) !== seq) return; // newer query arrived
       const need = await this.resolveOrCollect(ws, root, path);
-      if (need) toGenerate.push(need);
-    }
-    if (toGenerate.length === 0) return;
-
-    if (!this.generator.isAvailable()) {
-      for (const { path } of toGenerate) this.emit({ path, text: "", done: true, failed: true });
-      return;
-    }
-
-    // One inference for the whole batch instead of a per-file sequential queue.
-    const texts = await this.generator.generateBatch(
-      toGenerate.map((g) => ({ relPath: g.path, content: g.content })),
-    );
-    if (this.descBatchSeq.get(root) !== seq) return; // results stale: a newer query superseded us
-
-    let dirty = false;
-    toGenerate.forEach(({ path }, i) => {
-      const text = texts[i];
+      if (!need) continue;
+      if (!this.generator.isAvailable()) {
+        this.emit({ path, text: "", done: true, failed: true });
+        continue;
+      }
+      const text = await this.generator.generate(need.path, need.content);
+      if (this.descBatchSeq.get(root) !== seq) return;
       if (!text) {
         this.emit({ path, text: "", done: true, failed: true });
-        return;
+        continue;
       }
       ws.indexer.index.setAiDescription(path, text);
-      dirty = true;
+      await ws.indexer.save();
       this.emit({ path, text, done: true });
-    });
-    if (dirty) await ws.indexer.save();
+    }
   }
 
   /**

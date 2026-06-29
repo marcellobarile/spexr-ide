@@ -6,10 +6,9 @@ import { parentPort, workerData } from "node:worker_threads";
 import { env, pipeline } from "@huggingface/transformers";
 import {
   GEN_MODEL_ID,
-  MAX_BATCH_TOKENS,
-  MAX_TOKENS_PER_FILE,
-  buildBatchPrompt,
-  parseBatchOutput,
+  MAX_NEW_TOKENS,
+  buildPrompt,
+  cleanGenerated,
   type WorkerRequest,
   type WorkerResponse,
 } from "./description-format.js";
@@ -38,24 +37,18 @@ function post(msg: WorkerResponse): void {
 }
 
 async function handle(req: WorkerRequest): Promise<void> {
-  const { id, items } = req;
-  if (items.length === 0) {
-    post({ id, type: "done", texts: [] });
-    return;
-  }
+  const { id, relPath, content } = req;
   try {
     const pipe = await getPipe();
-    // +2 lines of headroom: the model re-emits the one-shot example before the
-    // real files, and a tight budget otherwise truncates the last file's line.
-    const maxTokens = Math.min((items.length + 2) * MAX_TOKENS_PER_FILE, MAX_BATCH_TOKENS);
     const out = await pipe(
-      [{ role: "user", content: buildBatchPrompt(items) }],
-      { max_new_tokens: maxTokens, do_sample: false },
+      [{ role: "user", content: buildPrompt(relPath, content) }],
+      { max_new_tokens: MAX_NEW_TOKENS, do_sample: false },
     );
     const msgs = out[0]?.generated_text;
     const last = Array.isArray(msgs) ? msgs[msgs.length - 1] : undefined;
     const raw = typeof last?.content === "string" ? last.content : "";
-    post({ id, type: "done", texts: parseBatchOutput(raw, items.map((it) => it.relPath)) });
+    const text = cleanGenerated(raw);
+    post({ id, type: "done", text: text.length > 0 ? text : null });
   } catch {
     post({ id, type: "error" });
   }

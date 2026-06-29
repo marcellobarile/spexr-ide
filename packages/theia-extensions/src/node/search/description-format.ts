@@ -6,39 +6,27 @@
 // one-line descriptions, and a much smaller vendored model (~0.83GB vs ~1.8GB).
 export const GEN_MODEL_ID = "onnx-community/Qwen2.5-Coder-0.5B-Instruct";
 export const MAX_DESC_CHARS = 120;
-/** Decode budget per file in a batch; total tokens scale with batch size. */
-export const MAX_TOKENS_PER_FILE = 28;
-/** Cap on total decode tokens for a single batch inference. */
-export const MAX_BATCH_TOKENS = 256;
+export const MAX_NEW_TOKENS = 32;
 
-/** One file to describe: its workspace-relative path and full content. */
-export interface BatchItem {
-  relPath: string;
-  content: string;
-}
-
-/**
- * Describes whole files in one short sentence each. A single batch call runs one
- * model inference for all items, returning a text per item (null where it failed
- * or could not be parsed), in input order.
- */
+/** Produces a one-sentence, whole-file description, or null if unavailable. */
 export interface DescriptionGenerator {
-  generateBatch(items: BatchItem[]): Promise<(string | null)[]>;
+  generate(relPath: string, content: string): Promise<string | null>;
   isAvailable(): boolean;
   dispose?(): void;
 }
 
 export const DescriptionGeneratorToken = Symbol("DescriptionGenerator");
 
-/** host → worker: describe every item in one inference. */
+/** host → worker */
 export interface WorkerRequest {
   id: number;
-  items: BatchItem[];
+  relPath: string;
+  content: string;
 }
 
-/** worker → host: one text per requested item (null = failed/unparsed), input order. */
+/** worker → host */
 export type WorkerResponse =
-  | { id: number; type: "done"; texts: (string | null)[] }
+  | { id: number; type: "done"; text: string | null }
   | { id: number; type: "error" };
 
 const NOISE_RE = /copyright|license|eslint|prettier|@ts-|use strict/i;
@@ -193,46 +181,13 @@ export function buildSymbolSummary(relPath: string, content: string): string {
   return parts.join("\n");
 }
 
-/**
- * Build one prompt that asks the model to describe every file in a single pass.
- * Output is path-keyed (`<path>: <sentence>`), one line per file — parsed back by
- * {@link parseBatchOutput}. Path-keying (vs numbering) is what lets the small 0.5B
- * model keep file↔description correspondence straight across a batch; a one-shot
- * example pins the format.
- */
-export function buildBatchPrompt(items: BatchItem[]): string {
-  const blocks = items
-    .map((it) => `${it.relPath}\n${buildSymbolSummary(it.relPath, it.content)}`.trim())
-    .join("\n\n");
+export function buildPrompt(relPath: string, content: string): string {
+  const summary = buildSymbolSummary(relPath, content);
   return (
-    `For each file below, write one short sentence (max 15 words) describing what it does.\n` +
-    `Reply with exactly one line per file in the format:\n<path>: <sentence>\n\n` +
-    `Example:\n` +
-    `src/db/pool.ts\nSymbols: createPool, closePool\n\n` +
-    `src/db/pool.ts: Manages a pool of reusable database connections.\n\n` +
-    `Files:\n\n${blocks}\n\nDescriptions:`
+    `File: ${relPath}\n${summary}\n\n` +
+    `In one short sentence (max 15 words), describe what this file does. ` +
+    `Reply with only the sentence, no preamble.`
   );
-}
-
-/**
- * Parse the model's path-keyed output back into one cleaned description per
- * requested path, in input order. Each path is matched at the start of a line
- * (after any bullet/backtick); the remainder after the path is its sentence.
- * Matching by path (not position) means a scrambled or missing line yields null
- * for that file — never a description mistakenly attributed to the wrong file.
- */
-export function parseBatchOutput(raw: string, paths: string[]): (string | null)[] {
-  const lines = raw.split("\n");
-  return paths.map((p) => {
-    for (const line of lines) {
-      const stripped = line.replace(/^[\s\-*•`]+/, "");
-      if (!stripped.startsWith(p)) continue;
-      const after = stripped.slice(p.length).replace(/^[\s:`\-–—]+/, "").trim();
-      const text = cleanGenerated(after);
-      if (text.length > 0) return text;
-    }
-    return null;
-  });
 }
 
 export function cleanGenerated(raw: string): string {

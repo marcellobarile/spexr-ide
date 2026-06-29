@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildBatchPrompt, buildSymbolSummary, cleanGenerated, parseBatchOutput } from "./description-format.js";
+import { buildPrompt, buildSymbolSummary, cleanGenerated } from "./description-format.js";
 
 describe("cleanGenerated", () => {
   it("keeps one line and caps at 120 chars", () => {
@@ -97,44 +97,11 @@ describe("buildSymbolSummary", () => {
   });
 });
 
-describe("buildBatchPrompt", () => {
-  it("lists each file path with its extracted names and a format example", () => {
-    const p = buildBatchPrompt([
-      { relPath: "src/a.ts", content: "export const x = 1;" },
-      { relPath: "src/b.ts", content: "export function foo() {}" },
-    ]);
+describe("buildPrompt", () => {
+  it("includes the path and extracted symbol names", () => {
+    const p = buildPrompt("src/a.ts", "export const x = 1;\nexport function foo() {}");
     expect(p).toContain("src/a.ts");
-    expect(p).toContain("src/b.ts");
     expect(p).toContain("foo");
-    expect(p).toContain("<path>: <sentence>");
-  });
-});
-
-describe("parseBatchOutput", () => {
-  const paths = ["src/auth.ts", "src/list.tsx"];
-
-  it("maps each path-keyed line to its requested path, in input order", () => {
-    const out = parseBatchOutput("src/auth.ts: Handles auth.\nsrc/list.tsx: Renders the list.", paths);
-    expect(out).toEqual(["Handles auth.", "Renders the list."]);
-  });
-
-  it("matches regardless of output order (no positional misattribution)", () => {
-    const out = parseBatchOutput("src/list.tsx: Renders the list.\nsrc/auth.ts: Handles auth.", paths);
-    expect(out).toEqual(["Handles auth.", "Renders the list."]);
-  });
-
-  it("strips leading bullets/backticks before the path", () => {
-    const out = parseBatchOutput("- src/auth.ts: Handles auth.\n* src/list.tsx: Renders list.", paths);
-    expect(out).toEqual(["Handles auth.", "Renders list."]);
-  });
-
-  it("ignores lines for unrequested paths (e.g. the prompt example) and yields null for missing", () => {
-    const out = parseBatchOutput("src/db/pool.ts: Example bleed.\nsrc/auth.ts: Handles auth.", paths);
-    expect(out).toEqual(["Handles auth.", null]);
-  });
-
-  it("cleans and caps each parsed sentence", () => {
-    const out = parseBatchOutput(`src/auth.ts: "Quoted desc."`, ["src/auth.ts"]);
-    expect(out).toEqual(["Quoted desc."]);
+    expect(p).toContain("one short sentence");
   });
 });

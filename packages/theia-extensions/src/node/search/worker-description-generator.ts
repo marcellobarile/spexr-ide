@@ -2,7 +2,6 @@ import { injectable, unmanaged } from "@theia/core/shared/inversify";
 import { Worker } from "node:worker_threads";
 import { resolveModelsDir, resolveWorkerPath } from "./models-dir.js";
 import type {
-  BatchItem,
   DescriptionGenerator,
   WorkerRequest,
   WorkerResponse,
@@ -23,8 +22,7 @@ function defaultWorkerFactory(): WorkerLike {
 }
 
 interface Pending {
-  count: number;
-  resolve: (value: (string | null)[]) => void;
+  resolve: (value: string | null) => void;
 }
 
 /**
@@ -45,14 +43,13 @@ export class WorkerDescriptionGenerator implements DescriptionGenerator {
     return !this.failed;
   }
 
-  generateBatch(items: BatchItem[]): Promise<(string | null)[]> {
-    if (items.length === 0) return Promise.resolve([]);
+  generate(relPath: string, content: string): Promise<string | null> {
     const worker = this.ensureWorker();
-    if (!worker) return Promise.resolve(items.map(() => null));
+    if (!worker) return Promise.resolve(null);
     const id = ++this.seq;
-    return new Promise<(string | null)[]>((resolve) => {
-      this.pending.set(id, { count: items.length, resolve });
-      worker.postMessage({ id, items });
+    return new Promise<string | null>((resolve) => {
+      this.pending.set(id, { resolve });
+      worker.postMessage({ id, relPath, content });
     });
   }
 
@@ -82,12 +79,12 @@ export class WorkerDescriptionGenerator implements DescriptionGenerator {
     const entry = this.pending.get(msg.id);
     if (!entry) return;
     this.pending.delete(msg.id);
-    entry.resolve(msg.type === "done" ? msg.texts : new Array(entry.count).fill(null));
+    entry.resolve(msg.type === "done" ? msg.text : null);
   }
 
   private fail(): void {
     this.failed = true;
-    for (const entry of this.pending.values()) entry.resolve(new Array(entry.count).fill(null));
+    for (const entry of this.pending.values()) entry.resolve(null);
     this.pending.clear();
     this.worker = undefined;
   }

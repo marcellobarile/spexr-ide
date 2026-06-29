@@ -24,62 +24,50 @@ class FakeWorker implements WorkerLike {
   exit(): void { this.exitCb?.(1); }
 }
 
-const item = (relPath: string) => ({ relPath, content: "code" });
-
 describe("WorkerDescriptionGenerator", () => {
-  it("resolves with the texts array from the done message", async () => {
+  it("resolves with the text from the done message", async () => {
     const fake = new FakeWorker();
     const gen = new WorkerDescriptionGenerator(() => fake);
-    const p = gen.generateBatch([item("a.ts"), item("b.ts")]);
-
-    const id = fake.requests[0]!.id;
-    fake.emit({ id, type: "done", texts: ["Handles auth.", "Renders list."] });
-
-    expect(await p).toEqual(["Handles auth.", "Renders list."]);
+    const p = gen.generate("a.ts", "code");
+    fake.emit({ id: fake.requests[0]!.id, type: "done", text: "Handles auth." });
+    expect(await p).toBe("Handles auth.");
   });
 
-  it("returns an empty array without posting for an empty batch", async () => {
+  it("resolves null on an error response", async () => {
     const fake = new FakeWorker();
     const gen = new WorkerDescriptionGenerator(() => fake);
-    expect(await gen.generateBatch([])).toEqual([]);
-    expect(fake.requests).toHaveLength(0);
+    const p = gen.generate("a.ts", "x");
+    fake.emit({ id: fake.requests[0]!.id, type: "error" });
+    expect(await p).toBeNull();
+  });
+
+  it("becomes unavailable and resolves pending to null on crash", async () => {
+    const fake = new FakeWorker();
+    const gen = new WorkerDescriptionGenerator(() => fake);
+    const p = gen.generate("a.ts", "x");
+    fake.crash();
+    expect(await p).toBeNull();
+    expect(gen.isAvailable()).toBe(false);
+    expect(await gen.generate("b.ts", "y")).toBeNull();
+  });
+
+  it("returns null without spawning when the factory throws", async () => {
+    const gen = new WorkerDescriptionGenerator(() => { throw new Error("spawn failed"); });
+    expect(await gen.generate("a.ts", "x")).toBeNull();
+    expect(gen.isAvailable()).toBe(false);
   });
 
   it("spawns the worker only once across calls", async () => {
     const fake = new FakeWorker();
     const factory = vi.fn(() => fake);
     const gen = new WorkerDescriptionGenerator(factory);
-    const p1 = gen.generateBatch([item("a.ts")]);
-    const p2 = gen.generateBatch([item("b.ts")]);
-    fake.emit({ id: fake.requests[0]!.id, type: "done", texts: ["one"] });
-    fake.emit({ id: fake.requests[1]!.id, type: "done", texts: ["two"] });
-    expect(await p1).toEqual(["one"]);
-    expect(await p2).toEqual(["two"]);
+    const p1 = gen.generate("a.ts", "x");
+    const p2 = gen.generate("b.ts", "y");
+    fake.emit({ id: fake.requests[0]!.id, type: "done", text: "one" });
+    fake.emit({ id: fake.requests[1]!.id, type: "done", text: "two" });
+    expect(await p1).toBe("one");
+    expect(await p2).toBe("two");
     expect(factory).toHaveBeenCalledTimes(1);
-  });
-
-  it("resolves nulls on a worker error response", async () => {
-    const fake = new FakeWorker();
-    const gen = new WorkerDescriptionGenerator(() => fake);
-    const p = gen.generateBatch([item("a.ts"), item("b.ts")]);
-    fake.emit({ id: fake.requests[0]!.id, type: "error" });
-    expect(await p).toEqual([null, null]);
-  });
-
-  it("becomes unavailable and resolves pending to nulls when the worker crashes", async () => {
-    const fake = new FakeWorker();
-    const gen = new WorkerDescriptionGenerator(() => fake);
-    const p = gen.generateBatch([item("a.ts")]);
-    fake.crash();
-    expect(await p).toEqual([null]);
-    expect(gen.isAvailable()).toBe(false);
-    expect(await gen.generateBatch([item("b.ts")])).toEqual([null]); // no further work
-  });
-
-  it("returns nulls without spawning when the factory throws", async () => {
-    const gen = new WorkerDescriptionGenerator(() => { throw new Error("spawn failed"); });
-    expect(await gen.generateBatch([item("a.ts")])).toEqual([null]);
-    expect(gen.isAvailable()).toBe(false);
   });
 
   it("resolves via inversify DI without binding the unmanaged factory", () => {

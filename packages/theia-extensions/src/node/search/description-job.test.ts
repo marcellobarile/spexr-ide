@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DescriptionJob, type DescriptionJobDeps } from "./description-job.js";
 import { VectorIndex, type IndexRecord } from "./vector-index.js";
-import type { BatchItem, DescriptionGenerator } from "./description-format.js";
+import type { DescriptionGenerator } from "./description-format.js";
 import type { DescriptionJobStatus } from "../../common/search-protocol.js";
 
 const rec = (path: string, aiDescription?: string): IndexRecord => ({
@@ -11,13 +11,13 @@ const rec = (path: string, aiDescription?: string): IndexRecord => ({
 
 class FakeGen implements DescriptionGenerator {
   available = true;
-  calls: BatchItem[][] = [];
+  calls: string[] = [];
   beforeResolve?: () => void;
   isAvailable(): boolean { return this.available; }
-  async generateBatch(items: BatchItem[]): Promise<(string | null)[]> {
-    this.calls.push(items);
+  async generate(relPath: string, _content: string): Promise<string | null> {
+    this.calls.push(relPath);
     this.beforeResolve?.();
-    return items.map((it) => `desc:${it.relPath}`);
+    return `desc:${relPath}`;
   }
 }
 
@@ -51,7 +51,7 @@ describe("DescriptionJob", () => {
     const { d } = deps(idx, gen);
     const job = new DescriptionJob(d);
     await job.start({ regenerate: false });
-    expect(gen.calls.flat().map((i) => i.relPath).sort()).toEqual(["a.ts", "c.ts"]);
+    expect(gen.calls.sort()).toEqual(["a.ts", "c.ts"]);
     expect(idx.getRecord("a.ts")!.aiDescription).toBe("desc:a.ts");
     expect(idx.getRecord("b.ts")!.aiDescription).toBe("already");
     expect(job.status).toMatchObject({ state: "complete", done: 2, total: 2 });

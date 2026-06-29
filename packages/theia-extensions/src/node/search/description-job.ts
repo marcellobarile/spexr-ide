@@ -1,5 +1,5 @@
 import type { VectorIndex } from "./vector-index.js";
-import type { BatchItem, DescriptionGenerator } from "./description-format.js";
+import type { DescriptionGenerator } from "./description-format.js";
 import type { DescriptionJobStatus } from "../../common/search-protocol.js";
 
 const BATCH_SIZE = 5;
@@ -88,19 +88,13 @@ export class DescriptionJob {
           return;
         }
         const batch = this.targets.slice(this.cursor, this.cursor + BATCH_SIZE);
-        const items: BatchItem[] = [];
         for (const relPath of batch) {
-          try {
-            items.push({ relPath, content: await this.deps.readContent(relPath) });
-          } catch {
-            // Unreadable file: skip generation but still count it as processed.
-          }
+          let content: string;
+          try { content = await this.deps.readContent(relPath); }
+          catch { continue; } // unreadable: skip; cursor still advances below
+          const text = await this.deps.generator.generate(relPath, content);
+          if (text) this.deps.index().setAiDescription(relPath, text);
         }
-        const texts = await this.deps.generator.generateBatch(items);
-        items.forEach((it, i) => {
-          const text = texts[i];
-          if (text) this.deps.index().setAiDescription(it.relPath, text);
-        });
         this.cursor += batch.length;
         this.done = this.cursor;
         batches++;
