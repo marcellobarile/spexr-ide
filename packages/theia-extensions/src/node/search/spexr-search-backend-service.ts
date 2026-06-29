@@ -35,6 +35,7 @@ interface Workspace {
 @injectable()
 export class SpexrSearchBackendService implements SpexrSearchService {
   private readonly workspaces = new Map<string, Workspace>();
+  private readonly descBatchSeq = new Map<string, number>();
   private client: SpexrSearchClient | undefined;
 
   constructor(
@@ -80,40 +81,74 @@ export class SpexrSearchBackendService implements SpexrSearchService {
   async describeFiles(root: string, paths: string[]): Promise<void> {
     const ws = this.workspaces.get(root);
     if (!ws) return;
+    const seq = (this.descBatchSeq.get(root) ?? 0) + 1;
+    this.descBatchSeq.set(root, seq);
+
+    // Emit anything already resolvable (cached AI text or genuine static prose)
+    // immediately, and collect only the files that actually need the model.
+    const toGenerate: { path: string; content: string }[] = [];
     for (const path of paths) {
-      await this.describeOne(ws, root, path);
+      if (this.descBatchSeq.get(root) !== seq) return; // newer query arrived
+      const need = await this.resolveOrCollect(ws, root, path);
+      if (need) toGenerate.push(need);
     }
+    if (toGenerate.length === 0) return;
+
+    if (!this.generator.isAvailable()) {
+      for (const { path } of toGenerate) this.emit({ path, text: "", done: true, failed: true });
+      return;
+    }
+
+    // One inference for the whole batch instead of a per-file sequential queue.
+    const texts = await this.generator.generateBatch(
+      toGenerate.map((g) => ({ relPath: g.path, content: g.content })),
+    );
+    if (this.descBatchSeq.get(root) !== seq) return; // results stale: a newer query superseded us
+
+    let dirty = false;
+    toGenerate.forEach(({ path }, i) => {
+      const text = texts[i];
+      if (!text) {
+        this.emit({ path, text: "", done: true, failed: true });
+        return;
+      }
+      ws.indexer.index.setAiDescription(path, text);
+      dirty = true;
+      this.emit({ path, text, done: true });
+    });
+    if (dirty) await ws.indexer.save();
   }
 
-  /** Generate (or replay cached) a description for one file, streaming progress. */
-  private async describeOne(ws: Workspace, root: string, path: string): Promise<void> {
+  /**
+   * Resolve a file's description from cache or static prose and emit it, or
+   * return the file content to batch through the model. Returns undefined when
+   * nothing more is needed (unknown path, cached, prose, or unreadable).
+   */
+  private async resolveOrCollect(
+    ws: Workspace,
+    root: string,
+    path: string,
+  ): Promise<{ path: string; content: string } | undefined> {
     const record = ws.indexer.index.getRecord(path);
-    if (!record) return;
+    if (!record) return undefined;
     if (record.aiDescription) {
       this.emit({ path, text: record.aiDescription, done: true });
-      return;
+      return undefined;
     }
-    if (!this.generator.isAvailable()) {
-      this.emit({ path, text: "", done: true, failed: true });
-      return;
+    // Prose from a doc-comment is already high-quality — skip the model.
+    // Structural descriptions ("Exports X, Y" / "Defines Foo") are worth replacing with AI prose.
+    const staticDesc = record.description ?? "";
+    const isStructural = staticDesc.startsWith("Exports ") || staticDesc.startsWith("Defines ");
+    if (staticDesc && !isStructural) {
+      this.emit({ path, text: staticDesc, done: true });
+      return undefined;
     }
-    let content: string;
     try {
-      content = await readFile(join(root, path), "utf8");
+      return { path, content: await readFile(join(root, path), "utf8") };
     } catch {
       this.emit({ path, text: "", done: true, failed: true });
-      return;
+      return undefined;
     }
-    const text = await this.generator.generate(path, content, (partial) =>
-      this.emit({ path, text: partial, done: false }),
-    );
-    if (!text) {
-      this.emit({ path, text: "", done: true, failed: true });
-      return;
-    }
-    ws.indexer.index.setAiDescription(path, text);
-    await ws.indexer.save();
-    this.emit({ path, text, done: true });
   }
 
   private emit(update: { path: string; text: string; done: boolean; failed?: boolean }): void {

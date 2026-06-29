@@ -14,18 +14,16 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { SpexrSearchBackendService } from "./spexr-search-backend-service.js";
 import type { Embedder } from "./embedding-model.js";
-import type { DescriptionGenerator, OnToken } from "./description-format.js";
+import type { BatchItem, DescriptionGenerator } from "./description-format.js";
 import type { DescriptionUpdate } from "../../common/search-protocol.js";
 
-/** Fake generator: returns a fixed text (or null), optionally streaming tokens. */
+/** Fake generator: returns a fixed text (or null) per item, in one batch. */
 class FakeGenerator implements DescriptionGenerator {
   constructor(private readonly fn: (path: string) => string | null = () => "desc.") {}
   available = true;
   isAvailable(): boolean { return this.available; }
-  async generate(relPath: string, _content: string, onToken?: OnToken): Promise<string | null> {
-    const text = this.fn(relPath);
-    if (text) { onToken?.(text.slice(0, 1)); onToken?.(text); }
-    return text;
+  async generateBatch(items: BatchItem[]): Promise<(string | null)[]> {
+    return items.map((it) => this.fn(it.relPath));
   }
 }
 
@@ -144,7 +142,7 @@ describe("SpexrSearchBackendService", () => {
     expect(await service.search(root, "auth")).toEqual([]);
   });
 
-  it("describeFiles streams tokens then a final done, and caches by hash", async () => {
+  it("describeFiles emits a final done update and caches by hash", async () => {
     await writeFile(join(root, "auth.ts"), "auth token logic");
     const service = serviceWith("Handles authentication.");
     const updates = collectClient(service);
@@ -152,7 +150,6 @@ describe("SpexrSearchBackendService", () => {
     await waitReady(service);
 
     await service.describeFiles(root, ["auth.ts"]);
-    expect(updates.some((u) => !u.done && u.path === "auth.ts")).toBe(true); // streamed
     const final = updates.find((u) => u.done && u.path === "auth.ts");
     expect(final).toMatchObject({ text: "Handles authentication.", done: true });
 

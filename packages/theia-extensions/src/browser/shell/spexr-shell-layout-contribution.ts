@@ -9,8 +9,13 @@ import { FileNavigatorContribution } from "@theia/navigator/lib/browser/navigato
 import { SpexrSpecViewContribution } from "../views/spec-view-contribution.js";
 import { SpexrMemoryViewContribution } from "../views/memory-view-contribution.js";
 import { SpexrExpertsViewContribution } from "../views/experts-view-contribution.js";
-import { SpexrWelcomeViewContribution } from "../views/welcome-view-contribution.js";
+import { SpexrWelcomeViewContribution, WELCOME_VIEW_ID } from "../views/welcome-view-contribution.js";
+import { SPEC_VIEW_ID } from "../views/spec-view-contribution.js";
+import { CLAUDE_TERMINAL_ID } from "../agent/claude-terminal-manager.js";
 import { expandLeftPanelWithMinWidth, expandRightPanelWithMinWidth } from "./side-panel.js";
+
+/** IDs of tabs pinned to positions 0, 1, 2 in the main area. */
+const PINNED_IDS = [WELCOME_VIEW_ID, SPEC_VIEW_ID, CLAUDE_TERMINAL_ID] as const;
 
 const TERMINAL_NEW_COMMAND = "terminal:new";
 
@@ -50,6 +55,7 @@ export class SpexrShellLayoutContribution implements FrontendApplicationContribu
 
   async onStart(app: FrontendApplication): Promise<void> {
     void app;
+    this.setupTabPinning();
     if (this.layoutAlreadyConfigured()) {
       this.expandLeftPanelIfNeeded();
       // Reveal views registered after the user's layout was first saved so they
@@ -144,5 +150,34 @@ export class SpexrShellLayoutContribution implements FrontendApplicationContribu
 
   private expandLeftPanel(): void {
     expandLeftPanelWithMinWidth(this.shell);
+  }
+
+  /**
+   * Enforce Welcome → Specs → Agent order in every main-area tab bar.
+   * Called on startup and whenever a widget is added to the shell so that
+   * newly opened editors or views never push the pinned tabs out of positions 0–2.
+   */
+  private setupTabPinning(): void {
+    // Run after any widget addition — area is not yet assigned when the event
+    // fires, so we skip the area check and let enforcePinnedOrder guard itself.
+    // setTimeout (macrotask) ensures Lumino has fully committed the insertion.
+    this.shell.onDidAddWidget(() => {
+      setTimeout(() => this.enforcePinnedOrder(), 0);
+    });
+  }
+
+  private enforcePinnedOrder(): void {
+    for (const tabBar of this.shell.mainAreaTabBars) {
+      let insertIdx = 0;
+      for (const id of PINNED_IDS) {
+        const titles = tabBar.titles;
+        const titleIdx = titles.findIndex((t) => t.owner.id === id);
+        if (titleIdx < 0) continue;
+        if (titleIdx !== insertIdx) {
+          tabBar.insertTab(insertIdx, titles[titleIdx]!);
+        }
+        insertIdx++;
+      }
+    }
   }
 }

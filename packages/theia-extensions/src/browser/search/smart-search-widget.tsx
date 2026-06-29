@@ -9,7 +9,7 @@ import type { SearchHit, IndexStatus, SpexrSearchService, DescriptionUpdate } fr
 import { SPEXR_SEARCH_AI_DESCRIPTIONS_PREFERENCE } from "../preferences/spexr-preferences.js";
 import { SpexrSearchServiceProxy } from "./smart-search-service.js";
 import { SpexrSearchClientDispatcher } from "./smart-search-client.js";
-import { formatScore, scoreColor, statusLabel, debounce, CATEGORY_LABELS, CATEGORY_ORDER } from "./smart-search-format.js";
+import { formatScore, scoreColor, statusLabel, debounce, CATEGORY_LABELS, categoryColor } from "./smart-search-format.js";
 
 const INDEXING_MESSAGES = [
   "Scanning your workspace…",
@@ -59,17 +59,18 @@ export class SmartSearchWidget extends ReactWidget {
 
   private query = "";
   private hits: SearchHit[] = [];
-  /** path → latest AI text (grows while streaming, final when done). */
+  /** path → AI description text (final when done). */
   private aiText = new Map<string, string>();
   /** paths still generating (pulsing icon). */
   private aiPending = new Set<string>();
   /** progress counters for the current search's AI descriptions. */
   private aiTotal = 0;
   private aiDone = 0;
+  /** active category filters; empty = show all. */
+  private activeFilters = new Set<string>();
   private status: IndexStatus = { state: "idle", indexed: 0, total: 0 };
   private statusTimer?: ReturnType<typeof setInterval>;
   private indexingStart: number | undefined;
-  private collapsedCategories = new Set<string>();
 
   private readonly runSearch = debounce((q: string) => void this.doSearch(q), 250);
 
@@ -116,16 +117,18 @@ export class SmartSearchWidget extends ReactWidget {
     if (!root || q.trim().length === 0) {
       this.hits = [];
       this.resetAiState();
+      this.activeFilters.clear();
       this.update();
       return;
     }
     this.hits = await this.service.search(root, q);
     this.resetAiState();
+    this.activeFilters.clear();
     this.update();
     this.requestAiDescriptions(root);
   }
 
-  private static readonly AI_TOP_N = 10;
+  private static readonly AI_TOP_N = 5;
 
   private aiEnabled(): boolean {
     return this.preferences.get<boolean>(SPEXR_SEARCH_AI_DESCRIPTIONS_PREFERENCE, true);
@@ -148,9 +151,8 @@ export class SmartSearchWidget extends ReactWidget {
     void this.service.describeFiles(root, paths);
   }
 
-  /** Streamed progress from the backend for one file's AI description. */
   private onDescriptionUpdate(u: DescriptionUpdate): void {
-    if (!this.aiPending.has(u.path) && !this.aiText.has(u.path)) return; // stale (old search)
+    if (!this.aiPending.has(u.path) && !this.aiText.has(u.path)) return; // stale
     if (!u.failed) this.aiText.set(u.path, u.text);
     if (u.done) {
       this.aiPending.delete(u.path);
@@ -170,6 +172,7 @@ export class SmartSearchWidget extends ReactWidget {
       this.query = "";
       this.hits = [];
       this.resetAiState();
+      this.activeFilters.clear();
       this.runSearch.cancel();
       this.update();
     }
@@ -181,6 +184,15 @@ export class SmartSearchWidget extends ReactWidget {
     const uri = rootResource.resolve(hit.path);
     void open(this.openerService, uri);
     void this.commands.executeCommand("navigator.reveal", uri).catch(() => undefined);
+  };
+
+  private toggleFilter = (cat: string): void => {
+    if (this.activeFilters.has(cat)) {
+      this.activeFilters.delete(cat);
+    } else {
+      this.activeFilters.add(cat);
+    }
+    this.update();
   };
 
   private renderIndexingProgress(): React.ReactNode {
@@ -208,10 +220,14 @@ export class SmartSearchWidget extends ReactWidget {
   }
 
   private renderHit(hit: SearchHit): React.ReactNode {
+    const color = categoryColor(hit.category);
     return (
       <li key={hit.path} className="spexr-smart-search__hit" title={hit.path} onClick={() => this.openHit(hit)}>
         <div className="spexr-smart-search__hit-head">
           <span className="spexr-smart-search__hit-name">{basename(hit.path)}</span>
+          <span className="spexr-smart-search__hit-chip" style={{ color, borderColor: color }}>
+            {CATEGORY_LABELS[hit.category] ?? hit.category}
+          </span>
           <span className="spexr-smart-search__hit-score" style={{ color: scoreColor(hit.score) }}>{formatScore(hit.score)}</span>
         </div>
         {this.renderDesc(hit)}
@@ -239,47 +255,45 @@ export class SmartSearchWidget extends ReactWidget {
     );
   }
 
-  private toggleCategory = (cat: string): void => {
-    if (this.collapsedCategories.has(cat)) {
-      this.collapsedCategories.delete(cat);
-    } else {
-      this.collapsedCategories.add(cat);
-    }
-    this.update();
-  };
+  private renderFilters(): React.ReactNode {
+    if (this.hits.length === 0) return null;
+    const cats = [...new Set(this.hits.map((h) => h.category))];
+    if (cats.length <= 1) return null;
+    return (
+      <div className="spexr-smart-search__filters">
+        {cats.map((cat) => {
+          const active = this.activeFilters.has(cat);
+          const color = categoryColor(cat);
+          const count = this.hits.filter((h) => h.category === cat).length;
+          return (
+            <button
+              key={cat}
+              className={`spexr-smart-search__filter-chip${active ? " spexr-smart-search__filter-chip--active" : ""}`}
+              style={{ "--cat-color": color } as React.CSSProperties}
+              onClick={() => this.toggleFilter(cat)}
+            >
+              {CATEGORY_LABELS[cat] ?? cat}
+              <span className="spexr-smart-search__filter-count">{count}</span>
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
 
   private renderResults(): React.ReactNode {
     if (this.hits.length === 0) {
       return <ul className="spexr-smart-search__results"><li className="spexr-smart-search__empty">No results</li></ul>;
     }
-    const groups = new Map<string, SearchHit[]>();
-    for (const hit of this.hits) {
-      const cat = hit.category || "other";
-      if (!groups.has(cat)) groups.set(cat, []);
-      groups.get(cat)!.push(hit);
-    }
-    const ordered = [
-      ...CATEGORY_ORDER.filter((c) => groups.has(c)).map((c) => [c, groups.get(c)!] as [string, SearchHit[]]),
-      ...[...groups.entries()].filter(([c]) => !CATEGORY_ORDER.includes(c)),
-    ];
+    const displayed = this.activeFilters.size > 0
+      ? this.hits.filter((h) => this.activeFilters.has(h.category))
+      : this.hits;
     return (
       <ul className="spexr-smart-search__results">
-        {ordered.map(([cat, catHits]) => {
-          const collapsed = this.collapsedCategories.has(cat);
-          return (
-            <React.Fragment key={cat}>
-              <li
-                className="spexr-smart-search__group-header"
-                onClick={() => this.toggleCategory(cat)}
-              >
-                <span className={`spexr-smart-search__group-chevron${collapsed ? "" : " spexr-smart-search__group-chevron--open"}`}>›</span>
-                {CATEGORY_LABELS[cat] ?? cat}
-                <span className="spexr-smart-search__group-count">{catHits.length}</span>
-              </li>
-              {!collapsed && catHits.map((hit) => this.renderHit(hit))}
-            </React.Fragment>
-          );
-        })}
+        {displayed.length === 0
+          ? <li className="spexr-smart-search__empty">No results in selected categories</li>
+          : displayed.map((hit) => this.renderHit(hit))
+        }
       </ul>
     );
   }
@@ -301,20 +315,22 @@ export class SmartSearchWidget extends ReactWidget {
             : <div className="spexr-smart-search__status">{statusLabel(this.status)}</div>
         }
         {this.query.trim().length > 0 && this.renderAiProgress()}
+        {this.query.trim().length > 0 && this.renderFilters()}
         {this.query.trim().length > 0 && this.renderResults()}
       </div>
     );
   }
 
   private renderAiProgress(): React.ReactNode {
+    // Indeterminate: a batch runs as a single inference, so per-file percentage
+    // is meaningless — show motion until everything resolves, not a fill level.
     if (!this.aiEnabled() || this.aiTotal === 0 || this.aiDone >= this.aiTotal) return null;
-    const pct = Math.round((this.aiDone / this.aiTotal) * 100);
     return (
       <div className="spexr-smart-search__ai-progress">
         <span className="spexr-smart-search__ai-icon spexr-smart-search__ai-icon--pulsing">✦</span>
-        <span>Generating AI descriptions… {this.aiDone}/{this.aiTotal}</span>
+        <span>Generating AI descriptions…</span>
         <span className="spexr-smart-search__ai-progress-track">
-          <span className="spexr-smart-search__ai-progress-fill" style={{ width: `${pct}%` }} />
+          <span className="spexr-smart-search__ai-progress-fill" />
         </span>
       </div>
     );

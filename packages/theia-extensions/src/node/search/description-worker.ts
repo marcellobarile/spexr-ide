@@ -1,15 +1,15 @@
 // Runs the text-generation model in a dedicated worker thread so inference never
-// stalls the backend event loop. Receives WorkerRequest messages, streams token
-// chunks back, then a final cleaned description (or an error). One request at a
-// time: the model is single-threaded and the parent serializes anyway.
+// stalls the backend event loop. Receives WorkerRequest messages, runs inference,
+// then posts a final cleaned description (or an error). One request at a time:
+// the model is single-threaded and the parent serializes anyway.
 import { parentPort, workerData } from "node:worker_threads";
-import { env, pipeline, TextStreamer } from "@huggingface/transformers";
+import { env, pipeline } from "@huggingface/transformers";
 import {
   GEN_MODEL_ID,
-  MAX_INPUT_CHARS,
-  MAX_NEW_TOKENS,
-  buildPrompt,
-  cleanGenerated,
+  MAX_BATCH_TOKENS,
+  MAX_TOKENS_PER_FILE,
+  buildBatchPrompt,
+  parseBatchOutput,
   type WorkerRequest,
   type WorkerResponse,
 } from "./description-format.js";
@@ -17,12 +17,10 @@ import {
 const port = parentPort;
 const modelsDir: string = workerData?.modelsDir;
 
-type TextGenPipeline = {
-  tokenizer: unknown;
-  (messages: unknown, options: unknown): Promise<
-    Array<{ generated_text?: Array<{ role: string; content: string }> }>
-  >;
-};
+type TextGenPipeline = (
+  messages: unknown,
+  options: unknown,
+) => Promise<Array<{ generated_text?: Array<{ role: string; content: string }> }>>;
 
 let pipePromise: Promise<TextGenPipeline> | undefined;
 
@@ -40,22 +38,24 @@ function post(msg: WorkerResponse): void {
 }
 
 async function handle(req: WorkerRequest): Promise<void> {
-  const { id, relPath, content } = req;
+  const { id, items } = req;
+  if (items.length === 0) {
+    post({ id, type: "done", texts: [] });
+    return;
+  }
   try {
     const pipe = await getPipe();
-    const streamer = new TextStreamer(pipe.tokenizer as ConstructorParameters<typeof TextStreamer>[0], {
-      skip_prompt: true,
-      callback_function: (token: string) => post({ id, type: "token", token }),
-    });
+    // +2 lines of headroom: the model re-emits the one-shot example before the
+    // real files, and a tight budget otherwise truncates the last file's line.
+    const maxTokens = Math.min((items.length + 2) * MAX_TOKENS_PER_FILE, MAX_BATCH_TOKENS);
     const out = await pipe(
-      [{ role: "user", content: buildPrompt(relPath, content.slice(0, MAX_INPUT_CHARS)) }],
-      { max_new_tokens: MAX_NEW_TOKENS, do_sample: false, streamer },
+      [{ role: "user", content: buildBatchPrompt(items) }],
+      { max_new_tokens: maxTokens, do_sample: false },
     );
     const msgs = out[0]?.generated_text;
     const last = Array.isArray(msgs) ? msgs[msgs.length - 1] : undefined;
     const raw = typeof last?.content === "string" ? last.content : "";
-    const text = cleanGenerated(raw);
-    post({ id, type: "done", text: text.length > 0 ? text : null });
+    post({ id, type: "done", texts: parseBatchOutput(raw, items.map((it) => it.relPath)) });
   } catch {
     post({ id, type: "error" });
   }

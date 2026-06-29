@@ -12,6 +12,7 @@ export class SpexrWelcomeViewContribution extends AbstractViewContribution<Spexr
       widgetName: "Welcome",
       defaultWidgetOptions: {
         area: "main",
+        rank: 0,
       },
       toggleCommandId: "spexr.view.welcome.toggle",
       toggleKeybinding: "ctrlcmd+shift+w",

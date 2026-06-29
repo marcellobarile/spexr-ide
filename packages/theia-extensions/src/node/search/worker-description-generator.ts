@@ -2,8 +2,8 @@ import { injectable, unmanaged } from "@theia/core/shared/inversify";
 import { Worker } from "node:worker_threads";
 import { resolveModelsDir, resolveWorkerPath } from "./models-dir.js";
 import type {
+  BatchItem,
   DescriptionGenerator,
-  OnToken,
   WorkerRequest,
   WorkerResponse,
 } from "./description-format.js";
@@ -23,15 +23,13 @@ function defaultWorkerFactory(): WorkerLike {
 }
 
 interface Pending {
-  resolve: (value: string | null) => void;
-  onToken: OnToken | undefined;
-  acc: string;
+  count: number;
+  resolve: (value: (string | null)[]) => void;
 }
 
 /**
- * Drives description generation in a worker thread, streaming token chunks via
- * the optional `onToken` callback. Spawns the worker lazily on first use and
- * degrades to null permanently if the worker errors or exits.
+ * Drives description generation in a worker thread. Spawns the worker lazily
+ * on first use and degrades to null permanently if the worker errors or exits.
  */
 @injectable()
 export class WorkerDescriptionGenerator implements DescriptionGenerator {
@@ -47,13 +45,14 @@ export class WorkerDescriptionGenerator implements DescriptionGenerator {
     return !this.failed;
   }
 
-  generate(relPath: string, content: string, onToken?: OnToken): Promise<string | null> {
+  generateBatch(items: BatchItem[]): Promise<(string | null)[]> {
+    if (items.length === 0) return Promise.resolve([]);
     const worker = this.ensureWorker();
-    if (!worker) return Promise.resolve(null);
+    if (!worker) return Promise.resolve(items.map(() => null));
     const id = ++this.seq;
-    return new Promise<string | null>((resolve) => {
-      this.pending.set(id, { resolve, onToken, acc: "" });
-      worker.postMessage({ id, relPath, content });
+    return new Promise<(string | null)[]>((resolve) => {
+      this.pending.set(id, { count: items.length, resolve });
+      worker.postMessage({ id, items });
     });
   }
 
@@ -82,18 +81,13 @@ export class WorkerDescriptionGenerator implements DescriptionGenerator {
   private onMessage(msg: WorkerResponse): void {
     const entry = this.pending.get(msg.id);
     if (!entry) return;
-    if (msg.type === "token") {
-      entry.acc += msg.token;
-      entry.onToken?.(entry.acc);
-      return;
-    }
     this.pending.delete(msg.id);
-    entry.resolve(msg.type === "done" ? msg.text : null);
+    entry.resolve(msg.type === "done" ? msg.texts : new Array(entry.count).fill(null));
   }
 
   private fail(): void {
     this.failed = true;
-    for (const entry of this.pending.values()) entry.resolve(null);
+    for (const entry of this.pending.values()) entry.resolve(new Array(entry.count).fill(null));
     this.pending.clear();
     this.worker = undefined;
   }

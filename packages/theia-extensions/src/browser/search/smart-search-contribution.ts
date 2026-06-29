@@ -1,6 +1,12 @@
 import { inject, injectable } from "@theia/core/shared/inversify";
 import type { interfaces } from "@theia/core/shared/inversify";
 import {
+  type CommandContribution,
+  type CommandRegistry,
+  type Command,
+  MessageService,
+} from "@theia/core";
+import {
   type FrontendApplicationContribution,
   WidgetManager,
 } from "@theia/core/lib/browser";
@@ -15,17 +21,24 @@ import { SpexrSearchServiceProxy } from "./smart-search-service.js";
 import { SmartSearchWidget } from "./smart-search-widget.js";
 import { debounce } from "./smart-search-format.js";
 
+export const SmartSearchCommands = {
+  REINDEX: { id: "spexr.search.reindex", label: "Smart Search: Reindex Workspace" } satisfies Command,
+} as const;
+
 /**
  * Places {@link SmartSearchWidget} at the top of the Explorer view container,
  * kicks off the initial index, and forwards file changes to the backend for
  * incremental re-indexing.
  */
 @injectable()
-export class SpexrSmartSearchContribution implements FrontendApplicationContribution {
+export class SpexrSmartSearchContribution
+  implements FrontendApplicationContribution, CommandContribution
+{
   @inject(WidgetManager) private readonly widgetManager!: WidgetManager;
   @inject(SpexrSearchServiceProxy) private readonly service!: SpexrSearchService;
   @inject(WorkspaceService) private readonly workspace!: WorkspaceService;
   @inject(FileService) private readonly fileService!: FileService;
+  @inject(MessageService) private readonly messages!: MessageService;
 
   private changed = new Set<string>();
   private removed = new Set<string>();
@@ -66,6 +79,25 @@ export class SpexrSmartSearchContribution implements FrontendApplicationContribu
   onStop(): void {
     this.fileWatcher?.dispose();
     this.flush.cancel();
+  }
+
+  registerCommands(commands: CommandRegistry): void {
+    commands.registerCommand(SmartSearchCommands.REINDEX, {
+      execute: () => this.reindex(),
+      isEnabled: () => this.root() !== undefined,
+    });
+  }
+
+  private async reindex(): Promise<void> {
+    const root = this.root();
+    if (!root) return;
+    try {
+      await this.service.reindex(root);
+    } catch (err) {
+      this.messages.error(
+        `Smart Search reindex failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
   }
 
   private onFilesChanged(changes: readonly { resource: URI; type: number }[]): void {
