@@ -36,7 +36,9 @@ export class DescriptionJob {
   constructor(private readonly deps: DescriptionJobDeps) {}
 
   get status(): DescriptionJobStatus {
-    return { state: this.state, done: this.done, total: this.total, message: this.message };
+    const s: DescriptionJobStatus = { state: this.state, done: this.done, total: this.total };
+    if (this.message !== undefined) s.message = this.message;
+    return s;
   }
 
   async start(opts: { regenerate: boolean }): Promise<void> {
@@ -48,7 +50,7 @@ export class DescriptionJob {
     this.cursor = 0;
     this.done = 0;
     this.total = this.targets.length;
-    this.message = undefined;
+    delete this.message;
     this.pauseRequested = false;
     this.state = "running";
     this.deps.emit(this.status);

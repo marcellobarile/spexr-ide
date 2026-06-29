@@ -9,7 +9,7 @@
  * accidentally reverted.
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { mkdtemp, writeFile, rm } from "node:fs/promises";
+import { mkdtemp, writeFile, rm, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { SpexrSearchBackendService } from "./spexr-search-backend-service.js";
@@ -37,7 +37,7 @@ function serviceWith(text: string | null): SpexrSearchBackendService {
 /** Collects streamed description updates as a client. */
 function collectClient(svc: SpexrSearchBackendService): DescriptionUpdate[] {
   const updates: DescriptionUpdate[] = [];
-  svc.setClient({ onDescriptionUpdate: (u) => updates.push(u) });
+  svc.setClient({ onDescriptionUpdate: (u) => updates.push(u), onDescriptionJobProgress: () => undefined });
   return updates;
 }
 
@@ -193,5 +193,33 @@ describe("SpexrSearchBackendService", () => {
     // With a URI root, the indexer reads from a nonexistent directory — error state.
     const status = await service.getIndexStatus(uriRoot);
     expect(status.state).toBe("error");
+  });
+});
+
+describe("description job", () => {
+  it("generates descriptions for all files, emits progress, and writes artifacts", async () => {
+    await writeFile(join(root, "auth.ts"), "auth");
+    await writeFile(join(root, "ui.ts"), "ui");
+    const service = serviceWith("Generated.");
+    const jobStatuses: import("../../common/search-protocol.js").DescriptionJobStatus[] = [];
+    service.setClient({
+      onDescriptionUpdate: () => undefined,
+      onDescriptionJobProgress: (s) => jobStatuses.push(s),
+    });
+    await service.ensureIndexed(root);
+    await waitReady(service);
+
+    await service.startDescriptionJob(root, { regenerate: false });
+    // start() returns immediately; poll until the job reports complete.
+    for (let i = 0; i < 50 && (await service.getDescriptionJobStatus(root)).state !== "complete"; i++) {
+      await new Promise((r) => setTimeout(r, 10));
+    }
+
+    const status = await service.getDescriptionJobStatus(root);
+    expect(status.state).toBe("complete");
+    expect(jobStatuses.some((s) => s.state === "running")).toBe(true);
+    const mapped = JSON.parse(await readFile(join(root, ".spexr", "descriptions.json"), "utf8"));
+    expect(Object.keys(mapped).sort()).toEqual(["auth.ts", "ui.ts"]);
+    expect(mapped["auth.ts"].description).toBe("Generated.");
   });
 });

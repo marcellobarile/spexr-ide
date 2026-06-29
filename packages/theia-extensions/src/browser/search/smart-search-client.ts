@@ -1,19 +1,27 @@
 import { injectable } from "@theia/core/shared/inversify";
 import { Emitter, type Event } from "@theia/core/lib/common/event";
-import type { SpexrSearchClient, DescriptionUpdate } from "../../common/search-protocol.js";
+import type { SpexrSearchClient, DescriptionUpdate, DescriptionJobStatus } from "../../common/search-protocol.js";
 
 export const SpexrSearchClientToken = Symbol("SpexrSearchClientDispatcher");
 
 /**
  * Singleton client registered on the search RPC proxy. The backend pushes
- * description progress here; the widget (created lazily) subscribes to the event.
+ * per-file description progress and whole-workspace job progress here; widgets
+ * subscribe to the events.
  */
 @injectable()
 export class SpexrSearchClientDispatcher implements SpexrSearchClient {
-  private readonly emitter = new Emitter<DescriptionUpdate>();
-  readonly onDescriptionUpdate$: Event<DescriptionUpdate> = this.emitter.event;
+  private readonly descEmitter = new Emitter<DescriptionUpdate>();
+  readonly onDescriptionUpdate$: Event<DescriptionUpdate> = this.descEmitter.event;
+
+  private readonly jobEmitter = new Emitter<DescriptionJobStatus>();
+  readonly onDescriptionJobProgress$: Event<DescriptionJobStatus> = this.jobEmitter.event;
 
   onDescriptionUpdate(update: DescriptionUpdate): void {
-    this.emitter.fire(update);
+    this.descEmitter.fire(update);
+  }
+
+  onDescriptionJobProgress(status: DescriptionJobStatus): void {
+    this.jobEmitter.fire(status);
   }
 }

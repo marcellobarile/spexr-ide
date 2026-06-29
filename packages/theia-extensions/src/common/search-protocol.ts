@@ -42,6 +42,7 @@ export interface DescriptionJobStatus {
 /** Client callbacks the backend pushes description progress to. */
 export interface SpexrSearchClient {
   onDescriptionUpdate(update: DescriptionUpdate): void;
+  onDescriptionJobProgress(status: DescriptionJobStatus): void;
 }
 
 export type IndexState = "idle" | "indexing" | "ready" | "error";
@@ -78,4 +79,12 @@ export interface SpexrSearchService {
    * Cached descriptions are emitted immediately. Resolves when all are handled.
    */
   describeFiles(root: string, paths: string[]): Promise<void>;
+  /** Start the workspace-wide description job. `regenerate` overwrites existing AI descriptions. */
+  startDescriptionJob(root: string, opts: { regenerate: boolean }): Promise<void>;
+  /** Request the running job to pause after the current batch. */
+  pauseDescriptionJob(root: string): Promise<void>;
+  /** Resume a paused job. */
+  resumeDescriptionJob(root: string): Promise<void>;
+  /** Current job status (idle if never started). */
+  getDescriptionJobStatus(root: string): Promise<DescriptionJobStatus>;
 }

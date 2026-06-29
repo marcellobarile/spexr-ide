@@ -4,6 +4,7 @@ import type {
   SpexrSearchClient,
   SearchHit,
   IndexStatus,
+  DescriptionJobStatus,
 } from "../../common/search-protocol.js";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -12,6 +13,8 @@ import { EmbedderToken } from "./embedding-model.js";
 import { DescriptionGeneratorToken, type DescriptionGenerator } from "./description-format.js";
 import { WorkspaceIndexer } from "./workspace-indexer.js";
 import { expandQuery } from "./query-expander.js";
+import { DescriptionJob } from "./description-job.js";
+import { CodebaseMapWriter } from "./codebase-map-writer.js";
 
 const TOP_K = 30;
 const MIN_SCORE = 0.18;
@@ -25,6 +28,7 @@ interface Workspace {
   building?: Promise<void>;
   /** Changes that arrived while an index build was in progress, queued for replay. */
   pendingChanges?: { changed: string[]; removed: string[] };
+  descriptionJob?: DescriptionJob;
 }
 
 /**
@@ -153,6 +157,39 @@ export class SpexrSearchBackendService implements SpexrSearchService {
 
   private emit(update: { path: string; text: string; done: boolean; failed?: boolean }): void {
     this.client?.onDescriptionUpdate(update);
+  }
+
+  private getJob(ws: Workspace, root: string): DescriptionJob {
+    if (!ws.descriptionJob) {
+      ws.descriptionJob = new DescriptionJob({
+        index: ws.indexer.index,
+        generator: this.generator,
+        readContent: (rel) => readFile(join(root, rel), "utf8"),
+        save: () => ws.indexer.save(),
+        writeArtifacts: () => new CodebaseMapWriter(root).write(ws.indexer.index.allRecords()),
+        emit: (s) => this.client?.onDescriptionJobProgress(s),
+      });
+    }
+    return ws.descriptionJob;
+  }
+
+  async startDescriptionJob(root: string, opts: { regenerate: boolean }): Promise<void> {
+    const ws = this.getOrCreate(root);
+    if (ws.status.state !== "ready") await this.build(ws, root);
+    if (ws.status.state !== "ready") return; // build failed → leave job idle
+    void this.getJob(ws, root).start(opts); // fire-and-forget; progress streams via emit
+  }
+
+  async pauseDescriptionJob(root: string): Promise<void> {
+    this.workspaces.get(root)?.descriptionJob?.pause();
+  }
+
+  async resumeDescriptionJob(root: string): Promise<void> {
+    await this.workspaces.get(root)?.descriptionJob?.resume();
+  }
+
+  async getDescriptionJobStatus(root: string): Promise<DescriptionJobStatus> {
+    return this.workspaces.get(root)?.descriptionJob?.status ?? { state: "idle", done: 0, total: 0 };
   }
 
   /** Build (or rebuild) an index, updating status; never throws. */

@@ -23,6 +23,10 @@ import { debounce } from "./smart-search-format.js";
 
 export const SmartSearchCommands = {
   REINDEX: { id: "spexr.search.reindex", label: "Smart Search: Reindex Workspace" } satisfies Command,
+  MAP: { id: "spexr.search.map", label: "Spexr: Map this codebase" } satisfies Command,
+  MAP_PAUSE: { id: "spexr.search.mapPause", label: "Spexr: Pause mapping" } satisfies Command,
+  MAP_RESUME: { id: "spexr.search.mapResume", label: "Spexr: Resume mapping" } satisfies Command,
+  REGENERATE: { id: "spexr.search.regenerateDescriptions", label: "Spexr: Regenerate all descriptions" } satisfies Command,
 } as const;
 
 /**
@@ -86,6 +90,22 @@ export class SpexrSmartSearchContribution
       execute: () => this.reindex(),
       isEnabled: () => this.root() !== undefined,
     });
+    commands.registerCommand(SmartSearchCommands.MAP, {
+      execute: () => this.startMap(false),
+      isEnabled: () => this.root() !== undefined,
+    });
+    commands.registerCommand(SmartSearchCommands.REGENERATE, {
+      execute: () => this.startMap(true),
+      isEnabled: () => this.root() !== undefined,
+    });
+    commands.registerCommand(SmartSearchCommands.MAP_PAUSE, {
+      execute: () => this.mapControl("pause"),
+      isEnabled: () => this.root() !== undefined,
+    });
+    commands.registerCommand(SmartSearchCommands.MAP_RESUME, {
+      execute: () => this.mapControl("resume"),
+      isEnabled: () => this.root() !== undefined,
+    });
   }
 
   private async reindex(): Promise<void> {
@@ -98,6 +118,23 @@ export class SpexrSmartSearchContribution
         `Smart Search reindex failed: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
+  }
+
+  private async startMap(regenerate: boolean): Promise<void> {
+    const root = this.root();
+    if (!root) return;
+    try {
+      await this.service.startDescriptionJob(root, { regenerate });
+    } catch (err) {
+      this.messages.error(`Codebase mapping failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  private async mapControl(action: "pause" | "resume"): Promise<void> {
+    const root = this.root();
+    if (!root) return;
+    if (action === "pause") await this.service.pauseDescriptionJob(root);
+    else await this.service.resumeDescriptionJob(root);
   }
 
   private onFilesChanged(changes: readonly { resource: URI; type: number }[]): void {

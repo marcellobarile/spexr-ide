@@ -27,6 +27,8 @@ gen-webpack*.js
 
 # App local settings (machine-specific paths)
 .spexr/settings.json
+.spexr/codebase-map.md
+.spexr/descriptions.json
 
 # Playwright E2E
 tests/e2e/playwright-report/
