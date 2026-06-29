@@ -1,7 +1,6 @@
 import { inject, injectable } from "@theia/core/shared/inversify";
 import { type FrontendApplicationContribution } from "@theia/core/lib/browser";
 import { StatusBar, StatusBarAlignment } from "@theia/core/lib/browser/status-bar/status-bar";
-import { CommandService } from "@theia/core/lib/common/command";
 import { SpexrSearchClientDispatcher } from "./smart-search-client.js";
 import { SmartSearchCommands } from "./smart-search-contribution.js";
 import type { DescriptionJobStatus } from "../../common/search-protocol.js";
@@ -13,7 +12,6 @@ const ENTRY_ID = "spexr-description-job";
 export class DescriptionJobStatusBarContribution implements FrontendApplicationContribution {
   @inject(StatusBar) private readonly statusBar!: StatusBar;
   @inject(SpexrSearchClientDispatcher) private readonly client!: SpexrSearchClientDispatcher;
-  @inject(CommandService) private readonly commands!: CommandService;
 
   onStart(): void {
     this.client.onDescriptionJobProgress$((s) => this.render(s));
@@ -32,8 +30,15 @@ export class DescriptionJobStatusBarContribution implements FrontendApplicationC
       text,
       alignment: StatusBarAlignment.LEFT,
       priority: 100,
-      tooltip: s.state === "running" ? "Click to pause mapping" : "Click to resume mapping",
-      command: s.state === "paused" ? SmartSearchCommands.MAP_RESUME.id : SmartSearchCommands.MAP_PAUSE.id,
+      tooltip:
+        s.state === "running" ? "Click to pause mapping"
+        : s.state === "paused" ? "Click to resume mapping"
+        : "Mapping failed",
+      ...(s.state === "running"
+        ? { command: SmartSearchCommands.MAP_PAUSE.id }
+        : s.state === "paused"
+          ? { command: SmartSearchCommands.MAP_RESUME.id }
+          : {}),
     });
   }
 }
