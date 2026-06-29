@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { readFile, writeFile, mkdir, readdir, stat, rename } from "node:fs/promises";
 import { join, relative, sep } from "node:path";
 import type { Embedder } from "./embedding-model.js";
@@ -269,7 +269,7 @@ export class WorkspaceIndexer {
   async save(): Promise<void> {
     await mkdir(join(this.root, INDEX_DIR), { recursive: true });
     const data = { ...this.index.toJSON(), bm25: this.bm25.toJSON() };
-    const tmp = `${this.indexPath}.tmp`;
+    const tmp = `${this.indexPath}.${randomBytes(4).toString("hex")}.tmp`;
     await writeFile(tmp, JSON.stringify(data), "utf8");
     await rename(tmp, this.indexPath);
   }
