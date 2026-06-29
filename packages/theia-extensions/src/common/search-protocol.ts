@@ -26,6 +26,19 @@ export interface DescriptionUpdate {
   failed?: boolean;
 }
 
+export type DescriptionJobState = "idle" | "running" | "paused" | "complete" | "error";
+
+/** Progress of the workspace-wide description generation job. */
+export interface DescriptionJobStatus {
+  state: DescriptionJobState;
+  /** Targets processed this run (reaches `total` at completion). */
+  done: number;
+  /** Size of the target set, fixed when the job starts. */
+  total: number;
+  /** Set when `state` is `error`. */
+  message?: string;
+}
+
 /** Client callbacks the backend pushes description progress to. */
 export interface SpexrSearchClient {
   onDescriptionUpdate(update: DescriptionUpdate): void;
