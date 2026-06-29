@@ -79,7 +79,7 @@ describe("DescriptionJob", () => {
 
   it("pauses after the current batch and resumes the rest", async () => {
     const idx = new VectorIndex();
-    for (let i = 0; i < 8; i++) idx.upsert(rec(`f${i}.ts`)); // 2 batches of 5 + remainder
+    for (let i = 0; i < 8; i++) idx.upsert(rec(`f${i}.ts`)); // batch of 5, then remainder of 3
     const gen = new FakeGen();
     const env = deps(idx, gen);
     const job = new DescriptionJob(env.d);
@@ -89,6 +89,12 @@ describe("DescriptionJob", () => {
     expect(job.status.done).toBe(5);
     await job.resume();
     expect(job.status).toMatchObject({ state: "complete", done: 8, total: 8 });
+    // Emitted state values must include the transition running → paused → running → complete
+    // (consecutive duplicates from per-batch "running" emits are collapsed before asserting).
+    const distinctStates = env.statuses
+      .map((s) => s.state)
+      .filter((s, i, arr) => i === 0 || s !== arr[i - 1]);
+    expect(distinctStates).toEqual(["running", "paused", "running", "complete"]);
   });
 
   it("ends in error when the model is unavailable", async () => {
@@ -101,5 +107,25 @@ describe("DescriptionJob", () => {
     await job.start({ regenerate: false });
     expect(job.status.state).toBe("error");
     expect(env.state.artifacts).toBe(0);
+  });
+
+  it("transitions to error when completion writeArtifacts throws, and allows restart", async () => {
+    const idx = new VectorIndex();
+    idx.upsert(rec("a.ts"));
+    const gen = new FakeGen();
+    let artifactCalls = 0;
+    const env = deps(idx, gen, {
+      writeArtifacts: async () => {
+        if (++artifactCalls === 1) throw new Error("write failed");
+      },
+    });
+    const job = new DescriptionJob(env.d);
+    await job.start({ regenerate: false });
+    expect(job.status.state).toBe("error");
+    expect(job.status.message).toContain("write failed");
+    // Job is not stuck in "running" — start must be allowed to proceed.
+    gen.calls = [];
+    await job.start({ regenerate: true });
+    expect(job.status.state).toBe("complete");
   });
 });

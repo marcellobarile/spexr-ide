@@ -69,43 +69,50 @@ export class DescriptionJob {
 
   private async run(): Promise<void> {
     let batches = 0;
-    while (this.cursor < this.targets.length) {
-      if (this.pauseRequested) {
-        this.state = "paused";
-        await this.deps.save();
-        this.deps.emit(this.status);
-        return;
-      }
-      if (!this.deps.generator.isAvailable()) {
-        this.state = "error";
-        this.message = "Description model unavailable.";
-        await this.deps.save();
-        this.deps.emit(this.status);
-        return;
-      }
-      const batch = this.targets.slice(this.cursor, this.cursor + BATCH_SIZE);
-      const items: BatchItem[] = [];
-      for (const relPath of batch) {
-        try {
-          items.push({ relPath, content: await this.deps.readContent(relPath) });
-        } catch {
-          // Unreadable file: skip generation but still count it as processed.
+    try {
+      while (this.cursor < this.targets.length) {
+        if (this.pauseRequested) {
+          this.state = "paused";
+          await this.deps.save();
+          this.deps.emit(this.status);
+          return;
         }
+        if (!this.deps.generator.isAvailable()) {
+          this.state = "error";
+          this.message = "Description model unavailable.";
+          await this.deps.save();
+          this.deps.emit(this.status);
+          return;
+        }
+        const batch = this.targets.slice(this.cursor, this.cursor + BATCH_SIZE);
+        const items: BatchItem[] = [];
+        for (const relPath of batch) {
+          try {
+            items.push({ relPath, content: await this.deps.readContent(relPath) });
+          } catch {
+            // Unreadable file: skip generation but still count it as processed.
+          }
+        }
+        const texts = await this.deps.generator.generateBatch(items);
+        items.forEach((it, i) => {
+          const text = texts[i];
+          if (text) this.deps.index.setAiDescription(it.relPath, text);
+        });
+        this.cursor += batch.length;
+        this.done = this.cursor;
+        batches++;
+        if (batches % SAVE_EVERY_BATCHES === 0) await this.deps.save();
+        this.deps.emit(this.status);
       }
-      const texts = await this.deps.generator.generateBatch(items);
-      items.forEach((it, i) => {
-        const text = texts[i];
-        if (text) this.deps.index.setAiDescription(it.relPath, text);
-      });
-      this.cursor += batch.length;
-      this.done = this.cursor;
-      batches++;
-      if (batches % SAVE_EVERY_BATCHES === 0) await this.deps.save();
+      await this.deps.save();
+      await this.deps.writeArtifacts();
+      this.state = "complete";
+      this.deps.emit(this.status);
+    } catch (err) {
+      this.state = "error";
+      this.message = err instanceof Error ? err.message : String(err);
+      try { await this.deps.save(); } catch { /* best-effort */ }
       this.deps.emit(this.status);
     }
-    await this.deps.save();
-    await this.deps.writeArtifacts();
-    this.state = "complete";
-    this.deps.emit(this.status);
   }
 }
