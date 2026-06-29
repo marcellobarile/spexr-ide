@@ -2075,33 +2075,33 @@ code {
   100% { transform: translateX(250%); }
 }
 .spexr-smart-search__map {
-  padding: 4px 6px 8px;
+  padding: var(--spexr-space-1) 6px var(--spexr-space-2); /* TODO token: 6px has no --spexr-space-* equivalent */
 }
 .spexr-smart-search__map-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 6px; /* TODO token: 6px has no --spexr-space-* equivalent */
 }
 .spexr-smart-search__map-cta {
   flex: 1;
-  border: 1px solid var(--theia-textLink-foreground, #b18cff);
+  border: 1px solid var(--spexr-accent-default);
   background: transparent;
-  color: var(--theia-textLink-foreground, #b18cff);
-  border-radius: 4px;
-  padding: 4px 8px;
-  font-size: 12px;
+  color: var(--spexr-accent-default);
+  border-radius: var(--spexr-radius-sm);
+  padding: var(--spexr-space-1) var(--spexr-space-2);
+  font-size: var(--spexr-text-xs);
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
 }
 .spexr-smart-search__map-cta:hover {
-  background: var(--theia-textLink-foreground, #b18cff);
-  color: var(--theia-editor-background, #1e1e1e);
+  background: var(--spexr-accent-hover);
+  color: var(--spexr-text-on-accent);
 }
 .spexr-smart-search__map-info,
 .spexr-smart-search__map-regen {
   opacity: 0.6;
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--spexr-text-xs);
   background: none;
   border: none;
   color: inherit;
@@ -2113,25 +2113,25 @@ code {
 .spexr-smart-search__map-progress {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-top: 6px;
-  font-size: 11px;
+  gap: 6px; /* TODO token: 6px has no --spexr-space-* equivalent */
+  margin-top: 6px; /* TODO token: 6px has no --spexr-space-* equivalent */
+  font-size: var(--spexr-text-xs);
 }
 .spexr-smart-search__map-track {
   flex: 1;
   height: 3px;
-  border-radius: 2px;
-  background: rgba(168, 85, 247, 0.18);
+  border-radius: 2px; /* TODO token: no --spexr-radius-* for 2px */
+  background: var(--spexr-accent-subtle);
   overflow: hidden;
 }
 .spexr-smart-search__map-fill {
   display: block;
   height: 100%;
-  background: var(--theia-textLink-foreground, #b18cff);
+  background: var(--spexr-accent-default);
   transition: width 0.3s ease;
 }
 .spexr-smart-search__map-error {
-  margin-top: 6px;
-  font-size: 11px;
-  color: var(--theia-errorForeground, #f48771);
+  margin-top: 6px; /* TODO token: 6px has no --spexr-space-* equivalent */
+  font-size: var(--spexr-text-xs);
+  color: var(--spexr-status-danger);
 }

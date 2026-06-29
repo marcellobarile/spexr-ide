@@ -156,7 +156,10 @@ export class SmartSearchWidget extends ReactWidget {
 
   private async refreshJobStatus(): Promise<void> {
     const root = this.root();
-    if (root) { this.jobStatus = await this.service.getDescriptionJobStatus(root); this.update(); }
+    if (root) {
+      this.jobStatus = await this.service.getDescriptionJobStatus(root);
+      if (!this.isDisposed) this.update();
+    }
   }
 
   private startMap = (regenerate: boolean): void => {
@@ -362,7 +365,7 @@ export class SmartSearchWidget extends ReactWidget {
               ✦ Resume
             </button>
           ) : (
-            <button className="spexr-smart-search__map-cta" onClick={() => this.startMap(false)}>
+            <button className="spexr-smart-search__map-cta" onClick={() => this.startMap(false)} title="Generate AI descriptions for the whole codebase">
               ✦ Map this codebase
             </button>
           )}
