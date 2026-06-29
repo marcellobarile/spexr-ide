@@ -5,7 +5,7 @@ import { CommandService } from "@theia/core/lib/common/command";
 import { OpenerService, open } from "@theia/core/lib/browser/opener-service";
 import { PreferenceService } from "@theia/core/lib/common/preferences/preference-service";
 import { WorkspaceService } from "@theia/workspace/lib/browser";
-import type { SearchHit, IndexStatus, SpexrSearchService, DescriptionUpdate } from "../../common/search-protocol.js";
+import type { SearchHit, IndexStatus, SpexrSearchService, DescriptionUpdate, DescriptionJobStatus } from "../../common/search-protocol.js";
 import { SPEXR_SEARCH_AI_DESCRIPTIONS_PREFERENCE } from "../preferences/spexr-preferences.js";
 import { SpexrSearchServiceProxy } from "./smart-search-service.js";
 import { SpexrSearchClientDispatcher } from "./smart-search-client.js";
@@ -66,6 +66,7 @@ export class SmartSearchWidget extends ReactWidget {
   /** progress counters for the current search's AI descriptions. */
   private aiTotal = 0;
   private aiDone = 0;
+  private jobStatus: DescriptionJobStatus = { state: "idle", done: 0, total: 0 };
   /** active category filters; empty = show all. */
   private activeFilters = new Set<string>();
   private status: IndexStatus = { state: "idle", indexed: 0, total: 0 };
@@ -82,6 +83,8 @@ export class SmartSearchWidget extends ReactWidget {
     this.title.closable = false;
     this.addClass("spexr-smart-search");
     this.toDispose.push(this.searchClient.onDescriptionUpdate$((u) => this.onDescriptionUpdate(u)));
+    this.toDispose.push(this.searchClient.onDescriptionJobProgress$((s) => { this.jobStatus = s; this.update(); }));
+    void this.refreshJobStatus();
     this.pollStatus();
     this.update();
   }
@@ -150,6 +153,26 @@ export class SmartSearchWidget extends ReactWidget {
     this.update();
     void this.service.describeFiles(root, paths);
   }
+
+  private async refreshJobStatus(): Promise<void> {
+    const root = this.root();
+    if (root) { this.jobStatus = await this.service.getDescriptionJobStatus(root); this.update(); }
+  }
+
+  private startMap = (regenerate: boolean): void => {
+    const root = this.root();
+    if (root) void this.service.startDescriptionJob(root, { regenerate });
+  };
+
+  private pauseMap = (): void => {
+    const root = this.root();
+    if (root) void this.service.pauseDescriptionJob(root);
+  };
+
+  private resumeMap = (): void => {
+    const root = this.root();
+    if (root) void this.service.resumeDescriptionJob(root);
+  };
 
   private onDescriptionUpdate(u: DescriptionUpdate): void {
     if (!this.aiPending.has(u.path) && !this.aiText.has(u.path)) return; // stale
@@ -301,6 +324,7 @@ export class SmartSearchWidget extends ReactWidget {
   protected render(): React.ReactNode {
     return (
       <div className="spexr-smart-search__body">
+        {this.renderMapHeader()}
         <input
           className="spexr-smart-search__input theia-input"
           placeholder="Search files by meaning…"
@@ -317,6 +341,58 @@ export class SmartSearchWidget extends ReactWidget {
         {this.query.trim().length > 0 && this.renderAiProgress()}
         {this.query.trim().length > 0 && this.renderFilters()}
         {this.query.trim().length > 0 && this.renderResults()}
+      </div>
+    );
+  }
+
+  private renderMapHeader(): React.ReactNode {
+    const { state, done, total } = this.jobStatus;
+    const running = state === "running";
+    const paused = state === "paused";
+    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+    return (
+      <div className="spexr-smart-search__map">
+        <div className="spexr-smart-search__map-row">
+          {running ? (
+            <button className="spexr-smart-search__map-cta" onClick={this.pauseMap} title="Pause mapping">
+              ✦ Pause
+            </button>
+          ) : paused ? (
+            <button className="spexr-smart-search__map-cta" onClick={this.resumeMap} title="Resume mapping">
+              ✦ Resume
+            </button>
+          ) : (
+            <button className="spexr-smart-search__map-cta" onClick={() => this.startMap(false)}>
+              ✦ Map this codebase
+            </button>
+          )}
+          <span
+            className="spexr-smart-search__map-info"
+            title="Pre-compute AI descriptions for every file so search is instant and agents can orient in the codebase."
+          >
+            ⓘ
+          </span>
+          {(state === "idle" || state === "complete") && (
+            <button
+              className="spexr-smart-search__map-regen"
+              onClick={() => this.startMap(true)}
+              title="Regenerate all descriptions"
+            >
+              ↻
+            </button>
+          )}
+        </div>
+        {(running || paused) && (
+          <div className="spexr-smart-search__map-progress">
+            <span className="spexr-smart-search__map-track">
+              <span className="spexr-smart-search__map-fill" style={{ width: `${pct}%` }} />
+            </span>
+            <span className="spexr-smart-search__map-count">{done}/{total}</span>
+          </div>
+        )}
+        {state === "error" && (
+          <div className="spexr-smart-search__map-error">{this.jobStatus.message ?? "Mapping failed."}</div>
+        )}
       </div>
     );
   }
