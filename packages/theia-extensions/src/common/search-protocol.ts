@@ -105,4 +105,8 @@ export interface SpexrSearchService {
   getDescriptionJobStatus(root: string): Promise<DescriptionJobStatus>;
   /** Approximate token budget for describing files not yet in the store (non-blocking). */
   getMapEstimate(root: string): Promise<MapEstimate>;
+  /** True if `.spexr/` is already ignored at the user's global git level. */
+  isSpexrGloballyIgnored(): Promise<boolean>;
+  /** Append `.spexr/` to the user's global git ignore; resolves true once it is present. */
+  addSpexrToGlobalIgnore(): Promise<boolean>;
 }

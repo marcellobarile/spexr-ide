@@ -7,8 +7,10 @@ import { OpenerService, open } from "@theia/core/lib/browser/opener-service";
 import { PreferenceService } from "@theia/core/lib/common/preferences/preference-service";
 import { WorkspaceService } from "@theia/workspace/lib/browser";
 import type { SearchHit, IndexStatus, SpexrSearchService, DescriptionUpdate, DescriptionJobStatus } from "../../common/search-protocol.js";
+import { PreferenceScope } from "@theia/core/lib/common/preferences/preference-scope";
 import {
   SPEXR_SEARCH_AI_DESCRIPTIONS_PREFERENCE,
+  SPEXR_SEARCH_GLOBAL_IGNORE_PROMPTED,
   SPEXR_CLAUDE_EXECUTABLE_PREFERENCE,
   SPEXR_CLAUDE_CONFIG_DIR_PREFERENCE,
 } from "../preferences/spexr-preferences.js";
@@ -167,9 +169,28 @@ export class SmartSearchWidget extends ReactWidget {
     }
   }
 
+  /** One-time consent to add `.spexr/` to the user's global git ignore. */
+  private async maybePromptGlobalIgnore(): Promise<void> {
+    if (this.preferences.get<boolean>(SPEXR_SEARCH_GLOBAL_IGNORE_PROMPTED, false)) return;
+    if (await this.service.isSpexrGloballyIgnored()) {
+      await this.preferences.set(SPEXR_SEARCH_GLOBAL_IGNORE_PROMPTED, true, PreferenceScope.User);
+      return;
+    }
+    const ok = await new ConfirmDialog({
+      title: "Ignore .spexr in git",
+      msg: "Add `.spexr/` to your global git ignore so SPEXR's generated maps aren't tracked in any repository?",
+      ok: "Add",
+      cancel: "Skip",
+    }).open();
+    if (ok) await this.service.addSpexrToGlobalIgnore();
+    // Record the prompt either way so it never repeats.
+    await this.preferences.set(SPEXR_SEARCH_GLOBAL_IGNORE_PROMPTED, true, PreferenceScope.User);
+  }
+
   private startMap = async (regenerate: boolean): Promise<void> => {
     const root = this.root();
     if (!root) return;
+    await this.maybePromptGlobalIgnore();
     const est = await this.service.getMapEstimate(root);
     const ok = await new ConfirmDialog({
       title: "Map this codebase",

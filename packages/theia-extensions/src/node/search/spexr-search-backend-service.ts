@@ -19,6 +19,7 @@ import { CodebaseMapWriter } from "./codebase-map-writer.js";
 import { DescriptionsStore } from "./descriptions-store.js";
 import { ClaudeCliDescriber, CLAUDE_CHUNK_SIZE, type ClaudeDescriber } from "./claude-batch-describer.js";
 import { estimateMap } from "./map-token-estimator.js";
+import { isSpexrIgnoredGlobally, ensureSpexrGloballyIgnored } from "./global-gitignore.js";
 
 const TOP_K = 30;
 const MIN_SCORE = 0.18;
@@ -261,6 +262,15 @@ export class SpexrSearchBackendService implements SpexrSearchService {
     // Proxy for symbol-summary length without reading files: path + static description + fixed overhead.
     const summaries = records.map((r) => "x".repeat(r.path.length + (r.description?.length ?? 0) + 200));
     return estimateMap(summaries, CLAUDE_CHUNK_SIZE);
+  }
+
+  async isSpexrGloballyIgnored(): Promise<boolean> {
+    return isSpexrIgnoredGlobally();
+  }
+
+  async addSpexrToGlobalIgnore(): Promise<boolean> {
+    await ensureSpexrGloballyIgnored();
+    return true;
   }
 
   /** Build (or rebuild) an index, updating status; never throws. */
