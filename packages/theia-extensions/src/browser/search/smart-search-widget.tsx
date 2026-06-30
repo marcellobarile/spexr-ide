@@ -1,6 +1,7 @@
 import * as React from "@theia/core/shared/react";
 import { inject, injectable, postConstruct } from "@theia/core/shared/inversify";
 import { ReactWidget } from "@theia/core/lib/browser/widgets/react-widget";
+import { ConfirmDialog } from "@theia/core/lib/browser/dialogs";
 import { CommandService } from "@theia/core/lib/common/command";
 import { OpenerService, open } from "@theia/core/lib/browser/opener-service";
 import { PreferenceService } from "@theia/core/lib/common/preferences/preference-service";
@@ -162,9 +163,18 @@ export class SmartSearchWidget extends ReactWidget {
     }
   }
 
-  private startMap = (regenerate: boolean): void => {
+  private startMap = async (regenerate: boolean): Promise<void> => {
     const root = this.root();
-    if (root) void this.service.startDescriptionJob(root, { regenerate });
+    if (!root) return;
+    const est = await this.service.getMapEstimate(root);
+    const ok = await new ConfirmDialog({
+      title: "Map this codebase",
+      msg: `Send ${est.fileCount} files to Claude in ~${est.chunkCount} calls — ` +
+           `estimated ~${est.inputTokens.toLocaleString()} input + ~${est.outputTokens.toLocaleString()} output tokens. Proceed?`,
+      ok: "Proceed",
+      cancel: "Cancel",
+    }).open();
+    if (ok) void this.service.startDescriptionJob(root, { regenerate });
   };
 
   private pauseMap = (): void => {
@@ -365,7 +375,7 @@ export class SmartSearchWidget extends ReactWidget {
               ✦ Resume
             </button>
           ) : (
-            <button className="spexr-smart-search__map-cta" onClick={() => this.startMap(false)} title="Generate AI descriptions for the whole codebase">
+            <button className="spexr-smart-search__map-cta" onClick={() => void this.startMap(false)} title="Generate AI descriptions for the whole codebase">
               ✦ Map this codebase
             </button>
           )}
@@ -378,7 +388,7 @@ export class SmartSearchWidget extends ReactWidget {
           {(state === "idle" || state === "complete") && (
             <button
               className="spexr-smart-search__map-regen"
-              onClick={() => this.startMap(true)}
+              onClick={() => void this.startMap(true)}
               title="Regenerate all descriptions"
             >
               ↻
