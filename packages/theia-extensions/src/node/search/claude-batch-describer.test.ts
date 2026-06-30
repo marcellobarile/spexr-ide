@@ -50,6 +50,15 @@ describe("ClaudeCliDescriber", () => {
     expect(new ClaudeCliDescriber(undefined, "/root", async () => "").isAvailable()).toBe(false);
   });
 
+  it("forWorkspace prefers an explicit configured executable over PATH resolution", () => {
+    // A configured executablePath is used verbatim (no PATH lookup), so the describer
+    // is available even with an arbitrary absolute path.
+    expect(ClaudeCliDescriber.forWorkspace("/root", "/opt/claude-perso/bin/claude", "/home/u/.claude-perso").isAvailable()).toBe(true);
+    // Blank configured path falls back to PATH resolution (undefined here → unavailable in CI).
+    const fallback = ClaudeCliDescriber.forWorkspace("/root", "  ");
+    expect(typeof fallback.isAvailable()).toBe("boolean");
+  });
+
   it("retries once when runner returns empty string on first call", async () => {
     let callCount = 0;
     const fakeRun = async (_args: string[], _input: string) => {

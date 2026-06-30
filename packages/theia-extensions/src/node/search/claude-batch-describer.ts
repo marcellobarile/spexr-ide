@@ -54,10 +54,13 @@ export function parseClaudeResult(stdout: string, paths: string[]): Map<string, 
   return out;
 }
 
-function defaultRunner(exe: string, cwd: string): ClaudeRunner {
+function defaultRunner(exe: string, cwd: string, configDir?: string): ClaudeRunner {
+  // CLAUDE_CONFIG_DIR selects which local Claude profile/account the CLI uses
+  // (e.g. alias-managed claude-perso vs claude-work) — mirror the agent terminal.
+  const env = configDir ? { ...process.env, CLAUDE_CONFIG_DIR: configDir } : process.env;
   return (args, input) =>
     new Promise<string>((resolve, reject) => {
-      const child = execFile(exe, args, { cwd, timeout: CALL_TIMEOUT_MS, maxBuffer: 64 * 1024 * 1024 },
+      const child = execFile(exe, args, { cwd, env, timeout: CALL_TIMEOUT_MS, maxBuffer: 64 * 1024 * 1024 },
         (err, stdout) => (err ? reject(err) : resolve(stdout)));
       child.stdin?.end(input);
     });
@@ -69,13 +72,24 @@ export class ClaudeCliDescriber implements ClaudeDescriber {
     private readonly exe: string | undefined,
     cwd: string,
     runner?: ClaudeRunner,
+    configDir?: string,
   ) {
-    this.run = runner ?? (exe ? defaultRunner(exe, cwd) : async () => "");
+    this.run = runner ?? (exe ? defaultRunner(exe, cwd, configDir) : async () => "");
   }
 
-  static forWorkspace(cwd: string): ClaudeCliDescriber {
-    const resolved = resolveClaudeExecutable();
-    return new ClaudeCliDescriber(resolved && resolved !== "ambiguous" ? resolved : undefined, cwd);
+  /**
+   * Build a describer for the configured Claude profile. Prefers the explicit
+   * `executablePath` from settings (alias-resolved by profile detection), falling
+   * back to a `claude` on PATH; `configDir` is passed as `CLAUDE_CONFIG_DIR`.
+   */
+  static forWorkspace(cwd: string, executablePath?: string, configDir?: string): ClaudeCliDescriber {
+    const configured = executablePath?.trim();
+    let exe = configured && configured.length > 0 ? configured : undefined;
+    if (!exe) {
+      const resolved = resolveClaudeExecutable();
+      exe = resolved && resolved !== "ambiguous" ? resolved : undefined;
+    }
+    return new ClaudeCliDescriber(exe, cwd, undefined, configDir?.trim() || undefined);
   }
 
   isAvailable(): boolean {

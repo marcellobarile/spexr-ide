@@ -7,7 +7,11 @@ import { OpenerService, open } from "@theia/core/lib/browser/opener-service";
 import { PreferenceService } from "@theia/core/lib/common/preferences/preference-service";
 import { WorkspaceService } from "@theia/workspace/lib/browser";
 import type { SearchHit, IndexStatus, SpexrSearchService, DescriptionUpdate, DescriptionJobStatus } from "../../common/search-protocol.js";
-import { SPEXR_SEARCH_AI_DESCRIPTIONS_PREFERENCE } from "../preferences/spexr-preferences.js";
+import {
+  SPEXR_SEARCH_AI_DESCRIPTIONS_PREFERENCE,
+  SPEXR_CLAUDE_EXECUTABLE_PREFERENCE,
+  SPEXR_CLAUDE_CONFIG_DIR_PREFERENCE,
+} from "../preferences/spexr-preferences.js";
 import { SpexrSearchServiceProxy } from "./smart-search-service.js";
 import { SpexrSearchClientDispatcher } from "./smart-search-client.js";
 import { formatScore, scoreColor, statusLabel, debounce, CATEGORY_LABELS, categoryColor } from "./smart-search-format.js";
@@ -174,7 +178,12 @@ export class SmartSearchWidget extends ReactWidget {
       ok: "Proceed",
       cancel: "Cancel",
     }).open();
-    if (ok) void this.service.startDescriptionJob(root, { regenerate });
+    if (!ok) return;
+    // Use the configured Claude profile (alias-managed) so the Map job bills the
+    // account the user selected for the agent, not just a `claude` on PATH.
+    const claudeExecutablePath = this.preferences.get<string>(SPEXR_CLAUDE_EXECUTABLE_PREFERENCE, "");
+    const claudeConfigDir = this.preferences.get<string>(SPEXR_CLAUDE_CONFIG_DIR_PREFERENCE, "");
+    void this.service.startDescriptionJob(root, { regenerate, claudeExecutablePath, claudeConfigDir });
   };
 
   private pauseMap = (): void => {

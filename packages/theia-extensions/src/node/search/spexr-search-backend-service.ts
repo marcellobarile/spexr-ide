@@ -36,8 +36,10 @@ interface Workspace {
   jobReady?: Promise<DescriptionJob>;
   /** Per-workspace descriptions store; loaded lazily once (promise cached to avoid a load race). */
   storeReady?: Promise<DescriptionsStore>;
-  /** Per-workspace Claude describer; created lazily. */
+  /** Per-workspace Claude describer; created lazily, rebuilt when the profile changes. */
   describer?: ClaudeDescriber;
+  /** Configured Claude profile for the Map job (alias-resolved executable + config dir). */
+  claudeProfile?: { executablePath?: string; configDir?: string };
 }
 
 /**
@@ -55,8 +57,11 @@ export class SpexrSearchBackendService implements SpexrSearchService {
     @inject(EmbedderToken) private readonly embedder: EmbedderType,
     @inject(DescriptionGeneratorToken) private readonly generator: DescriptionGenerator,
     // @unmanaged(): inversify must not inject this defaulted factory; it is a test seam.
-    @unmanaged() private readonly describerFactory: (root: string) => ClaudeDescriber =
-      (root) => ClaudeCliDescriber.forWorkspace(root),
+    @unmanaged() private readonly describerFactory: (
+      root: string,
+      profile?: { executablePath?: string; configDir?: string },
+    ) => ClaudeDescriber =
+      (root, profile) => ClaudeCliDescriber.forWorkspace(root, profile?.executablePath, profile?.configDir),
   ) {}
 
   /** Wired by the RPC connection handler so the backend can stream to the frontend. */
@@ -90,7 +95,7 @@ export class SpexrSearchBackendService implements SpexrSearchService {
 
   /** Returns the per-workspace Claude describer, created lazily via the injectable factory. */
   private getDescriber(ws: Workspace, root: string): ClaudeDescriber {
-    if (!ws.describer) ws.describer = this.describerFactory(root);
+    if (!ws.describer) ws.describer = this.describerFactory(root, ws.claudeProfile);
     return ws.describer;
   }
 
@@ -207,11 +212,23 @@ export class SpexrSearchBackendService implements SpexrSearchService {
     return ws.jobReady;
   }
 
-  async startDescriptionJob(root: string, opts: { regenerate: boolean }): Promise<void> {
+  async startDescriptionJob(
+    root: string,
+    opts: { regenerate: boolean; claudeExecutablePath?: string; claudeConfigDir?: string },
+  ): Promise<void> {
     const ws = this.getOrCreate(root);
+    // Bind the configured Claude profile and rebuild the describer + job so this run
+    // uses the currently-selected account (start is the entry point; pause/resume act
+    // on the started job, so clearing the cache here is safe).
+    ws.claudeProfile = {
+      ...(opts.claudeExecutablePath ? { executablePath: opts.claudeExecutablePath } : {}),
+      ...(opts.claudeConfigDir ? { configDir: opts.claudeConfigDir } : {}),
+    };
+    delete ws.describer;
+    delete ws.jobReady;
     if (ws.status.state !== "ready") await this.build(ws, root);
     if (ws.status.state !== "ready") return; // build failed → leave job idle
-    void (await this.getJob(ws, root)).start(opts); // fire-and-forget; progress streams via emit
+    void (await this.getJob(ws, root)).start({ regenerate: opts.regenerate }); // fire-and-forget
   }
 
   async pauseDescriptionJob(root: string): Promise<void> {
