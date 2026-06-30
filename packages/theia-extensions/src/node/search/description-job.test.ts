@@ -108,6 +108,9 @@ describe("DescriptionJob", () => {
 
     // All 2 records fit in a single chunk (CLAUDE_CHUNK_SIZE=75)
     expect(describer.calls).toHaveLength(1);
+    // the chunk's descriptions were merged into the store
+    expect(env.store.get("a.ts")).toBe("desc:a.ts");
+    expect(env.store.get("b.ts")).toBe("desc:b.ts");
     expect(env.state.markdowns).toBe(1);
     expect(job.status.state).toBe("complete");
 

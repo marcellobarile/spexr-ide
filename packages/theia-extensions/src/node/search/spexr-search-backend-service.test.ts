@@ -9,13 +9,22 @@
  * accidentally reverted.
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { mkdtemp, writeFile, rm, mkdir } from "node:fs/promises";
+import { mkdtemp, writeFile, rm, mkdir, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { SpexrSearchBackendService } from "./spexr-search-backend-service.js";
 import type { Embedder } from "./embedding-model.js";
 import type { DescriptionGenerator } from "./description-format.js";
+import type { ClaudeDescriber, DescribeItem } from "./claude-batch-describer.js";
 import type { DescriptionUpdate, DescriptionJobStatus } from "../../common/search-protocol.js";
+
+/** Fake Claude describer: returns a deterministic sentence per file, always available. */
+class FakeDescriber implements ClaudeDescriber {
+  isAvailable(): boolean { return true; }
+  async describeChunk(items: DescribeItem[]): Promise<Map<string, string>> {
+    return new Map(items.map((it) => [it.relPath, `Claude: ${it.relPath}`]));
+  }
+}
 
 /** Fake generator: returns a fixed text (or null) per file. */
 class FakeGenerator implements DescriptionGenerator {
@@ -242,6 +251,27 @@ describe("description job", () => {
     // so by the time startDescriptionJob returns the state is non-idle.
     const state = (await service.getDescriptionJobStatus(root)).state;
     expect(["running", "error", "complete"]).toContain(state);
+  });
+
+  it("runs the Map job end-to-end into the store + markdown (injected describer)", async () => {
+    await writeFile(join(root, "auth.ts"), "export const token = 1;");
+    await writeFile(join(root, "ui.ts"), "export function render() {}");
+    const service = new SpexrSearchBackendService(new FakeEmbedder(), noopGenerator(), () => new FakeDescriber());
+    service.setClient({ onDescriptionUpdate: () => undefined, onDescriptionJobProgress: () => undefined });
+    await service.ensureIndexed(root);
+    await waitReady(service);
+
+    await service.startDescriptionJob(root, { regenerate: false });
+    for (let i = 0; i < 100 && (await service.getDescriptionJobStatus(root)).state !== "complete"; i++) {
+      await new Promise((r) => setTimeout(r, 10));
+    }
+
+    expect((await service.getDescriptionJobStatus(root)).state).toBe("complete");
+    const json = JSON.parse(await readFile(join(root, ".spexr", "descriptions.json"), "utf8"));
+    expect(Object.keys(json).sort()).toEqual(["auth.ts", "ui.ts"]);
+    expect(json["auth.ts"].description).toBe("Claude: auth.ts");
+    // markdown artifact written on completion (throws if missing)
+    await readFile(join(root, ".spexr", "codebase-map.md"), "utf8");
   });
 });
 

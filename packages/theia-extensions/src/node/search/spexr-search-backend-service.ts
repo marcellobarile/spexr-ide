@@ -1,4 +1,4 @@
-import { inject, injectable } from "@theia/core/shared/inversify";
+import { inject, injectable, unmanaged } from "@theia/core/shared/inversify";
 import type {
   SpexrSearchService,
   SpexrSearchClient,
@@ -17,8 +17,7 @@ import { expandQuery } from "./query-expander.js";
 import { DescriptionJob } from "./description-job.js";
 import { CodebaseMapWriter } from "./codebase-map-writer.js";
 import { DescriptionsStore } from "./descriptions-store.js";
-import { ClaudeCliDescriber } from "./claude-batch-describer.js";
-import { CLAUDE_CHUNK_SIZE } from "./claude-batch-describer.js";
+import { ClaudeCliDescriber, CLAUDE_CHUNK_SIZE, type ClaudeDescriber } from "./claude-batch-describer.js";
 import { estimateMap } from "./map-token-estimator.js";
 
 const TOP_K = 30;
@@ -34,10 +33,10 @@ interface Workspace {
   /** Changes that arrived while an index build was in progress, queued for replay. */
   pendingChanges?: { changed: string[]; removed: string[] };
   descriptionJob?: DescriptionJob;
-  /** Per-workspace descriptions store; loaded lazily once. */
-  store?: DescriptionsStore;
+  /** Per-workspace descriptions store; loaded lazily once (promise cached to avoid a load race). */
+  storeReady?: Promise<DescriptionsStore>;
   /** Per-workspace Claude describer; created lazily. */
-  describer?: ClaudeCliDescriber;
+  describer?: ClaudeDescriber;
 }
 
 /**
@@ -54,6 +53,9 @@ export class SpexrSearchBackendService implements SpexrSearchService {
   constructor(
     @inject(EmbedderToken) private readonly embedder: EmbedderType,
     @inject(DescriptionGeneratorToken) private readonly generator: DescriptionGenerator,
+    // @unmanaged(): inversify must not inject this defaulted factory; it is a test seam.
+    @unmanaged() private readonly describerFactory: (root: string) => ClaudeDescriber =
+      (root) => ClaudeCliDescriber.forWorkspace(root),
   ) {}
 
   /** Wired by the RPC connection handler so the backend can stream to the frontend. */
@@ -74,17 +76,20 @@ export class SpexrSearchBackendService implements SpexrSearchService {
   }
 
   /** Returns the per-workspace store, loading it once. */
-  private async getStore(ws: Workspace, root: string): Promise<DescriptionsStore> {
-    if (!ws.store) {
-      ws.store = new DescriptionsStore(root);
-      await ws.store.load();
-    }
-    return ws.store;
+  private getStore(ws: Workspace, root: string): Promise<DescriptionsStore> {
+    // Cache the load promise (not just the instance) so a concurrent caller never
+    // observes a constructed-but-not-yet-loaded store.
+    ws.storeReady ??= (async () => {
+      const store = new DescriptionsStore(root);
+      await store.load();
+      return store;
+    })();
+    return ws.storeReady;
   }
 
-  /** Returns the per-workspace Claude CLI describer, created lazily. */
-  private getDescriber(ws: Workspace, root: string): ClaudeCliDescriber {
-    if (!ws.describer) ws.describer = ClaudeCliDescriber.forWorkspace(root);
+  /** Returns the per-workspace Claude describer, created lazily via the injectable factory. */
+  private getDescriber(ws: Workspace, root: string): ClaudeDescriber {
+    if (!ws.describer) ws.describer = this.describerFactory(root);
     return ws.describer;
   }
 
