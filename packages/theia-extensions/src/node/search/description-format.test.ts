@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildPrompt, buildSymbolSummary, cleanGenerated } from "./description-format.js";
+import { buildPrompt, buildSymbolSummary, cleanGenerated, DESCRIPTION_SYSTEM_PROMPT } from "./description-format.js";
 
 describe("cleanGenerated", () => {
   it("keeps one line and caps at 120 chars", () => {
@@ -103,5 +103,12 @@ describe("buildPrompt", () => {
     expect(p).toContain("src/a.ts");
     expect(p).toContain("foo");
     expect(p).toContain("one short sentence");
+  });
+});
+
+describe("DESCRIPTION_SYSTEM_PROMPT", () => {
+  it("instructs the model not to invent technologies and to use only the input", () => {
+    expect(DESCRIPTION_SYSTEM_PROMPT).toMatch(/only/i);
+    expect(DESCRIPTION_SYSTEM_PROMPT).toMatch(/never name or assume any technology/i);
   });
 });

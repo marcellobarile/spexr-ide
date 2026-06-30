@@ -7,6 +7,7 @@ import { env, pipeline } from "@huggingface/transformers";
 import {
   GEN_MODEL_ID,
   MAX_NEW_TOKENS,
+  DESCRIPTION_SYSTEM_PROMPT,
   buildPrompt,
   cleanGenerated,
   type WorkerRequest,
@@ -41,7 +42,10 @@ async function handle(req: WorkerRequest): Promise<void> {
   try {
     const pipe = await getPipe();
     const out = await pipe(
-      [{ role: "user", content: buildPrompt(relPath, content) }],
+      [
+        { role: "system", content: DESCRIPTION_SYSTEM_PROMPT },
+        { role: "user", content: buildPrompt(relPath, content) },
+      ],
       { max_new_tokens: MAX_NEW_TOKENS, do_sample: false },
     );
     const msgs = out[0]?.generated_text;

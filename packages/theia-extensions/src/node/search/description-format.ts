@@ -2,11 +2,25 @@
 // and the worker host (which does not). Kept free of @huggingface/transformers
 // so the host and its tests never pull the model runtime.
 
-// 0.5B (not 1.5B): ~10x faster on CPU (~33 vs ~3 tok/s) with ample quality for
-// one-line descriptions, and a much smaller vendored model (~0.83GB vs ~1.8GB).
-export const GEN_MODEL_ID = "onnx-community/Qwen2.5-Coder-0.5B-Instruct";
+// 1.5B (not 0.5B): on-demand descriptions are computed for only the top-N search
+// hits and streamed, so the ~2s/file (vs ~0.6s) is acceptable, and the quality gain
+// is large — the 1.5B grounds descriptions in the actual symbols/API instead of the
+// 0.5B's generic guesses. Model file is ~1.9GB q4 (delivery: see search-model-delivery).
+export const GEN_MODEL_ID = "onnx-community/Qwen2.5-Coder-1.5B-Instruct";
 export const MAX_DESC_CHARS = 120;
-export const MAX_NEW_TOKENS = 32;
+export const MAX_NEW_TOKENS = 40;
+
+/**
+ * System prompt that anchors the model to the provided summary and suppresses the
+ * 1.5B's tendency to invent specifics (e.g. naming "Elasticsearch" for a custom
+ * index). Empirically removes hallucinated technologies on real files.
+ */
+export const DESCRIPTION_SYSTEM_PROMPT =
+  "You write a single factual sentence describing what a source file does, using ONLY " +
+  "the provided path, header comment, and symbol names. Never name or assume any technology, " +
+  "framework, library, database, protocol, or service that is not explicitly present in the input. " +
+  "When unsure, stay generic rather than guess specifics. Reply with only the sentence, max 15 words, " +
+  "no preamble, no markdown.";
 
 /** Produces a one-sentence, whole-file description, or null if unavailable. */
 export interface DescriptionGenerator {
@@ -181,13 +195,10 @@ export function buildSymbolSummary(relPath: string, content: string): string {
   return parts.join("\n");
 }
 
+/** User message paired with {@link DESCRIPTION_SYSTEM_PROMPT}. */
 export function buildPrompt(relPath: string, content: string): string {
   const summary = buildSymbolSummary(relPath, content);
-  return (
-    `File: ${relPath}\n${summary}\n\n` +
-    `In one short sentence (max 15 words), describe what this file does. ` +
-    `Reply with only the sentence, no preamble.`
-  );
+  return `File: ${relPath}\n${summary}\n\nDescribe what this file does in one short sentence (max 15 words).`;
 }
 
 export function cleanGenerated(raw: string): string {
