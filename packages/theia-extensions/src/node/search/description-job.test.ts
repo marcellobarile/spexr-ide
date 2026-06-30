@@ -1,131 +1,196 @@
 import { describe, expect, it } from "vitest";
 import { DescriptionJob, type DescriptionJobDeps } from "./description-job.js";
 import { VectorIndex, type IndexRecord } from "./vector-index.js";
-import type { DescriptionGenerator } from "./description-format.js";
+import { DescriptionsStore } from "./descriptions-store.js";
+import type { ClaudeDescriber, DescribeItem } from "./claude-batch-describer.js";
 import type { DescriptionJobStatus } from "../../common/search-protocol.js";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
-const rec = (path: string, aiDescription?: string): IndexRecord => ({
-  path, aiDescription, category: "other", description: "static",
+const rec = (path: string, category = "other"): IndexRecord => ({
+  path, category, description: "static",
   vector: new Float32Array([1]), mtimeMs: 0, hash: "h", snippet: "",
 });
 
-class FakeGen implements DescriptionGenerator {
+class FakeDescriber implements ClaudeDescriber {
   available = true;
-  calls: string[] = [];
+  calls: DescribeItem[][] = [];
   beforeResolve?: () => void;
+
   isAvailable(): boolean { return this.available; }
-  async generate(relPath: string, _content: string): Promise<string | null> {
-    this.calls.push(relPath);
+
+  async describeChunk(items: DescribeItem[]): Promise<Map<string, string>> {
+    this.calls.push(items);
     this.beforeResolve?.();
-    return `desc:${relPath}`;
+    const result = new Map<string, string>();
+    for (const it of items) result.set(it.relPath, `desc:${it.relPath}`);
+    return result;
   }
 }
 
 interface JobEnv {
   d: DescriptionJobDeps;
   statuses: DescriptionJobStatus[];
-  state: { saves: number; artifacts: number };
+  state: { markdowns: number };
+  store: DescriptionsStore;
+  root: string;
 }
 
-function deps(index: VectorIndex, gen: DescriptionGenerator, over: Partial<DescriptionJobDeps> = {}): JobEnv {
+async function makeEnv(
+  index: VectorIndex,
+  describer: ClaudeDescriber,
+  over: Partial<DescriptionJobDeps> = {},
+): Promise<JobEnv> {
+  const root = await mkdtemp(join(tmpdir(), "djob-"));
+  const store = new DescriptionsStore(root);
   const statuses: DescriptionJobStatus[] = [];
-  const state = { saves: 0, artifacts: 0 };
+  const state = { markdowns: 0 };
   const d: DescriptionJobDeps = {
-    index: () => index, generator: gen,
+    records: () => index.allRecords(),
     readContent: async (rel) => `content of ${rel}`,
-    save: async () => { state.saves++; },
-    writeArtifacts: async () => { state.artifacts++; },
+    describer,
+    store,
+    writeMarkdown: async () => { state.markdowns++; },
     emit: (s) => statuses.push({ ...s }),
     ...over,
   };
-  return { d, statuses, state };
+  return { d, statuses, state, store, root };
 }
 
 describe("DescriptionJob", () => {
-  it("describes only records missing aiDescription by default", async () => {
+  it("describes only records missing from the store by default", async () => {
     const idx = new VectorIndex();
     idx.upsert(rec("a.ts"));
-    idx.upsert(rec("b.ts", "already"));
+    idx.upsert(rec("b.ts"));
     idx.upsert(rec("c.ts"));
-    const gen = new FakeGen();
-    const { d } = deps(idx, gen);
-    const job = new DescriptionJob(d);
+    const describer = new FakeDescriber();
+    const env = await makeEnv(idx, describer);
+
+    // Pre-seed b.ts in the store so it is skipped
+    await env.store.merge(new Map([["b.ts", { description: "already", category: "other" }]]));
+
+    const job = new DescriptionJob(env.d);
     await job.start({ regenerate: false });
-    expect(gen.calls.sort()).toEqual(["a.ts", "c.ts"]);
-    expect(idx.getRecord("a.ts")!.aiDescription).toBe("desc:a.ts");
-    expect(idx.getRecord("b.ts")!.aiDescription).toBe("already");
+
+    const described = describer.calls.flatMap((chunk) => chunk.map((it) => it.relPath)).sort();
+    expect(described).toEqual(["a.ts", "c.ts"]);
+    expect(env.store.get("a.ts")).toBe("desc:a.ts");
+    expect(env.store.get("b.ts")).toBe("already"); // untouched
     expect(job.status).toMatchObject({ state: "complete", done: 2, total: 2 });
+
+    await rm(env.root, { recursive: true, force: true });
   });
 
   it("regenerate=true reprocesses every record", async () => {
     const idx = new VectorIndex();
-    idx.upsert(rec("a.ts", "old"));
-    const gen = new FakeGen();
-    const { d } = deps(idx, gen);
-    const job = new DescriptionJob(d);
+    idx.upsert(rec("a.ts"));
+    const describer = new FakeDescriber();
+    const env = await makeEnv(idx, describer);
+    await env.store.merge(new Map([["a.ts", { description: "old", category: "other" }]]));
+
+    const job = new DescriptionJob(env.d);
     await job.start({ regenerate: true });
-    expect(idx.getRecord("a.ts")!.aiDescription).toBe("desc:a.ts");
+    expect(env.store.get("a.ts")).toBe("desc:a.ts");
+
+    await rm(env.root, { recursive: true, force: true });
   });
 
-  it("writes artifacts exactly once on completion", async () => {
+  it("store.merge is called per chunk and writeMarkdown once on completion", async () => {
     const idx = new VectorIndex();
     idx.upsert(rec("a.ts"));
-    const gen = new FakeGen();
-    const env = deps(idx, gen);
+    idx.upsert(rec("b.ts"));
+    const describer = new FakeDescriber();
+    const env = await makeEnv(idx, describer);
+
     const job = new DescriptionJob(env.d);
     await job.start({ regenerate: false });
-    expect(env.state.artifacts).toBe(1);
+
+    // All 2 records fit in a single chunk (CLAUDE_CHUNK_SIZE=75)
+    expect(describer.calls).toHaveLength(1);
+    expect(env.state.markdowns).toBe(1);
+    expect(job.status.state).toBe("complete");
+
+    await rm(env.root, { recursive: true, force: true });
   });
 
-  it("pauses after the current batch and resumes the rest", async () => {
+  it("stores the category from the index record", async () => {
     const idx = new VectorIndex();
-    for (let i = 0; i < 8; i++) idx.upsert(rec(`f${i}.ts`)); // batch of 5, then remainder of 3
-    const gen = new FakeGen();
-    const env = deps(idx, gen);
+    idx.upsert(rec("front.tsx", "frontend"));
+    const describer = new FakeDescriber();
+    const env = await makeEnv(idx, describer);
+
     const job = new DescriptionJob(env.d);
-    gen.beforeResolve = () => { gen.beforeResolve = undefined; job.pause(); }; // pause during first batch
     await job.start({ regenerate: false });
+
+    expect(env.store.entries().get("front.tsx")?.category).toBe("frontend");
+
+    await rm(env.root, { recursive: true, force: true });
+  });
+
+  it("pauses after the current chunk and resumes the rest", async () => {
+    // Need > CLAUDE_CHUNK_SIZE (75) files to span two chunks.
+    const idx = new VectorIndex();
+    for (let i = 0; i < 76; i++) idx.upsert(rec(`f${i}.ts`));
+    const describer = new FakeDescriber();
+    const env = await makeEnv(idx, describer);
+
+    const job = new DescriptionJob(env.d);
+    // Pause during the first chunk's describeChunk call.
+    describer.beforeResolve = () => { describer.beforeResolve = undefined; job.pause(); };
+    await job.start({ regenerate: false });
+
     expect(job.status.state).toBe("paused");
-    expect(job.status.done).toBe(5);
+    expect(job.status.done).toBe(75); // first chunk of 75
+
     await job.resume();
-    expect(job.status).toMatchObject({ state: "complete", done: 8, total: 8 });
-    // Emitted state values must include the transition running → paused → running → complete
-    // (consecutive duplicates from per-batch "running" emits are collapsed before asserting).
+    expect(job.status).toMatchObject({ state: "complete", done: 76, total: 76 });
+
     const distinctStates = env.statuses
       .map((s) => s.state)
       .filter((s, i, arr) => i === 0 || s !== arr[i - 1]);
     expect(distinctStates).toEqual(["running", "paused", "running", "complete"]);
+
+    await rm(env.root, { recursive: true, force: true });
   });
 
-  it("ends in error when the model is unavailable", async () => {
+  it("ends in error when the describer is unavailable", async () => {
     const idx = new VectorIndex();
     idx.upsert(rec("a.ts"));
-    const gen = new FakeGen();
-    gen.available = false;
-    const env = deps(idx, gen);
+    const describer = new FakeDescriber();
+    describer.available = false;
+    const env = await makeEnv(idx, describer);
+
     const job = new DescriptionJob(env.d);
     await job.start({ regenerate: false });
     expect(job.status.state).toBe("error");
-    expect(env.state.artifacts).toBe(0);
+    expect(job.status.message).toContain("Claude CLI not available");
+    expect(env.state.markdowns).toBe(0);
+
+    await rm(env.root, { recursive: true, force: true });
   });
 
-  it("transitions to error when completion writeArtifacts throws, and allows restart", async () => {
+  it("transitions to error when writeMarkdown throws, and allows restart", async () => {
     const idx = new VectorIndex();
     idx.upsert(rec("a.ts"));
-    const gen = new FakeGen();
-    let artifactCalls = 0;
-    const env = deps(idx, gen, {
-      writeArtifacts: async () => {
-        if (++artifactCalls === 1) throw new Error("write failed");
+    const describer = new FakeDescriber();
+    let mdCalls = 0;
+    const env = await makeEnv(idx, describer, {
+      writeMarkdown: async () => {
+        if (++mdCalls === 1) throw new Error("write failed");
       },
     });
+
     const job = new DescriptionJob(env.d);
     await job.start({ regenerate: false });
     expect(job.status.state).toBe("error");
     expect(job.status.message).toContain("write failed");
+
     // Job is not stuck in "running" — start must be allowed to proceed.
-    gen.calls = [];
+    describer.calls = [];
     await job.start({ regenerate: true });
     expect(job.status.state).toBe("complete");
+
+    await rm(env.root, { recursive: true, force: true });
   });
 });

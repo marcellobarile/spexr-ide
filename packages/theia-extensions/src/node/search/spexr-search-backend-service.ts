@@ -5,6 +5,7 @@ import type {
   SearchHit,
   IndexStatus,
   DescriptionJobStatus,
+  MapEstimate,
 } from "../../common/search-protocol.js";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -15,6 +16,10 @@ import { WorkspaceIndexer } from "./workspace-indexer.js";
 import { expandQuery } from "./query-expander.js";
 import { DescriptionJob } from "./description-job.js";
 import { CodebaseMapWriter } from "./codebase-map-writer.js";
+import { DescriptionsStore } from "./descriptions-store.js";
+import { ClaudeCliDescriber } from "./claude-batch-describer.js";
+import { CLAUDE_CHUNK_SIZE } from "./claude-batch-describer.js";
+import { estimateMap } from "./map-token-estimator.js";
 
 const TOP_K = 30;
 const MIN_SCORE = 0.18;
@@ -29,6 +34,10 @@ interface Workspace {
   /** Changes that arrived while an index build was in progress, queued for replay. */
   pendingChanges?: { changed: string[]; removed: string[] };
   descriptionJob?: DescriptionJob;
+  /** Per-workspace descriptions store; loaded lazily once. */
+  store?: DescriptionsStore;
+  /** Per-workspace Claude describer; created lazily. */
+  describer?: ClaudeCliDescriber;
 }
 
 /**
@@ -62,6 +71,21 @@ export class SpexrSearchBackendService implements SpexrSearchService {
       this.workspaces.set(root, ws);
     }
     return ws;
+  }
+
+  /** Returns the per-workspace store, loading it once. */
+  private async getStore(ws: Workspace, root: string): Promise<DescriptionsStore> {
+    if (!ws.store) {
+      ws.store = new DescriptionsStore(root);
+      await ws.store.load();
+    }
+    return ws.store;
+  }
+
+  /** Returns the per-workspace Claude CLI describer, created lazily. */
+  private getDescriber(ws: Workspace, root: string): ClaudeCliDescriber {
+    if (!ws.describer) ws.describer = ClaudeCliDescriber.forWorkspace(root);
+    return ws.describer;
   }
 
   async ensureIndexed(root: string): Promise<void> {
@@ -109,15 +133,25 @@ export class SpexrSearchBackendService implements SpexrSearchService {
   }
 
   /**
-   * Resolve a file's description from cache or static prose and emit it, or
-   * return the file content to batch through the model. Returns undefined when
-   * nothing more is needed (unknown path, cached, prose, or unreadable).
+   * Resolve a file's description from the Claude store, cache, or static prose,
+   * and emit it; or return the file content to batch through the 0.5B model.
+   * Returns undefined when nothing more is needed (unknown path, cached, prose, or unreadable).
+   *
+   * Priority: Claude descriptions store > 0.5B aiDescription > static prose > generate.
    */
   private async resolveOrCollect(
     ws: Workspace,
     root: string,
     path: string,
   ): Promise<{ path: string; content: string } | undefined> {
+    // Claude descriptions store wins over everything.
+    const store = await this.getStore(ws, root);
+    const storeDesc = store.get(path);
+    if (storeDesc !== undefined) {
+      this.emit({ path, text: storeDesc, done: true });
+      return undefined;
+    }
+
     const record = ws.indexer.index.getRecord(path);
     if (!record) return undefined;
     if (record.aiDescription) {
@@ -144,14 +178,19 @@ export class SpexrSearchBackendService implements SpexrSearchService {
     this.client?.onDescriptionUpdate(update);
   }
 
-  private getJob(ws: Workspace, root: string): DescriptionJob {
+  private async getJob(ws: Workspace, root: string): Promise<DescriptionJob> {
     if (!ws.descriptionJob) {
+      const store = await this.getStore(ws, root);
+      const describer = this.getDescriber(ws, root);
       ws.descriptionJob = new DescriptionJob({
-        index: () => ws.indexer.index,
-        generator: this.generator,
+        records: () => ws.indexer.index.allRecords(),
         readContent: (rel) => readFile(join(root, rel), "utf8"),
-        save: () => ws.indexer.save(),
-        writeArtifacts: () => new CodebaseMapWriter(root).write(ws.indexer.index.allRecords()),
+        describer,
+        store,
+        writeMarkdown: () =>
+          new CodebaseMapWriter(root).writeMarkdown(
+            [...store.entries()].map(([path, v]) => ({ path, category: v.category, description: v.description })),
+          ),
         emit: (s) => this.client?.onDescriptionJobProgress(s),
       });
     }
@@ -162,7 +201,7 @@ export class SpexrSearchBackendService implements SpexrSearchService {
     const ws = this.getOrCreate(root);
     if (ws.status.state !== "ready") await this.build(ws, root);
     if (ws.status.state !== "ready") return; // build failed → leave job idle
-    void this.getJob(ws, root).start(opts); // fire-and-forget; progress streams via emit
+    void (await this.getJob(ws, root)).start(opts); // fire-and-forget; progress streams via emit
   }
 
   async pauseDescriptionJob(root: string): Promise<void> {
@@ -175,6 +214,20 @@ export class SpexrSearchBackendService implements SpexrSearchService {
 
   async getDescriptionJobStatus(root: string): Promise<DescriptionJobStatus> {
     return this.workspaces.get(root)?.descriptionJob?.status ?? { state: "idle", done: 0, total: 0 };
+  }
+
+  /**
+   * Approximate token budget for a Map run, non-blocking (no file reads).
+   * Input size is estimated from path + static description length + fixed overhead per file.
+   */
+  async getMapEstimate(root: string): Promise<MapEstimate> {
+    const ws = this.getOrCreate(root);
+    if (ws.status.state !== "ready") await this.build(ws, root);
+    const store = await this.getStore(ws, root);
+    const records = ws.indexer.index.allRecords().filter((r) => store.get(r.path) === undefined);
+    // Proxy for symbol-summary length without reading files: path + static description + fixed overhead.
+    const summaries = records.map((r) => "x".repeat(r.path.length + (r.description?.length ?? 0) + 200));
+    return estimateMap(summaries, CLAUDE_CHUNK_SIZE);
   }
 
   /** Build (or rebuild) an index, updating status; never throws. */

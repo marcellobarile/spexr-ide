@@ -1,29 +1,26 @@
-import type { VectorIndex } from "./vector-index.js";
-import type { DescriptionGenerator } from "./description-format.js";
+import type { IndexRecord } from "./vector-index.js";
 import type { DescriptionJobStatus } from "../../common/search-protocol.js";
-
-const BATCH_SIZE = 5;
-const SAVE_EVERY_BATCHES = 5;
+import { buildSymbolSummary } from "./description-format.js";
+import { CLAUDE_CHUNK_SIZE, type ClaudeDescriber, type DescribeItem } from "./claude-batch-describer.js";
+import type { DescriptionsStore, StoredDescription } from "./descriptions-store.js";
 
 export interface DescriptionJobDeps {
-  /** Getter that always returns the current live index, even after a reindex swap. */
-  index: () => VectorIndex;
-  generator: DescriptionGenerator;
-  /** Read a workspace-relative file's content. */
+  /** Live index records, re-read at start() so reindex swaps are visible. */
+  records: () => IndexRecord[];
   readContent: (relPath: string) => Promise<string>;
-  /** Persist the index. */
-  save: () => Promise<void>;
-  /** Write the export artifacts (called once on completion). */
-  writeArtifacts: () => Promise<void>;
+  describer: ClaudeDescriber;
+  store: DescriptionsStore;
+  /** Write codebase-map.md from the store; called once on completion. */
+  writeMarkdown: () => Promise<void>;
   /** Push a status snapshot to observers. */
   emit: (status: DescriptionJobStatus) => void;
 }
 
 /**
- * Workspace-wide description generator. Walks every record missing an
- * aiDescription (or all, when regenerating), batching them through the model,
- * persisting incrementally, and exporting artifacts on completion. Pausing is
- * cooperative — it takes effect between batches, never mid-inference.
+ * Workspace-wide description generator. Walks records missing a store entry
+ * (or all, when regenerating), chunking them through Claude, merging results
+ * into the descriptions store, and exporting the markdown map on completion.
+ * Pausing is cooperative — it takes effect between chunks, never mid-call.
  */
 export class DescriptionJob {
   private state: DescriptionJobStatus["state"] = "idle";
@@ -33,6 +30,7 @@ export class DescriptionJob {
   private targets: string[] = [];
   private cursor = 0;
   private pauseRequested = false;
+  private categoryByPath = new Map<string, string>();
 
   constructor(private readonly deps: DescriptionJobDeps) {}
 
@@ -44,9 +42,10 @@ export class DescriptionJob {
 
   async start(opts: { regenerate: boolean }): Promise<void> {
     if (this.state === "running") return;
-    this.targets = this.deps.index()
-      .allRecords()
-      .filter((r) => opts.regenerate || r.aiDescription === undefined)
+    const recs = this.deps.records();
+    this.categoryByPath = new Map(recs.map((r) => [r.path, r.category]));
+    this.targets = recs
+      .filter((r) => opts.regenerate || this.deps.store.get(r.path) === undefined)
       .map((r) => r.path);
     this.cursor = 0;
     this.done = 0;
@@ -71,44 +70,44 @@ export class DescriptionJob {
   }
 
   private async run(): Promise<void> {
-    let batches = 0;
     try {
       while (this.cursor < this.targets.length) {
         if (this.pauseRequested) {
           this.state = "paused";
-          await this.deps.save();
           this.deps.emit(this.status);
           return;
         }
-        if (!this.deps.generator.isAvailable()) {
+        if (!this.deps.describer.isAvailable()) {
           this.state = "error";
-          this.message = "Description model unavailable.";
-          await this.deps.save();
+          this.message = "Claude CLI not available.";
           this.deps.emit(this.status);
           return;
         }
-        const batch = this.targets.slice(this.cursor, this.cursor + BATCH_SIZE);
-        for (const relPath of batch) {
-          let content: string;
-          try { content = await this.deps.readContent(relPath); }
-          catch { continue; } // unreadable: skip; cursor still advances below
-          const text = await this.deps.generator.generate(relPath, content);
-          if (text) this.deps.index().setAiDescription(relPath, text);
+        const chunk = this.targets.slice(this.cursor, this.cursor + CLAUDE_CHUNK_SIZE);
+        const items: DescribeItem[] = [];
+        for (const relPath of chunk) {
+          try {
+            items.push({ relPath, summary: buildSymbolSummary(relPath, await this.deps.readContent(relPath)) });
+          } catch {
+            // unreadable file: skip generation but still count it (cursor advances)
+          }
         }
-        this.cursor += batch.length;
+        const descs = await this.deps.describer.describeChunk(items);
+        const merge = new Map<string, StoredDescription>();
+        for (const [path, description] of descs) {
+          merge.set(path, { description, category: this.categoryByPath.get(path) ?? "other" });
+        }
+        if (merge.size > 0) await this.deps.store.merge(merge);
+        this.cursor += chunk.length;
         this.done = this.cursor;
-        batches++;
-        if (batches % SAVE_EVERY_BATCHES === 0) await this.deps.save();
         this.deps.emit(this.status);
       }
-      await this.deps.save();
-      await this.deps.writeArtifacts();
+      await this.deps.writeMarkdown();
       this.state = "complete";
       this.deps.emit(this.status);
     } catch (err) {
       this.state = "error";
       this.message = err instanceof Error ? err.message : String(err);
-      try { await this.deps.save(); } catch { /* best-effort */ }
       this.deps.emit(this.status);
     }
   }

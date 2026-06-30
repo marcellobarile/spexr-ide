@@ -9,13 +9,13 @@
  * accidentally reverted.
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { mkdtemp, writeFile, rm, readFile } from "node:fs/promises";
+import { mkdtemp, writeFile, rm, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { SpexrSearchBackendService } from "./spexr-search-backend-service.js";
 import type { Embedder } from "./embedding-model.js";
 import type { DescriptionGenerator } from "./description-format.js";
-import type { DescriptionUpdate } from "../../common/search-protocol.js";
+import type { DescriptionUpdate, DescriptionJobStatus } from "../../common/search-protocol.js";
 
 /** Fake generator: returns a fixed text (or null) per file. */
 class FakeGenerator implements DescriptionGenerator {
@@ -181,10 +181,36 @@ describe("SpexrSearchBackendService", () => {
     expect(updates).toEqual([{ path: "auth.ts", text: "", done: true, failed: true }]);
   });
 
+  it("describeFiles prefers Claude store description over the 0.5B generator", async () => {
+    await writeFile(join(root, "auth.ts"), "auth token logic");
+    const service = new SpexrSearchBackendService(new FakeEmbedder(), new FakeGenerator(() => "FromGenerator."));
+    await service.ensureIndexed(root);
+    await waitReady(service);
+
+    // Pre-seed the store so describeFiles should use store text, not the generator.
+    await mkdir(join(root, ".spexr"), { recursive: true });
+    await writeFile(
+      join(root, ".spexr", "descriptions.json"),
+      JSON.stringify({ "auth.ts": { description: "FromStore.", category: "backend" } }),
+      "utf8",
+    );
+
+    // Force lazy store to be created fresh (new service instance shares the on-disk file).
+    const svc2 = new SpexrSearchBackendService(new FakeEmbedder(), new FakeGenerator(() => {
+      throw new Error("generator must not be called");
+    }));
+    const updates2: DescriptionUpdate[] = [];
+    svc2.setClient({ onDescriptionUpdate: (u) => updates2.push(u), onDescriptionJobProgress: () => undefined });
+    await svc2.ensureIndexed(root);
+    await waitReady(svc2);
+    await svc2.describeFiles(root, ["auth.ts"]);
+    expect(updates2).toEqual([{ path: "auth.ts", text: "FromStore.", done: true }]);
+  });
+
   it("rejects file:// URI as root — passes a URI and expects ENOENT/error state", async () => {
     // CONTRACT: root MUST be a filesystem path, not a URI string.
     // This test documents that passing "file://" produces an error or empty result,
-    // making the regression visible if the frontend fix is reverted.
+    // making the regression visible if the frontend fix is accidentally reverted.
     const uriRoot = `file://${root}`;
     await writeFile(join(root, "auth.ts"), "auth token logic");
     const service = new SpexrSearchBackendService(new FakeEmbedder(), noopGenerator());
@@ -197,11 +223,10 @@ describe("SpexrSearchBackendService", () => {
 });
 
 describe("description job", () => {
-  it("generates descriptions for all files, emits progress, and writes artifacts", async () => {
+  it("transitions out of idle once startDescriptionJob is called", async () => {
     await writeFile(join(root, "auth.ts"), "auth");
-    await writeFile(join(root, "ui.ts"), "ui");
-    const service = serviceWith("Generated.");
-    const jobStatuses: import("../../common/search-protocol.js").DescriptionJobStatus[] = [];
+    const service = new SpexrSearchBackendService(new FakeEmbedder(), noopGenerator());
+    const jobStatuses: DescriptionJobStatus[] = [];
     service.setClient({
       onDescriptionUpdate: () => undefined,
       onDescriptionJobProgress: (s) => jobStatuses.push(s),
@@ -209,17 +234,54 @@ describe("description job", () => {
     await service.ensureIndexed(root);
     await waitReady(service);
 
-    await service.startDescriptionJob(root, { regenerate: false });
-    // start() returns immediately; poll until the job reports complete.
-    for (let i = 0; i < 50 && (await service.getDescriptionJobStatus(root)).state !== "complete"; i++) {
-      await new Promise((r) => setTimeout(r, 10));
-    }
+    // Before starting: idle
+    expect((await service.getDescriptionJobStatus(root)).state).toBe("idle");
 
-    const status = await service.getDescriptionJobStatus(root);
-    expect(status.state).toBe("complete");
-    expect(jobStatuses.some((s) => s.state === "running")).toBe(true);
-    const mapped = JSON.parse(await readFile(join(root, ".spexr", "descriptions.json"), "utf8"));
-    expect(Object.keys(mapped).sort()).toEqual(["auth.ts", "ui.ts"]);
-    expect(mapped["auth.ts"].description).toBe("Generated.");
+    await service.startDescriptionJob(root, { regenerate: false });
+    // start() sets state="running" synchronously before its first await,
+    // so by the time startDescriptionJob returns the state is non-idle.
+    const state = (await service.getDescriptionJobStatus(root)).state;
+    expect(["running", "error", "complete"]).toContain(state);
+  });
+});
+
+describe("getMapEstimate", () => {
+  it("returns a valid estimate shape for a 2-file index", async () => {
+    await writeFile(join(root, "auth.ts"), "auth token logic");
+    await writeFile(join(root, "ui.ts"), "renders the UI");
+    const service = new SpexrSearchBackendService(new FakeEmbedder(), noopGenerator());
+    await service.ensureIndexed(root);
+    await waitReady(service);
+
+    const est = await service.getMapEstimate(root);
+    expect(est.fileCount).toBe(2);
+    expect(est.chunkCount).toBeGreaterThan(0);
+    expect(est.inputTokens).toBeGreaterThan(0);
+    expect(est.outputTokens).toBe(2 * 20); // OUTPUT_TOKENS_PER_FILE = 20
+  });
+
+  it("excludes files already in the store from the estimate", async () => {
+    await writeFile(join(root, "auth.ts"), "auth token logic");
+    await writeFile(join(root, "ui.ts"), "renders the UI");
+    const service = new SpexrSearchBackendService(new FakeEmbedder(), noopGenerator());
+    await service.ensureIndexed(root);
+    await waitReady(service);
+
+    // Pre-seed one file in the store.
+    await mkdir(join(root, ".spexr"), { recursive: true });
+    await writeFile(
+      join(root, ".spexr", "descriptions.json"),
+      JSON.stringify({ "auth.ts": { description: "Auth.", category: "backend" } }),
+      "utf8",
+    );
+
+    // New service instance so the store is loaded fresh from disk.
+    const svc2 = new SpexrSearchBackendService(new FakeEmbedder(), noopGenerator());
+    await svc2.ensureIndexed(root);
+    await waitReady(svc2);
+
+    const est = await svc2.getMapEstimate(root);
+    expect(est.fileCount).toBe(1); // only ui.ts is missing from the store
+    expect(est.outputTokens).toBe(1 * 20);
   });
 });

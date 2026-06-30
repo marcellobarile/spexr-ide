@@ -2,7 +2,10 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { IndexRecord } from "./vector-index.js";
 
-function bestDescription(r: IndexRecord): string {
+/** Structural subset consumed by markdown rendering — IndexRecord satisfies this. */
+export type MapRow = { path: string; category: string; description: string; aiDescription?: string };
+
+function bestDescription(r: MapRow): string {
   return r.aiDescription ?? r.description ?? "";
 }
 
@@ -11,8 +14,8 @@ function topFolder(path: string): string {
   return i === -1 ? "(root)" : path.slice(0, i);
 }
 
-function groupBy(records: IndexRecord[], keyOf: (r: IndexRecord) => string): Map<string, IndexRecord[]> {
-  const m = new Map<string, IndexRecord[]>();
+function groupBy<T>(records: T[], keyOf: (r: T) => string): Map<string, T[]> {
+  const m = new Map<string, T[]>();
   for (const r of records) {
     const k = keyOf(r);
     const arr = m.get(k);
@@ -31,7 +34,7 @@ export function buildDescriptionsJson(records: IndexRecord[]): string {
 }
 
 /** Human/agent-readable map grouped by top-level folder, then category. */
-export function buildCodebaseMapMarkdown(records: IndexRecord[]): string {
+export function buildCodebaseMapMarkdown(records: MapRow[]): string {
   const sorted = [...records].sort((a, b) => a.path.localeCompare(b.path));
   const lines: string[] = ["# Codebase map", ""];
   const byFolder = groupBy(sorted, (r) => topFolder(r.path));
@@ -56,5 +59,12 @@ export class CodebaseMapWriter {
     await mkdir(dir, { recursive: true });
     await writeFile(join(dir, "codebase-map.md"), buildCodebaseMapMarkdown(records), "utf8");
     await writeFile(join(dir, "descriptions.json"), buildDescriptionsJson(records), "utf8");
+  }
+
+  /** Writes only `codebase-map.md` from store-derived rows (descriptions.json is owned by DescriptionsStore). */
+  async writeMarkdown(rows: MapRow[]): Promise<void> {
+    const dir = join(this.root, ".spexr");
+    await mkdir(dir, { recursive: true });
+    await writeFile(join(dir, "codebase-map.md"), buildCodebaseMapMarkdown(rows), "utf8");
   }
 }

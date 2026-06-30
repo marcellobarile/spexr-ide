@@ -39,6 +39,14 @@ export interface DescriptionJobStatus {
   message?: string;
 }
 
+/** Approximate token budget for a Map run (non-blocking estimate, no file reads). */
+export interface MapEstimate {
+  fileCount: number;
+  chunkCount: number;
+  inputTokens: number;
+  outputTokens: number;
+}
+
 /** Client callbacks the backend pushes description progress to. */
 export interface SpexrSearchClient {
   onDescriptionUpdate(update: DescriptionUpdate): void;
@@ -87,4 +95,6 @@ export interface SpexrSearchService {
   resumeDescriptionJob(root: string): Promise<void>;
   /** Current job status (idle if never started). */
   getDescriptionJobStatus(root: string): Promise<DescriptionJobStatus>;
+  /** Approximate token budget for describing files not yet in the store (non-blocking). */
+  getMapEstimate(root: string): Promise<MapEstimate>;
 }
