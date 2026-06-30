@@ -41,7 +41,7 @@ describe("ClaudeCliDescriber", () => {
     const d = new ClaudeCliDescriber("/usr/bin/claude", "/root", fakeRun);
     const m = await d.describeChunk([{ relPath: "a.ts", summary: "Symbols: foo" }]);
     expect(m.get("a.ts")).toBe("Does A.");
-    expect(calls[0]!.args).toEqual(["--print", "--output-format", "json", "--input-format", "text"]);
+    expect(calls[0]!.args).toEqual(["--print", "--output-format", "json", "--input-format", "text", "--tools", ""]);
     expect(calls[0]!.input).toContain("a.ts");
   });
 

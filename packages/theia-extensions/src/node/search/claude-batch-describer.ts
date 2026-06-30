@@ -84,7 +84,10 @@ export class ClaudeCliDescriber implements ClaudeDescriber {
 
   async describeChunk(items: DescribeItem[]): Promise<Map<string, string>> {
     if (items.length === 0 || !this.exe) return new Map();
-    const args = ["--print", "--output-format", "json", "--input-format", "text"];
+    // `--tools ""` disables all built-in tools so the call is a deterministic,
+    // prompt-only text generation (no file reads / bash / agentic exploration),
+    // keeping cost predictable and matching the pre-flight token estimate.
+    const args = ["--print", "--output-format", "json", "--input-format", "text", "--tools", ""];
     const paths = items.map((it) => it.relPath);
     const prompt = buildClaudePrompt(items);
     const once = async (): Promise<Map<string, string>> => parseClaudeResult(await this.run(args, prompt), paths);
