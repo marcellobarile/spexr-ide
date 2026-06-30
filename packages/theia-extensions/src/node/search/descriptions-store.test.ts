@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { mkdtemp, rm, readFile } from "node:fs/promises";
+import { mkdtemp, rm, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DescriptionsStore } from "./descriptions-store.js";
@@ -31,5 +31,19 @@ describe("DescriptionsStore", () => {
     const s = new DescriptionsStore(root);
     await s.load();
     expect(s.get("missing.ts")).toBeUndefined();
+  });
+
+  it("load() clears stale entries when file is corrupt or missing", async () => {
+    const s = new DescriptionsStore(root);
+    await s.merge(new Map([["a.ts", { description: "A", category: "x" }]]));
+    expect(s.get("a.ts")).toBe("A");
+
+    // Corrupt the file
+    await writeFile(join(root, ".spexr", "descriptions.json"), "invalid json", "utf8");
+
+    // load() should clear the map even though the file is corrupt
+    await s.load();
+    expect(s.get("a.ts")).toBeUndefined();
+    expect(s.entries().size).toBe(0);
   });
 });

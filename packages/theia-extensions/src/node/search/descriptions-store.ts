@@ -15,9 +15,9 @@ export class DescriptionsStore {
   private get path(): string { return join(this.root, ".spexr", "descriptions.json"); }
 
   async load(): Promise<void> {
+    this.map.clear();
     try {
       const obj = JSON.parse(await readFile(this.path, "utf8")) as Record<string, StoredDescription>;
-      this.map.clear();
       for (const [k, v] of Object.entries(obj)) {
         if (v && typeof v.description === "string") this.map.set(k, { description: v.description, category: v.category ?? "other" });
       }
