@@ -33,6 +33,24 @@ describe("DescriptionsStore", () => {
     expect(s.get("missing.ts")).toBeUndefined();
   });
 
+  it("removeMany removes entries and persists; no-op when none match", async () => {
+    const s = new DescriptionsStore(root);
+    await s.load();
+    await s.merge(new Map([
+      ["a.ts", { description: "A", category: "backend" }],
+      ["b.ts", { description: "B", category: "frontend" }],
+    ]));
+    await s.removeMany(["a.ts", "unknown.ts"]);
+    expect(s.get("a.ts")).toBeUndefined();
+    expect(s.get("b.ts")).toBe("B");
+    const onDisk = JSON.parse(await readFile(join(root, ".spexr", "descriptions.json"), "utf8"));
+    expect(Object.keys(onDisk)).toEqual(["b.ts"]);
+
+    // no-op when nothing matches: should not throw and should not rewrite
+    await s.removeMany(["nonexistent.ts"]);
+    expect(s.get("b.ts")).toBe("B");
+  });
+
   it("load() clears stale entries when file is corrupt or missing", async () => {
     const s = new DescriptionsStore(root);
     await s.merge(new Map([["a.ts", { description: "A", category: "x" }]]));

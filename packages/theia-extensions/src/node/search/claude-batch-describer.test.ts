@@ -49,4 +49,39 @@ describe("ClaudeCliDescriber", () => {
     expect(new ClaudeCliDescriber("/usr/bin/claude", "/root", async () => "").isAvailable()).toBe(true);
     expect(new ClaudeCliDescriber(undefined, "/root", async () => "").isAvailable()).toBe(false);
   });
+
+  it("retries once when runner returns empty string on first call", async () => {
+    let callCount = 0;
+    const fakeRun = async (_args: string[], _input: string) => {
+      callCount++;
+      if (callCount === 1) return "";
+      return JSON.stringify({ result: JSON.stringify({ "a.ts": "Does A." }) });
+    };
+    const d = new ClaudeCliDescriber("/usr/bin/claude", "/root", fakeRun);
+    const m = await d.describeChunk([{ relPath: "a.ts", summary: "Symbols: foo" }]);
+    expect(m.get("a.ts")).toBe("Does A.");
+    expect(callCount).toBe(2);
+  });
+
+  it("retries once when runner throws on first call", async () => {
+    let callCount = 0;
+    const fakeRun = async (_args: string[], _input: string): Promise<string> => {
+      callCount++;
+      if (callCount === 1) throw new Error("spawn error");
+      return JSON.stringify({ result: JSON.stringify({ "a.ts": "Does A." }) });
+    };
+    const d = new ClaudeCliDescriber("/usr/bin/claude", "/root", fakeRun);
+    const m = await d.describeChunk([{ relPath: "a.ts", summary: "Symbols: foo" }]);
+    expect(m.get("a.ts")).toBe("Does A.");
+    expect(callCount).toBe(2);
+  });
+});
+
+describe("parseClaudeResult - whitespace-only values", () => {
+  it("drops keys whose value is whitespace-only", () => {
+    const envelope = JSON.stringify({ result: JSON.stringify({ "a.ts": "  ", "b.ts": "Does B." }) });
+    const m = parseClaudeResult(envelope, ["a.ts", "b.ts"]);
+    expect(m.has("a.ts")).toBe(false);
+    expect(m.get("b.ts")).toBe("Does B.");
+  });
 });

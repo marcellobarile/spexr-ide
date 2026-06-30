@@ -1,6 +1,5 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { IndexRecord } from "./vector-index.js";
 
 /** Structural subset consumed by markdown rendering — IndexRecord satisfies this. */
 export type MapRow = { path: string; category: string; description: string; aiDescription?: string };
@@ -25,14 +24,6 @@ function groupBy<T>(records: T[], keyOf: (r: T) => string): Map<string, T[]> {
   return m;
 }
 
-/** Machine-readable map: `{ path: { description, category } }`, path-sorted. */
-export function buildDescriptionsJson(records: IndexRecord[]): string {
-  const sorted = [...records].sort((a, b) => a.path.localeCompare(b.path));
-  const obj: Record<string, { description: string; category: string }> = {};
-  for (const r of sorted) obj[r.path] = { description: bestDescription(r), category: r.category };
-  return JSON.stringify(obj, null, 2);
-}
-
 /** Human/agent-readable map grouped by top-level folder, then category. */
 export function buildCodebaseMapMarkdown(records: MapRow[]): string {
   const sorted = [...records].sort((a, b) => a.path.localeCompare(b.path));
@@ -50,18 +41,11 @@ export function buildCodebaseMapMarkdown(records: MapRow[]): string {
   return lines.join("\n");
 }
 
-/** Writes both artifacts under `<root>/.spexr/`. */
+/** Writes markdown map artifacts under `<root>/.spexr/`. */
 export class CodebaseMapWriter {
   constructor(private readonly root: string) {}
 
-  async write(records: IndexRecord[]): Promise<void> {
-    const dir = join(this.root, ".spexr");
-    await mkdir(dir, { recursive: true });
-    await writeFile(join(dir, "codebase-map.md"), buildCodebaseMapMarkdown(records), "utf8");
-    await writeFile(join(dir, "descriptions.json"), buildDescriptionsJson(records), "utf8");
-  }
-
-  /** Writes only `codebase-map.md` from store-derived rows (descriptions.json is owned by DescriptionsStore). */
+  /** Writes `codebase-map.md` from store-derived rows (descriptions.json is owned by DescriptionsStore). */
   async writeMarkdown(rows: MapRow[]): Promise<void> {
     const dir = join(this.root, ".spexr");
     await mkdir(dir, { recursive: true });

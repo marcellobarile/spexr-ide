@@ -43,4 +43,20 @@ export class DescriptionsStore {
     await writeFile(tmp, JSON.stringify(obj, null, 2), "utf8");
     await rename(tmp, this.path);
   }
+
+  /** Remove entries for the given paths and atomically persist. No-op if none of the paths exist in the store. */
+  async removeMany(paths: string[]): Promise<void> {
+    let changed = false;
+    for (const p of paths) {
+      if (this.map.delete(p)) changed = true;
+    }
+    if (!changed) return;
+    const dir = join(this.root, ".spexr");
+    await mkdir(dir, { recursive: true });
+    const obj: Record<string, StoredDescription> = {};
+    for (const [k, v] of [...this.map.entries()].sort((a, b) => a[0].localeCompare(b[0]))) obj[k] = v;
+    const tmp = `${this.path}.${randomBytes(4).toString("hex")}.tmp`;
+    await writeFile(tmp, JSON.stringify(obj, null, 2), "utf8");
+    await rename(tmp, this.path);
+  }
 }

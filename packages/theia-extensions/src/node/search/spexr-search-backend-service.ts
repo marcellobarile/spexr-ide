@@ -32,7 +32,8 @@ interface Workspace {
   building?: Promise<void>;
   /** Changes that arrived while an index build was in progress, queued for replay. */
   pendingChanges?: { changed: string[]; removed: string[] };
-  descriptionJob?: DescriptionJob;
+  /** Cached job-creation promise; build-once to prevent double-start under concurrent calls. */
+  jobReady?: Promise<DescriptionJob>;
   /** Per-workspace descriptions store; loaded lazily once (promise cached to avoid a load race). */
   storeReady?: Promise<DescriptionsStore>;
   /** Per-workspace Claude describer; created lazily. */
@@ -106,7 +107,7 @@ export class SpexrSearchBackendService implements SpexrSearchService {
     // empty: this is the only path that picks up changes to extraction logic
     // (descriptions, categories, symbols, embeddings) for unchanged files.
     delete ws.pendingChanges;
-    delete ws.descriptionJob;
+    delete ws.jobReady;
     ws.indexer = new WorkspaceIndexer(root, this.embedder);
     ws.status = { state: "idle", indexed: 0, total: 0 };
     await this.build(ws, root, true);
@@ -117,6 +118,7 @@ export class SpexrSearchBackendService implements SpexrSearchService {
     if (!ws) return;
     const seq = (this.descBatchSeq.get(root) ?? 0) + 1;
     this.descBatchSeq.set(root, seq);
+    let dirty = false;
     for (const path of paths) {
       if (this.descBatchSeq.get(root) !== seq) return; // newer query arrived
       const need = await this.resolveOrCollect(ws, root, path);
@@ -132,9 +134,10 @@ export class SpexrSearchBackendService implements SpexrSearchService {
         continue;
       }
       ws.indexer.index.setAiDescription(path, text);
-      await ws.indexer.save();
+      dirty = true;
       this.emit({ path, text, done: true });
     }
+    if (dirty) await ws.indexer.save();
   }
 
   /**
@@ -183,11 +186,13 @@ export class SpexrSearchBackendService implements SpexrSearchService {
     this.client?.onDescriptionUpdate(update);
   }
 
-  private async getJob(ws: Workspace, root: string): Promise<DescriptionJob> {
-    if (!ws.descriptionJob) {
+  private getJob(ws: Workspace, root: string): Promise<DescriptionJob> {
+    // Cache the creation promise (not just the instance) so concurrent calls
+    // never build+start two independent jobs.
+    ws.jobReady ??= (async () => {
       const store = await this.getStore(ws, root);
       const describer = this.getDescriber(ws, root);
-      ws.descriptionJob = new DescriptionJob({
+      return new DescriptionJob({
         records: () => ws.indexer.index.allRecords(),
         readContent: (rel) => readFile(join(root, rel), "utf8"),
         describer,
@@ -198,8 +203,8 @@ export class SpexrSearchBackendService implements SpexrSearchService {
           ),
         emit: (s) => this.client?.onDescriptionJobProgress(s),
       });
-    }
-    return ws.descriptionJob;
+    })();
+    return ws.jobReady;
   }
 
   async startDescriptionJob(root: string, opts: { regenerate: boolean }): Promise<void> {
@@ -210,15 +215,21 @@ export class SpexrSearchBackendService implements SpexrSearchService {
   }
 
   async pauseDescriptionJob(root: string): Promise<void> {
-    this.workspaces.get(root)?.descriptionJob?.pause();
+    const ws = this.workspaces.get(root);
+    if (!ws?.jobReady) return;
+    (await ws.jobReady).pause();
   }
 
   async resumeDescriptionJob(root: string): Promise<void> {
-    await this.workspaces.get(root)?.descriptionJob?.resume();
+    const ws = this.workspaces.get(root);
+    if (!ws?.jobReady) return;
+    await (await ws.jobReady).resume();
   }
 
   async getDescriptionJobStatus(root: string): Promise<DescriptionJobStatus> {
-    return this.workspaces.get(root)?.descriptionJob?.status ?? { state: "idle", done: 0, total: 0 };
+    const ws = this.workspaces.get(root);
+    if (!ws?.jobReady) return { state: "idle", done: 0, total: 0 };
+    return (await ws.jobReady).status;
   }
 
   /**
@@ -348,6 +359,10 @@ export class SpexrSearchBackendService implements SpexrSearchService {
       return;
     }
     for (const rel of removedPaths) ws.indexer.removeFile(rel);
+    if (removedPaths.length > 0 && ws.storeReady) {
+      const store = await ws.storeReady;
+      await store.removeMany(removedPaths);
+    }
     for (const rel of changedPaths) {
       try {
         await ws.indexer.updateFile(rel);

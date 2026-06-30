@@ -87,8 +87,10 @@ export class ClaudeCliDescriber implements ClaudeDescriber {
     const args = ["--print", "--output-format", "json", "--input-format", "text"];
     const paths = items.map((it) => it.relPath);
     const prompt = buildClaudePrompt(items);
-    let out = parseClaudeResult(await this.run(args, prompt), paths);
-    if (out.size === 0) out = parseClaudeResult(await this.run(args, prompt), paths); // retry once on empty/unparseable
+    const once = async (): Promise<Map<string, string>> => parseClaudeResult(await this.run(args, prompt), paths);
+    let out: Map<string, string>;
+    try { out = await once(); } catch { out = await once(); } // retry on thrown error/timeout
+    if (out.size === 0) { try { out = await once(); } catch { /* keep empty */ } } // retry on empty/unparseable
     return out;
   }
 }

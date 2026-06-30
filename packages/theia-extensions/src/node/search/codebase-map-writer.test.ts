@@ -1,22 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildCodebaseMapMarkdown, buildDescriptionsJson } from "./codebase-map-writer.js";
-import type { IndexRecord } from "./vector-index.js";
+import { buildCodebaseMapMarkdown } from "./codebase-map-writer.js";
+import type { MapRow } from "./codebase-map-writer.js";
 
-const rec = (path: string, category: string, description: string, aiDescription?: string): IndexRecord => ({
+const rec = (path: string, category: string, description: string, aiDescription?: string): MapRow => ({
   path, category, description, aiDescription,
-  vector: new Float32Array([1]), mtimeMs: 0, hash: "h", snippet: "",
-});
-
-describe("buildDescriptionsJson", () => {
-  it("keys by path with best-available description and category, sorted", () => {
-    const json = JSON.parse(buildDescriptionsJson([
-      rec("src/b.ts", "frontend", "static B", "AI B"),
-      rec("src/a.ts", "backend", "static A"),
-    ]));
-    expect(Object.keys(json)).toEqual(["src/a.ts", "src/b.ts"]);
-    expect(json["src/b.ts"]).toEqual({ description: "AI B", category: "frontend" });
-    expect(json["src/a.ts"]).toEqual({ description: "static A", category: "backend" });
-  });
 });
 
 describe("buildCodebaseMapMarkdown", () => {
