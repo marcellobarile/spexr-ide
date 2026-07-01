@@ -14,7 +14,7 @@ import type { ViewContainer } from "@theia/core/lib/browser/view-container";
 import { EXPLORER_VIEW_CONTAINER_ID } from "@theia/navigator/lib/browser/navigator-widget-factory";
 import { FileService } from "@theia/filesystem/lib/browser/file-service";
 import { WorkspaceService } from "@theia/workspace/lib/browser";
-import URI from "@theia/core/lib/common/uri";
+import type URI from "@theia/core/lib/common/uri";
 import type { Disposable } from "@theia/core/lib/common/disposable";
 import type { SpexrSearchService } from "../../common/search-protocol.js";
 import { SpexrSearchServiceProxy } from "./smart-search-service.js";
@@ -144,6 +144,9 @@ export class SpexrSmartSearchContribution
       const rel = rootUri.relative(change.resource);
       if (!rel) continue;
       const path = rel.toString();
+      // Never react to SPEXR's own generated dir: the index + descriptions store write
+      // there, and re-indexing our writes would re-save → re-trigger this watcher → loop.
+      if (path === ".spexr" || path.startsWith(".spexr/")) continue;
       // FileChangeType: 0 UPDATED, 1 ADDED, 2 DELETED
       if (change.type === 2) {
         this.removed.add(path);

@@ -114,6 +114,15 @@ describe("WorkspaceIndexer", () => {
     expect(indexer.index.size).toBe(0);
   });
 
+  it("updateFile never indexes SPEXR's own .spexr/ dir (breaks the save→watch→reindex loop)", async () => {
+    const indexer = new WorkspaceIndexer(root, new FakeEmbedder());
+    await mkdir(join(root, ".spexr"), { recursive: true });
+    await writeFile(join(root, ".spexr", "search-index.json"), '{"version":7,"records":[]}');
+    await indexer.updateFile(".spexr/search-index.json");
+    expect(indexer.index.size).toBe(0);
+    expect(indexer.index.getRecord(".spexr/search-index.json")).toBeUndefined();
+  });
+
   it("updateFile skips re-embedding unchanged content (dedup by hash)", async () => {
     const indexer = new WorkspaceIndexer(root, new FakeEmbedder() as FakeEmbedder);
     const embedder = (indexer as unknown as { embedder: FakeEmbedder }).embedder;

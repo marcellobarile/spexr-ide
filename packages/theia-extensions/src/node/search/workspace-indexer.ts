@@ -211,6 +211,12 @@ export class WorkspaceIndexer {
 
   /** (Re)embed a single workspace-relative file, skipping unchanged content. */
   async updateFile(relPath: string): Promise<void> {
+    // Never index our own generated dirs (esp. `.spexr/`, where saving the index would
+    // change the file, invalidating its hash → re-index → re-save → infinite loop).
+    if (ALWAYS_SKIP_DIRS.has(relPath.split("/")[0] ?? "")) {
+      this.index.remove(relPath);
+      return;
+    }
     const abs = join(this.root, relPath);
     let info;
     try {
