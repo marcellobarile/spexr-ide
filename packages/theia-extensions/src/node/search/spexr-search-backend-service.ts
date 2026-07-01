@@ -1,11 +1,10 @@
-import { inject, injectable, unmanaged } from "@theia/core/shared/inversify";
+import { inject, injectable } from "@theia/core/shared/inversify";
 import type {
   SpexrSearchService,
   SpexrSearchClient,
   SearchHit,
   IndexStatus,
   DescriptionJobStatus,
-  MapEstimate,
 } from "../../common/search-protocol.js";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -17,8 +16,6 @@ import { expandQuery } from "./query-expander.js";
 import { DescriptionJob } from "./description-job.js";
 import { CodebaseMapWriter } from "./codebase-map-writer.js";
 import { DescriptionsStore } from "./descriptions-store.js";
-import { ClaudeCliDescriber, CLAUDE_CHUNK_SIZE, type ClaudeDescriber } from "./claude-batch-describer.js";
-import { estimateMap } from "./map-token-estimator.js";
 import { isSpexrIgnoredGlobally, ensureSpexrGloballyIgnored } from "./global-gitignore.js";
 
 const TOP_K = 30;
@@ -37,10 +34,6 @@ interface Workspace {
   jobReady?: Promise<DescriptionJob>;
   /** Per-workspace descriptions store; loaded lazily once (promise cached to avoid a load race). */
   storeReady?: Promise<DescriptionsStore>;
-  /** Per-workspace Claude describer; created lazily, rebuilt when the profile changes. */
-  describer?: ClaudeDescriber;
-  /** Configured Claude profile for the Map job (alias-resolved executable + config dir). */
-  claudeProfile?: { executablePath?: string; configDir?: string };
 }
 
 /**
@@ -57,12 +50,6 @@ export class SpexrSearchBackendService implements SpexrSearchService {
   constructor(
     @inject(EmbedderToken) private readonly embedder: EmbedderType,
     @inject(DescriptionGeneratorToken) private readonly generator: DescriptionGenerator,
-    // @unmanaged(): inversify must not inject this defaulted factory; it is a test seam.
-    @unmanaged() private readonly describerFactory: (
-      root: string,
-      profile?: { executablePath?: string; configDir?: string },
-    ) => ClaudeDescriber =
-      (root, profile) => ClaudeCliDescriber.forWorkspace(root, profile?.executablePath, profile?.configDir),
   ) {}
 
   /** Wired by the RPC connection handler so the backend can stream to the frontend. */
@@ -92,12 +79,6 @@ export class SpexrSearchBackendService implements SpexrSearchService {
       return store;
     })();
     return ws.storeReady;
-  }
-
-  /** Returns the per-workspace Claude describer, created lazily via the injectable factory. */
-  private getDescriber(ws: Workspace, root: string): ClaudeDescriber {
-    if (!ws.describer) ws.describer = this.describerFactory(root, ws.claudeProfile);
-    return ws.describer;
   }
 
   async ensureIndexed(root: string): Promise<void> {
@@ -147,18 +128,18 @@ export class SpexrSearchBackendService implements SpexrSearchService {
   }
 
   /**
-   * Resolve a file's description from the Claude store, cache, or static prose,
-   * and emit it; or return the file content to batch through the 0.5B model.
+   * Resolve a file's description from the precomputed store, cache, or static prose,
+   * and emit it; or return the file content to generate with the local model.
    * Returns undefined when nothing more is needed (unknown path, cached, prose, or unreadable).
    *
-   * Priority: Claude descriptions store > 0.5B aiDescription > static prose > generate.
+   * Priority: descriptions store > cached aiDescription > static prose > generate.
    */
   private async resolveOrCollect(
     ws: Workspace,
     root: string,
     path: string,
   ): Promise<{ path: string; content: string } | undefined> {
-    // Claude descriptions store wins over everything.
+    // A precomputed store entry (from the "Understand the codebase" job) wins over everything.
     const store = await this.getStore(ws, root);
     const storeDesc = store.get(path);
     if (storeDesc !== undefined) {
@@ -197,11 +178,10 @@ export class SpexrSearchBackendService implements SpexrSearchService {
     // never build+start two independent jobs.
     ws.jobReady ??= (async () => {
       const store = await this.getStore(ws, root);
-      const describer = this.getDescriber(ws, root);
       return new DescriptionJob({
         records: () => ws.indexer.index.allRecords(),
         readContent: (rel) => readFile(join(root, rel), "utf8"),
-        describer,
+        generator: this.generator,
         store,
         writeMarkdown: () =>
           new CodebaseMapWriter(root).writeMarkdown(
@@ -213,19 +193,8 @@ export class SpexrSearchBackendService implements SpexrSearchService {
     return ws.jobReady;
   }
 
-  async startDescriptionJob(
-    root: string,
-    opts: { regenerate: boolean; claudeExecutablePath?: string; claudeConfigDir?: string },
-  ): Promise<void> {
+  async startDescriptionJob(root: string, opts: { regenerate: boolean }): Promise<void> {
     const ws = this.getOrCreate(root);
-    // Bind the configured Claude profile and rebuild the describer + job so this run
-    // uses the currently-selected account (start is the entry point; pause/resume act
-    // on the started job, so clearing the cache here is safe).
-    ws.claudeProfile = {
-      ...(opts.claudeExecutablePath ? { executablePath: opts.claudeExecutablePath } : {}),
-      ...(opts.claudeConfigDir ? { configDir: opts.claudeConfigDir } : {}),
-    };
-    delete ws.describer;
     delete ws.jobReady;
     if (ws.status.state !== "ready") await this.build(ws, root);
     if (ws.status.state !== "ready") return; // build failed → leave job idle
@@ -248,20 +217,6 @@ export class SpexrSearchBackendService implements SpexrSearchService {
     const ws = this.workspaces.get(root);
     if (!ws?.jobReady) return { state: "idle", done: 0, total: 0 };
     return (await ws.jobReady).status;
-  }
-
-  /**
-   * Approximate token budget for a Map run, non-blocking (no file reads).
-   * Input size is estimated from path + static description length + fixed overhead per file.
-   */
-  async getMapEstimate(root: string): Promise<MapEstimate> {
-    const ws = this.getOrCreate(root);
-    if (ws.status.state !== "ready") await this.build(ws, root);
-    const store = await this.getStore(ws, root);
-    const records = ws.indexer.index.allRecords().filter((r) => store.get(r.path) === undefined);
-    // Proxy for symbol-summary length without reading files: path + static description + fixed overhead.
-    const summaries = records.map((r) => "x".repeat(r.path.length + (r.description?.length ?? 0) + 200));
-    return estimateMap(summaries, CLAUDE_CHUNK_SIZE);
   }
 
   async isSpexrGloballyIgnored(): Promise<boolean> {

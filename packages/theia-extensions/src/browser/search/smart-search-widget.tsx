@@ -11,8 +11,6 @@ import { PreferenceScope } from "@theia/core/lib/common/preferences/preference-s
 import {
   SPEXR_SEARCH_AI_DESCRIPTIONS_PREFERENCE,
   SPEXR_SEARCH_GLOBAL_IGNORE_PROMPTED,
-  SPEXR_CLAUDE_EXECUTABLE_PREFERENCE,
-  SPEXR_CLAUDE_CONFIG_DIR_PREFERENCE,
 } from "../preferences/spexr-preferences.js";
 import { SpexrSearchServiceProxy } from "./smart-search-service.js";
 import { SpexrSearchClientDispatcher } from "./smart-search-client.js";
@@ -191,20 +189,8 @@ export class SmartSearchWidget extends ReactWidget {
     const root = this.root();
     if (!root) return;
     await this.maybePromptGlobalIgnore();
-    const est = await this.service.getMapEstimate(root);
-    const ok = await new ConfirmDialog({
-      title: "Map this codebase",
-      msg: `Send ${est.fileCount} files to Claude in ~${est.chunkCount} calls — ` +
-           `estimated ~${est.inputTokens.toLocaleString()} input + ~${est.outputTokens.toLocaleString()} output tokens. Proceed?`,
-      ok: "Proceed",
-      cancel: "Cancel",
-    }).open();
-    if (!ok) return;
-    // Use the configured Claude profile (alias-managed) so the Map job bills the
-    // account the user selected for the agent, not just a `claude` on PATH.
-    const claudeExecutablePath = this.preferences.get<string>(SPEXR_CLAUDE_EXECUTABLE_PREFERENCE, "");
-    const claudeConfigDir = this.preferences.get<string>(SPEXR_CLAUDE_CONFIG_DIR_PREFERENCE, "");
-    void this.service.startDescriptionJob(root, { regenerate, claudeExecutablePath, claudeConfigDir });
+    // Runs the local model over the codebase — no cost, so it starts directly.
+    void this.service.startDescriptionJob(root, { regenerate });
   };
 
   private pauseMap = (): void => {
@@ -405,16 +391,16 @@ export class SmartSearchWidget extends ReactWidget {
       <div className="spexr-smart-search__map">
         <div className="spexr-smart-search__map-row">
           {running ? (
-            <button className="spexr-smart-search__map-cta" onClick={this.pauseMap} title="Pause mapping">
+            <button className="spexr-smart-search__map-cta" onClick={this.pauseMap} title="Pause understanding">
               ✦ Pause
             </button>
           ) : paused ? (
-            <button className="spexr-smart-search__map-cta" onClick={this.resumeMap} title="Resume mapping">
+            <button className="spexr-smart-search__map-cta" onClick={this.resumeMap} title="Resume understanding">
               ✦ Resume
             </button>
           ) : (
-            <button className="spexr-smart-search__map-cta" onClick={() => void this.startMap(false)} title="Generate AI descriptions for the whole codebase">
-              ✦ Map this codebase
+            <button className="spexr-smart-search__map-cta" onClick={() => void this.startMap(false)} title="Generate AI descriptions for the whole codebase using the local model">
+              ✦ Understand the codebase
             </button>
           )}
           <span
@@ -442,7 +428,7 @@ export class SmartSearchWidget extends ReactWidget {
           </div>
         )}
         {state === "error" && (
-          <div className="spexr-smart-search__map-error">{this.jobStatus.message ?? "Mapping failed."}</div>
+          <div className="spexr-smart-search__map-error">{this.jobStatus.message ?? "Understanding failed."}</div>
         )}
       </div>
     );

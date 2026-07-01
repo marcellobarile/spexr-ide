@@ -7,7 +7,7 @@ import type { DescriptionJobStatus } from "../../common/search-protocol.js";
 
 const ENTRY_ID = "spexr-description-job";
 
-/** Mirrors the codebase-mapping job in the status bar; click toggles pause/resume. */
+/** Mirrors the codebase-understanding job in the status bar; click toggles pause/resume. */
 @injectable()
 export class DescriptionJobStatusBarContribution implements FrontendApplicationContribution {
   @inject(StatusBar) private readonly statusBar!: StatusBar;
@@ -23,17 +23,17 @@ export class DescriptionJobStatusBarContribution implements FrontendApplicationC
       return;
     }
     const text =
-      s.state === "running" ? `$(sparkle) Mapping ${s.done}/${s.total}`
-      : s.state === "paused" ? `$(debug-pause) Mapping paused ${s.done}/${s.total}`
-      : `$(error) Mapping failed`;
+      s.state === "running" ? `$(sparkle) Understanding ${s.done}/${s.total}`
+      : s.state === "paused" ? `$(debug-pause) Understanding paused ${s.done}/${s.total}`
+      : `$(error) Understanding failed`;
     void this.statusBar.setElement(ENTRY_ID, {
       text,
       alignment: StatusBarAlignment.LEFT,
       priority: 100,
       tooltip:
-        s.state === "running" ? "Click to pause mapping"
-        : s.state === "paused" ? "Click to resume mapping"
-        : "Mapping failed",
+        s.state === "running" ? "Click to pause understanding"
+        : s.state === "paused" ? "Click to resume understanding"
+        : "Understanding failed",
       ...(s.state === "running"
         ? { command: SmartSearchCommands.MAP_PAUSE.id }
         : s.state === "paused"

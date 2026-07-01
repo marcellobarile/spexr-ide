@@ -23,9 +23,9 @@ import { debounce } from "./smart-search-format.js";
 
 export const SmartSearchCommands = {
   REINDEX: { id: "spexr.search.reindex", label: "Smart Search: Reindex Workspace" } satisfies Command,
-  MAP: { id: "spexr.search.map", label: "Spexr: Map this codebase" } satisfies Command,
-  MAP_PAUSE: { id: "spexr.search.mapPause", label: "Spexr: Pause mapping" } satisfies Command,
-  MAP_RESUME: { id: "spexr.search.mapResume", label: "Spexr: Resume mapping" } satisfies Command,
+  MAP: { id: "spexr.search.map", label: "Spexr: Understand the codebase" } satisfies Command,
+  MAP_PAUSE: { id: "spexr.search.mapPause", label: "Spexr: Pause understanding" } satisfies Command,
+  MAP_RESUME: { id: "spexr.search.mapResume", label: "Spexr: Resume understanding" } satisfies Command,
   REGENERATE: { id: "spexr.search.regenerateDescriptions", label: "Spexr: Regenerate all descriptions" } satisfies Command,
 } as const;
 
@@ -126,7 +126,7 @@ export class SpexrSmartSearchContribution
     try {
       await this.service.startDescriptionJob(root, { regenerate });
     } catch (err) {
-      this.messages.error(`Codebase mapping failed: ${err instanceof Error ? err.message : String(err)}`);
+      this.messages.error(`Understanding the codebase failed: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 

@@ -39,14 +39,6 @@ export interface DescriptionJobStatus {
   message?: string;
 }
 
-/** Approximate token budget for a Map run (non-blocking estimate, no file reads). */
-export interface MapEstimate {
-  fileCount: number;
-  chunkCount: number;
-  inputTokens: number;
-  outputTokens: number;
-}
-
 /** Client callbacks the backend pushes description progress to. */
 export interface SpexrSearchClient {
   onDescriptionUpdate(update: DescriptionUpdate): void;
@@ -88,23 +80,17 @@ export interface SpexrSearchService {
    */
   describeFiles(root: string, paths: string[]): Promise<void>;
   /**
-   * Start the workspace-wide description job. `regenerate` overwrites existing AI
-   * descriptions. `claudeExecutablePath`/`claudeConfigDir` select the configured
-   * Claude profile (alias-managed); when omitted the backend falls back to a
-   * `claude` on PATH.
+   * Start the workspace-wide description job ("Understand the codebase"), using the
+   * local model to describe every file worth mapping. `regenerate` overwrites
+   * existing descriptions instead of only filling gaps.
    */
-  startDescriptionJob(
-    root: string,
-    opts: { regenerate: boolean; claudeExecutablePath?: string; claudeConfigDir?: string },
-  ): Promise<void>;
-  /** Request the running job to pause after the current batch. */
+  startDescriptionJob(root: string, opts: { regenerate: boolean }): Promise<void>;
+  /** Request the running job to pause after the current file. */
   pauseDescriptionJob(root: string): Promise<void>;
   /** Resume a paused job. */
   resumeDescriptionJob(root: string): Promise<void>;
   /** Current job status (idle if never started). */
   getDescriptionJobStatus(root: string): Promise<DescriptionJobStatus>;
-  /** Approximate token budget for describing files not yet in the store (non-blocking). */
-  getMapEstimate(root: string): Promise<MapEstimate>;
   /** True if `.spexr/` is already ignored at the user's global git level. */
   isSpexrGloballyIgnored(): Promise<boolean>;
   /** Append `.spexr/` to the user's global git ignore; resolves true once it is present. */
