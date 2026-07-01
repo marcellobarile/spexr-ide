@@ -13,7 +13,7 @@
 - **Paths to the backend service must be absolute filesystem paths**, never `file://` URIs (`SpexrSearchService` contract).
 - **Reuse the existing batch path** (`DescriptionGenerator.generateBatch`) — do not reintroduce per-file generation.
 - **Batch size = 5**; **save cadence = every 5 batches** (plus on pause/stop/complete).
-- **Commits are manual.** This repo's owner commits. Execution agents must STAGE changes at each checkpoint (`git add …`) and stop for the human to review/commit — never run `git commit`.
+- **Per-task commits on `feat/smart-search` only** (owner-approved for this execution; no push). Each task ends with a commit of its own files using a Conventional Commit message ending with the trailer `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`. The "stage only" wording in older checkpoints is superseded — commit each task.
 - **Spec:** `docs/superpowers/specs/2026-06-29-codebase-map-design.md` is the contract.
 - Tests run from `packages/theia-extensions`: `npx vitest run <file>`.
 
