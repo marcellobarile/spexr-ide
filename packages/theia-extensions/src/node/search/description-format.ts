@@ -19,7 +19,7 @@ export const DESCRIPTION_SYSTEM_PROMPT =
   "the provided path, header comment, and symbol names. Never name or assume any technology, " +
   "framework, library, database, protocol, or service that is not explicitly present in the input. " +
   "When unsure, stay generic rather than guess specifics. Reply with only the sentence, max 15 words, " +
-  "no preamble, no markdown.";
+  "no preamble, no markdown. Do not begin with 'This file' or 'This'.";
 
 /** Produces a one-sentence, whole-file description, or null if unavailable. */
 export interface DescriptionGenerator {
@@ -206,5 +206,11 @@ export function buildPrompt(relPath: string, content: string): string {
  */
 export function cleanGenerated(raw: string): string {
   const firstLine = raw.split("\n").map((l) => l.trim()).find((l) => l.length > 0) ?? "";
-  return firstLine.replace(/^["'`]+|["'`]+$/g, "").trim();
+  const stripped = firstLine.replace(/^["'`]+|["'`]+$/g, "").trim();
+  // Strip redundant "This file " / "This " prefix the model sometimes outputs despite the prompt.
+  const withoutPrefix = stripped.replace(/^[Tt]his file\s+/i, "").replace(/^[Tt]his\s+/i, "");
+  if (withoutPrefix.length > 0 && withoutPrefix !== stripped) {
+    return withoutPrefix.charAt(0).toUpperCase() + withoutPrefix.slice(1);
+  }
+  return stripped;
 }

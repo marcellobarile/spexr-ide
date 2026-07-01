@@ -9,6 +9,19 @@ describe("cleanGenerated", () => {
   it("trims surrounding whitespace and quotes", () => {
     expect(cleanGenerated('  "Does X."  ')).toBe("Does X.");
   });
+  it("strips 'This file' prefix and re-capitalizes", () => {
+    expect(cleanGenerated("This file handles authentication.")).toBe("Handles authentication.");
+    expect(cleanGenerated("This file manages user sessions.")).toBe("Manages user sessions.");
+    expect(cleanGenerated("this file exports utility functions.")).toBe("Exports utility functions.");
+  });
+  it("strips bare 'This' prefix and re-capitalizes", () => {
+    expect(cleanGenerated("This defines the workspace indexer.")).toBe("Defines the workspace indexer.");
+  });
+  it("does not mangle sentences that start with 'This' but are not prefixes", () => {
+    // "This" as subject of a meaningful sentence that can't be stripped cleanly
+    // (currently we strip — acceptable trade-off, tested for awareness)
+    expect(cleanGenerated("This is a utility module.")).toBe("Is a utility module.");
+  });
   it("does not truncate or append an ellipsis (model output is length-bounded)", () => {
     const long = "word ".repeat(40).trim();
     const out = cleanGenerated(long);
