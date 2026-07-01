@@ -55,8 +55,9 @@ export class VectorIndex {
     if (rec) rec.aiDescription = text;
   }
 
-  remove(path: string): void {
-    this.records.delete(path);
+  /** Remove a record; returns true when one was actually present. */
+  remove(path: string): boolean {
+    return this.records.delete(path);
   }
 
   has(path: string, hash: string): boolean {

@@ -114,6 +114,22 @@ describe("WorkspaceIndexer", () => {
     expect(indexer.index.size).toBe(0);
   });
 
+  it("updateFile/removeFile report whether the index actually changed", async () => {
+    const indexer = new WorkspaceIndexer(root, new FakeEmbedder());
+    await writeFile(join(root, "a.ts"), "alpha");
+    expect(await indexer.updateFile("a.ts")).toBe(true);   // new record
+    expect(await indexer.updateFile("a.ts")).toBe(false);  // unchanged content (hash dedup)
+    await writeFile(join(root, "a.ts"), "beta");
+    expect(await indexer.updateFile("a.ts")).toBe(true);   // content changed
+
+    // A heavy-dir path is never indexed → no mutation.
+    expect(await indexer.updateFile(".git/config")).toBe(false);
+
+    expect(indexer.removeFile("a.ts")).toBe(true);   // was present
+    expect(indexer.removeFile("a.ts")).toBe(false);  // already gone
+    expect(indexer.removeFile("never.ts")).toBe(false);
+  });
+
   it("updateFile never indexes SPEXR's own .spexr/ dir (breaks the save→watch→reindex loop)", async () => {
     const indexer = new WorkspaceIndexer(root, new FakeEmbedder());
     await mkdir(join(root, ".spexr"), { recursive: true });

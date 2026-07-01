@@ -219,34 +219,34 @@ export class WorkspaceIndexer {
     }
   }
 
-  /** (Re)embed a single workspace-relative file, skipping unchanged content. */
-  async updateFile(relPath: string): Promise<void> {
+  /**
+   * (Re)embed a single workspace-relative file, skipping unchanged content.
+   * Returns true when the index was actually mutated (upsert or a real removal),
+   * false when nothing changed — so callers can avoid a needless persist.
+   */
+  async updateFile(relPath: string): Promise<boolean> {
     // Never index our own generated dirs (esp. `.spexr/`, where saving the index would
     // change the file, invalidating its hash → re-index → re-save → infinite loop).
     if (ALWAYS_SKIP_DIRS.has(relPath.split("/")[0] ?? "")) {
-      this.index.remove(relPath);
-      return;
+      return this.index.remove(relPath);
     }
     const abs = join(this.root, relPath);
     let info;
     try {
       info = await stat(abs);
     } catch {
-      this.index.remove(relPath);
-      return;
+      return this.index.remove(relPath);
     }
     if (!info.isFile() || info.size > DEFAULT_MAX_BYTES || isSkippedExtension(relPath)) {
-      this.index.remove(relPath);
-      return;
+      return this.index.remove(relPath);
     }
     const buf = await readFile(abs);
     if (isBinaryBuffer(buf)) {
-      this.index.remove(relPath);
-      return;
+      return this.index.remove(relPath);
     }
     const content = buf.toString("utf8");
     const hash = createHash("sha1").update(content).digest("hex");
-    if (this.index.has(relPath, hash)) return;
+    if (this.index.has(relPath, hash)) return false; // unchanged content — no mutation
     const [vector] = await this.embedder.embed([buildEmbeddingInput(relPath, content)]);
     const category = await this.classifier.classify(relPath, content.slice(0, 500), vector!);
     this.index.upsert({
@@ -259,11 +259,14 @@ export class WorkspaceIndexer {
       description: extractDescription(content),
     });
     this.bm25.upsert(relPath, relPath + " " + content.slice(0, 5000));
+    return true;
   }
 
-  removeFile(relPath: string): void {
-    this.index.remove(relPath);
+  /** Remove a file from the index; returns true when a record was actually present. */
+  removeFile(relPath: string): boolean {
+    const existed = this.index.remove(relPath);
     this.bm25.remove(relPath);
+    return existed;
   }
 
   /** Load a persisted index; returns false if absent or unreadable. */

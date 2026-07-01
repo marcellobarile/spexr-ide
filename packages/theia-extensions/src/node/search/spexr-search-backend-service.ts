@@ -356,19 +356,25 @@ export class SpexrSearchBackendService implements SpexrSearchService {
       p.removed.push(...removedPaths);
       return;
     }
-    for (const rel of removedPaths) ws.indexer.removeFile(rel);
+    // Only persist when the index actually changed. Background file churn (`.git/`,
+    // build output, editors touching files without content changes) otherwise triggers
+    // a full index write per event — a stream of `.spexr/*.tmp` with no real work.
+    let dirty = false;
+    for (const rel of removedPaths) {
+      if (ws.indexer.removeFile(rel)) dirty = true;
+    }
     if (removedPaths.length > 0 && ws.storeReady) {
       const store = await ws.storeReady;
-      await store.removeMany(removedPaths);
+      await store.removeMany(removedPaths); // store persists itself only when it changed
     }
     for (const rel of changedPaths) {
       try {
-        await ws.indexer.updateFile(rel);
+        if (await ws.indexer.updateFile(rel)) dirty = true;
       } catch {
         // a single bad file must not break the batch
       }
     }
-    await ws.indexer.save();
+    if (dirty) await ws.indexer.save();
     ws.status = { state: "ready", indexed: ws.indexer.index.size, total: ws.indexer.index.size };
   }
 }

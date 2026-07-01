@@ -9,7 +9,7 @@
  * accidentally reverted.
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { mkdtemp, writeFile, rm, mkdir, readFile } from "node:fs/promises";
+import { mkdtemp, writeFile, rm, mkdir, readFile, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { SpexrSearchBackendService } from "./spexr-search-backend-service.js";
@@ -107,6 +107,23 @@ describe("SpexrSearchBackendService", () => {
     expect((await service.search(root, "auth"))[0]?.path).toBe("auth.ts");
     await service.applyChanges(root, [], ["auth.ts"]);
     expect(await service.search(root, "auth")).toEqual([]);
+  });
+
+  it("applyChanges does not rewrite the index when nothing actually changed", async () => {
+    await writeFile(join(root, "auth.ts"), "auth token");
+    const service = new SpexrSearchBackendService(new FakeEmbedder(), noopGenerator());
+    await service.ensureIndexed(root);
+    await waitReady(service);
+
+    const idxPath = join(root, ".spexr", "search-index.json");
+    const before = (await stat(idxPath)).mtimeMs;
+    await new Promise((r) => setTimeout(r, 5)); // ensure a rewrite would move mtime
+
+    // A heavy-dir path (never indexed) + an unchanged file → no index mutation.
+    await service.applyChanges(root, [".git/index", "auth.ts"], [".git/HEAD"]);
+
+    const after = (await stat(idxPath)).mtimeMs;
+    expect(after).toBe(before); // index file untouched → no `.spexr/*.tmp` churn
   });
 
   it("queues applyChanges during indexing and replays them when ready", async () => {
