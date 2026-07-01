@@ -115,6 +115,11 @@ export function normalizeRemoteUrl(raw: string): string | undefined {
   return /^https?:\/\//.test(s) ? s : undefined;
 }
 
+/** Split NUL-separated `git ls-files -z` output into non-empty paths. */
+export function parseIgnoredPaths(raw: string): string[] {
+  return raw.split("\0").filter((p) => p.length > 0);
+}
+
 @injectable()
 export class SpexrGitBackendService implements SpexrGitService {
   async getStatus(root: string): Promise<GitStatusDto> {
@@ -228,6 +233,20 @@ export class SpexrGitBackendService implements SpexrGitService {
       filePath,
     ]);
     return parseBlamePorcelain(raw);
+  }
+
+  async getIgnoredPaths(root: string): Promise<string[]> {
+    try {
+      // -o others (untracked), -i ignored, --exclude-standard honors repo + nested
+      // .gitignore, the global core.excludesFile, and .git/info/exclude; --directory
+      // collapses a fully-ignored dir to one entry; -z NUL-separates for safe paths.
+      const raw = await simpleGit(root).raw([
+        "ls-files", "-o", "-i", "--exclude-standard", "--directory", "-z",
+      ]);
+      return parseIgnoredPaths(raw);
+    } catch {
+      return []; // not a git repo → nothing ignored
+    }
   }
 
   async getRemoteUrl(root: string): Promise<string | undefined> {

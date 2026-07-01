@@ -7,6 +7,7 @@ import {
   SpexrGitBackendService,
   parseBlamePorcelain,
   normalizeRemoteUrl,
+  parseIgnoredPaths,
 } from "./spexr-git-backend-service.js";
 
 describe("SpexrGitBackendService", () => {
@@ -44,6 +45,29 @@ describe("SpexrGitBackendService", () => {
     expect(f).toBeDefined();
     expect(f!.unstagedState).toBe("U");
     expect(f!.stagedState).toBeUndefined();
+  });
+
+  it("getIgnoredPaths: returns ignored files and collapses ignored dirs", async () => {
+    fs.writeFileSync(path.join(tmpDir, ".gitignore"), "dist/\n*.log\n");
+    fs.mkdirSync(path.join(tmpDir, "dist"));
+    fs.writeFileSync(path.join(tmpDir, "dist", "bundle.js"), "x");
+    fs.writeFileSync(path.join(tmpDir, "debug.log"), "x");
+    fs.writeFileSync(path.join(tmpDir, "keep.ts"), "x");
+
+    const ignored = await service.getIgnoredPaths(tmpDir);
+    expect(ignored).toContain("dist/"); // whole dir collapsed to one entry
+    expect(ignored).toContain("debug.log");
+    expect(ignored).not.toContain("keep.ts");
+    expect(ignored).not.toContain("dist/bundle.js"); // covered by dist/
+  });
+
+  it("getIgnoredPaths: returns [] outside a git repo", async () => {
+    const nonRepo = fs.mkdtempSync(path.join(os.tmpdir(), "spexr-nonrepo-"));
+    try {
+      expect(await service.getIgnoredPaths(nonRepo)).toEqual([]);
+    } finally {
+      fs.rmSync(nonRepo, { recursive: true, force: true });
+    }
   });
 
   it("stage: moves untracked file to staged (A)", async () => {
@@ -166,6 +190,18 @@ describe("normalizeRemoteUrl", () => {
   it("returns undefined for empty or non-http input", () => {
     expect(normalizeRemoteUrl("")).toBeUndefined();
     expect(normalizeRemoteUrl("file:///local/path")).toBeUndefined();
+  });
+});
+
+describe("parseIgnoredPaths", () => {
+  it("splits NUL-separated paths and drops empties", () => {
+    expect(parseIgnoredPaths("dist/\0debug.log\0node_modules/\0")).toEqual([
+      "dist/", "debug.log", "node_modules/",
+    ]);
+  });
+  it("returns [] for empty output", () => {
+    expect(parseIgnoredPaths("")).toEqual([]);
+    expect(parseIgnoredPaths("\0")).toEqual([]);
   });
 });
 

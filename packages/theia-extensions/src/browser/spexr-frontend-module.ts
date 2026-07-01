@@ -60,6 +60,7 @@ import { LanguageGrammarDefinitionContribution } from "@theia/monaco/lib/browser
 import { AboutDialog } from "@theia/core/lib/browser/about-dialog.js";
 import { SpexrAboutDialog } from "./about/spexr-about-dialog.js";
 import { SpexrGitScmProvider } from "./scm/git-scm-provider.js";
+import { GitIgnoredDecorationProvider } from "./scm/git-ignored-decoration-provider.js";
 import { SpexrGitServiceProxySymbol, GIT_SERVICE_PATH } from "./scm/git-service-proxy.js";
 import { SpexrGitCommandsContribution } from "./scm/git-commands-contribution.js";
 import { SpexrGitToolbarContribution } from "./scm/git-toolbar-contribution.js";
@@ -204,6 +205,9 @@ export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
 
   bind(SpexrGitScmProvider).toSelf().inSingletonScope();
   bind(FrontendApplicationContribution).toService(SpexrGitScmProvider);
+
+  bind(GitIgnoredDecorationProvider).toSelf().inSingletonScope();
+  bind(FrontendApplicationContribution).toService(GitIgnoredDecorationProvider);
 
   bind(SpexrGitCommandsContribution).toSelf().inSingletonScope();
   bind(CommandContribution).toService(SpexrGitCommandsContribution);
