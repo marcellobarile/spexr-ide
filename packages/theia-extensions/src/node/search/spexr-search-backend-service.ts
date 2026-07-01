@@ -219,6 +219,22 @@ export class SpexrSearchBackendService implements SpexrSearchService {
     return (await ws.jobReady).status;
   }
 
+  /**
+   * Re-persist in-memory state whose on-disk copy vanished (e.g. `.spexr/` deleted
+   * externally while the workspace is `ready`). The index and descriptions store are
+   * held in memory, so restoring the folder is a cheap write-back — no re-embedding.
+   * No-op when the workspace is not ready or the files are already present.
+   */
+  async persistIfMissing(root: string): Promise<void> {
+    const ws = this.workspaces.get(root);
+    if (!ws || ws.status.state !== "ready") return;
+    if (!(await ws.indexer.isPersisted())) await ws.indexer.save();
+    if (ws.storeReady) {
+      const store = await ws.storeReady;
+      if (store.size > 0 && !(await store.isPersisted())) await store.persist();
+    }
+  }
+
   async isSpexrGloballyIgnored(): Promise<boolean> {
     return isSpexrIgnoredGlobally();
   }

@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile, rename } from "node:fs/promises";
+import { mkdir, readFile, writeFile, rename, stat } from "node:fs/promises";
 import { randomBytes } from "node:crypto";
 import { join } from "node:path";
 
@@ -32,9 +32,23 @@ export class DescriptionsStore {
     return this.map;
   }
 
-  /** Merge new entries and atomically persist the whole store (text-only, cheap). */
-  async merge(entries: Map<string, StoredDescription>): Promise<void> {
-    for (const [k, v] of entries) this.map.set(k, v);
+  /** Number of descriptions currently held in memory. */
+  get size(): number {
+    return this.map.size;
+  }
+
+  /** True when the store file exists on disk. */
+  async isPersisted(): Promise<boolean> {
+    try {
+      await stat(this.path);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Atomically write the whole in-memory store to disk (text-only, cheap). */
+  async persist(): Promise<void> {
     const dir = join(this.root, ".spexr");
     await mkdir(dir, { recursive: true });
     const obj: Record<string, StoredDescription> = {};
@@ -44,6 +58,12 @@ export class DescriptionsStore {
     await rename(tmp, this.path);
   }
 
+  /** Merge new entries and atomically persist the whole store. */
+  async merge(entries: Map<string, StoredDescription>): Promise<void> {
+    for (const [k, v] of entries) this.map.set(k, v);
+    await this.persist();
+  }
+
   /** Remove entries for the given paths and atomically persist. No-op if none of the paths exist in the store. */
   async removeMany(paths: string[]): Promise<void> {
     let changed = false;
@@ -51,12 +71,6 @@ export class DescriptionsStore {
       if (this.map.delete(p)) changed = true;
     }
     if (!changed) return;
-    const dir = join(this.root, ".spexr");
-    await mkdir(dir, { recursive: true });
-    const obj: Record<string, StoredDescription> = {};
-    for (const [k, v] of [...this.map.entries()].sort((a, b) => a[0].localeCompare(b[0]))) obj[k] = v;
-    const tmp = `${this.path}.${randomBytes(4).toString("hex")}.tmp`;
-    await writeFile(tmp, JSON.stringify(obj, null, 2), "utf8");
-    await rename(tmp, this.path);
+    await this.persist();
   }
 }

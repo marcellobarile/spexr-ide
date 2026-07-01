@@ -51,6 +51,26 @@ describe("DescriptionsStore", () => {
     expect(s.get("b.ts")).toBe("B");
   });
 
+  it("isPersisted/size reflect the on-disk file; persist() re-creates it after deletion", async () => {
+    const s = new DescriptionsStore(root);
+    await s.load();
+    expect(s.size).toBe(0);
+    expect(await s.isPersisted()).toBe(false);
+
+    await s.merge(new Map([["a.ts", { description: "A", category: "x" }]]));
+    expect(s.size).toBe(1);
+    expect(await s.isPersisted()).toBe(true);
+
+    // Simulate an external deletion of .spexr/ — memory keeps the entry.
+    await rm(join(root, ".spexr"), { recursive: true, force: true });
+    expect(await s.isPersisted()).toBe(false);
+
+    await s.persist();
+    expect(await s.isPersisted()).toBe(true);
+    const onDisk = JSON.parse(await readFile(join(root, ".spexr", "descriptions.json"), "utf8"));
+    expect(onDisk["a.ts"].description).toBe("A");
+  });
+
   it("load() clears stale entries when file is corrupt or missing", async () => {
     const s = new DescriptionsStore(root);
     await s.merge(new Map([["a.ts", { description: "A", category: "x" }]]));

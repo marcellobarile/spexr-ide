@@ -91,6 +91,11 @@ export interface SpexrSearchService {
   resumeDescriptionJob(root: string): Promise<void>;
   /** Current job status (idle if never started). */
   getDescriptionJobStatus(root: string): Promise<DescriptionJobStatus>;
+  /**
+   * Re-persist in-memory index/descriptions whose on-disk `.spexr/` copy vanished
+   * while the workspace is `ready`. Cheap write-back; no-op if files already exist.
+   */
+  persistIfMissing(root: string): Promise<void>;
   /** True if `.spexr/` is already ignored at the user's global git level. */
   isSpexrGloballyIgnored(): Promise<boolean>;
   /** Append `.spexr/` to the user's global git ignore; resolves true once it is present. */

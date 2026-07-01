@@ -47,6 +47,7 @@ export class SpexrSmartSearchContribution
   private changed = new Set<string>();
   private removed = new Set<string>();
   private readonly flush = debounce(() => void this.flushChanges(), 500);
+  private readonly restoreSpexr = debounce(() => void this.persistSpexr(), 500);
   private fileWatcher?: Disposable;
 
   private root(): string | undefined {
@@ -83,6 +84,7 @@ export class SpexrSmartSearchContribution
   onStop(): void {
     this.fileWatcher?.dispose();
     this.flush.cancel();
+    this.restoreSpexr.cancel();
   }
 
   registerCommands(commands: CommandRegistry): void {
@@ -144,9 +146,14 @@ export class SpexrSmartSearchContribution
       const rel = rootUri.relative(change.resource);
       if (!rel) continue;
       const path = rel.toString();
-      // Never react to SPEXR's own generated dir: the index + descriptions store write
+      // Never re-index SPEXR's own generated dir: the index + descriptions store write
       // there, and re-indexing our writes would re-save → re-trigger this watcher → loop.
-      if (path === ".spexr" || path.startsWith(".spexr/")) continue;
+      // But a DELETE of `.spexr/` means the on-disk cache vanished while we hold it in
+      // memory — ask the backend to re-persist it. ADD/UPDATE stay ignored (our own writes).
+      if (path === ".spexr" || path.startsWith(".spexr/")) {
+        if (change.type === 2) this.restoreSpexr();
+        continue;
+      }
       // FileChangeType: 0 UPDATED, 1 ADDED, 2 DELETED
       if (change.type === 2) {
         this.removed.add(path);
@@ -157,6 +164,11 @@ export class SpexrSmartSearchContribution
       }
     }
     this.flush();
+  }
+
+  private async persistSpexr(): Promise<void> {
+    const root = this.root();
+    if (root) await this.service.persistIfMissing(root);
   }
 
   private async flushChanges(): Promise<void> {

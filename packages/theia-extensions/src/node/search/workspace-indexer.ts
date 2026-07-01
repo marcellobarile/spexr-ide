@@ -167,6 +167,16 @@ export class WorkspaceIndexer {
     return join(this.root, INDEX_DIR, INDEX_FILE);
   }
 
+  /** True when the persisted index file exists on disk. */
+  async isPersisted(): Promise<boolean> {
+    try {
+      await stat(this.indexPath);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   /** Workspace-relative (POSIX) paths eligible for indexing. */
   async discover(): Promise<string[]> {
     let ignored: (relPath: string) => boolean = () => false;

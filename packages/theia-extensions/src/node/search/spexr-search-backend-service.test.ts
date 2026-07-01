@@ -265,3 +265,46 @@ describe("description job", () => {
     await readFile(join(root, ".spexr", "codebase-map.md"), "utf8");
   });
 });
+
+describe("persistIfMissing", () => {
+  it("re-persists the index and descriptions store after .spexr/ is deleted", async () => {
+    await writeFile(join(root, "auth.ts"), "export const token = 1;");
+    const service = new SpexrSearchBackendService(new FakeEmbedder(), new FakeGenerator((p) => `Gen: ${p}`));
+    service.setClient({ onDescriptionUpdate: () => undefined, onDescriptionJobProgress: () => undefined });
+    await service.ensureIndexed(root);
+    await waitReady(service);
+    // Populate the descriptions store so both artifacts exist on disk.
+    await service.startDescriptionJob(root, { regenerate: false });
+    for (let i = 0; i < 100 && (await service.getDescriptionJobStatus(root)).state !== "complete"; i++) {
+      await new Promise((r) => setTimeout(r, 10));
+    }
+    await readFile(join(root, ".spexr", "search-index.json"), "utf8");
+    await readFile(join(root, ".spexr", "descriptions.json"), "utf8");
+
+    // Simulate an external deletion of .spexr/ while the workspace stays "ready".
+    await rm(join(root, ".spexr"), { recursive: true, force: true });
+    expect((await service.getIndexStatus(root)).state).toBe("ready");
+
+    await service.persistIfMissing(root);
+
+    // Both files are restored from the in-memory state (throws if still missing).
+    await readFile(join(root, ".spexr", "search-index.json"), "utf8");
+    const restored = JSON.parse(await readFile(join(root, ".spexr", "descriptions.json"), "utf8"));
+    expect(restored["auth.ts"].description).toBe("Gen: auth.ts");
+  });
+
+  it("is a no-op for a root that was never indexed", async () => {
+    const service = new SpexrSearchBackendService(new FakeEmbedder(), noopGenerator());
+    await service.persistIfMissing(root); // must not throw
+    await expect(readFile(join(root, ".spexr", "search-index.json"), "utf8")).rejects.toThrow();
+  });
+
+  it("does not error when the on-disk index is already present", async () => {
+    await writeFile(join(root, "auth.ts"), "auth token");
+    const service = new SpexrSearchBackendService(new FakeEmbedder(), noopGenerator());
+    await service.ensureIndexed(root);
+    await waitReady(service);
+    await service.persistIfMissing(root); // index file already there → no-op, no throw
+    await readFile(join(root, ".spexr", "search-index.json"), "utf8");
+  });
+});
