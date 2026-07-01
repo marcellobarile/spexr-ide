@@ -1,5 +1,26 @@
 import type { IndexStatus } from "../../common/search-protocol.js";
 
+/**
+ * Workspace-relative paths of SPEXR's persisted artifacts. A DELETE of one of these
+ * (or of the `.spexr` dir) is a genuine cache loss worth restoring; `*.tmp` churn from
+ * our own atomic writes is deliberately excluded so the watcher never chases itself.
+ */
+const SPEXR_PERSISTED_ARTIFACTS: ReadonlySet<string> = new Set([
+  ".spexr",
+  ".spexr/search-index.json",
+  ".spexr/descriptions.json",
+]);
+
+/**
+ * True when a file-change event is a genuine loss of SPEXR's on-disk cache worth
+ * restoring — a DELETE (FileChangeType 2) of the `.spexr` dir or a persisted artifact.
+ * Deliberately false for `*.tmp` churn from our own atomic writes, so the watcher never
+ * chases its own tail (writeFile(tmp) → rename deletes tmp → delete event → restore → …).
+ */
+export function isSpexrCacheLoss(path: string, changeType: number): boolean {
+  return changeType === 2 && SPEXR_PERSISTED_ARTIFACTS.has(path);
+}
+
 export const CATEGORY_LABELS: Record<string, string> = {
   frontend: "Frontend",
   backend:  "Backend",

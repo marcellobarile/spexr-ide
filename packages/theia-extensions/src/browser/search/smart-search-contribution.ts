@@ -19,7 +19,7 @@ import type { Disposable } from "@theia/core/lib/common/disposable";
 import type { SpexrSearchService } from "../../common/search-protocol.js";
 import { SpexrSearchServiceProxy } from "./smart-search-service.js";
 import { SmartSearchWidget } from "./smart-search-widget.js";
-import { debounce } from "./smart-search-format.js";
+import { debounce, isSpexrCacheLoss } from "./smart-search-format.js";
 
 export const SmartSearchCommands = {
   REINDEX: { id: "spexr.search.reindex", label: "Smart Search: Reindex Workspace" } satisfies Command,
@@ -146,12 +146,14 @@ export class SpexrSmartSearchContribution
       const rel = rootUri.relative(change.resource);
       if (!rel) continue;
       const path = rel.toString();
-      // Never re-index SPEXR's own generated dir: the index + descriptions store write
-      // there, and re-indexing our writes would re-save → re-trigger this watcher → loop.
-      // But a DELETE of `.spexr/` means the on-disk cache vanished while we hold it in
-      // memory — ask the backend to re-persist it. ADD/UPDATE stay ignored (our own writes).
+      // Never re-index SPEXR's own generated dir. Our atomic writes churn it constantly:
+      // writeFile(`…​.tmp`) → rename(tmp, json) DELETES the tmp, so reacting to any
+      // `.spexr/` deletion would fire the restore on our own writes → re-save → loop.
+      // Restore ONLY on a genuine loss of the dir itself or a persisted artifact, and
+      // NEVER on a `*.tmp` (our own write). Even then persistIfMissing re-stats and is a
+      // no-op if the file is actually present (e.g. a rename seen as delete+create).
       if (path === ".spexr" || path.startsWith(".spexr/")) {
-        if (change.type === 2) this.restoreSpexr();
+        if (isSpexrCacheLoss(path, change.type)) this.restoreSpexr();
         continue;
       }
       // FileChangeType: 0 UPDATED, 1 ADDED, 2 DELETED
@@ -166,9 +168,17 @@ export class SpexrSmartSearchContribution
     this.flush();
   }
 
+  private restoring = false;
   private async persistSpexr(): Promise<void> {
+    if (this.restoring) return; // guard against overlapping restores re-entering via events
     const root = this.root();
-    if (root) await this.service.persistIfMissing(root);
+    if (!root) return;
+    this.restoring = true;
+    try {
+      await this.service.persistIfMissing(root);
+    } finally {
+      this.restoring = false;
+    }
   }
 
   private async flushChanges(): Promise<void> {

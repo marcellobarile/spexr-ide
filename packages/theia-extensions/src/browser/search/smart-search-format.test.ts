@@ -1,5 +1,30 @@
 import { describe, expect, it, vi } from "vitest";
-import { formatScore, statusLabel, debounce } from "./smart-search-format.js";
+import { formatScore, statusLabel, debounce, isSpexrCacheLoss } from "./smart-search-format.js";
+
+describe("isSpexrCacheLoss", () => {
+  // FileChangeType: 0 UPDATED, 1 ADDED, 2 DELETED
+  it("is true for a DELETE of the .spexr dir or a persisted artifact", () => {
+    expect(isSpexrCacheLoss(".spexr", 2)).toBe(true);
+    expect(isSpexrCacheLoss(".spexr/search-index.json", 2)).toBe(true);
+    expect(isSpexrCacheLoss(".spexr/descriptions.json", 2)).toBe(true);
+  });
+
+  it("is false for our own *.tmp churn (regression: watcher must not chase its own writes)", () => {
+    expect(isSpexrCacheLoss(".spexr/search-index.json.1a2b3c4d.tmp", 2)).toBe(false);
+    expect(isSpexrCacheLoss(".spexr/descriptions.json.deadbeef.tmp", 2)).toBe(false);
+  });
+
+  it("is false for ADD/UPDATE of persisted artifacts (only deletions are cache loss)", () => {
+    expect(isSpexrCacheLoss(".spexr/search-index.json", 1)).toBe(false);
+    expect(isSpexrCacheLoss(".spexr/search-index.json", 0)).toBe(false);
+    expect(isSpexrCacheLoss(".spexr", 1)).toBe(false);
+  });
+
+  it("is false for unrelated paths and other .spexr children", () => {
+    expect(isSpexrCacheLoss("src/app.ts", 2)).toBe(false);
+    expect(isSpexrCacheLoss(".spexr/codebase-map.md", 2)).toBe(false);
+  });
+});
 
 describe("formatScore", () => {
   it("renders a similarity as a rounded percentage", () => {
