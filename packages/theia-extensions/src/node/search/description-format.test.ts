@@ -2,18 +2,18 @@ import { describe, expect, it } from "vitest";
 import { buildPrompt, buildSymbolSummary, cleanGenerated, DESCRIPTION_SYSTEM_PROMPT } from "./description-format.js";
 
 describe("cleanGenerated", () => {
-  it("keeps one line and caps at 120 chars", () => {
+  it("keeps only the first non-empty line", () => {
     expect(cleanGenerated("Handles auth.\nExtra.")).toBe("Handles auth.");
-    expect(cleanGenerated("x".repeat(200))).toHaveLength(120);
+    expect(cleanGenerated("\n\n  Does X.  \nmore")).toBe("Does X.");
   });
   it("trims surrounding whitespace and quotes", () => {
     expect(cleanGenerated('  "Does X."  ')).toBe("Does X.");
   });
-  it("truncates over-long text on a word boundary with an ellipsis", () => {
+  it("does not truncate or append an ellipsis (model output is length-bounded)", () => {
     const long = "word ".repeat(40).trim();
     const out = cleanGenerated(long);
-    expect(out.length).toBeLessThanOrEqual(120);
-    expect(out.endsWith("word…")).toBe(true);
+    expect(out).toBe(long);
+    expect(out).not.toContain("…");
   });
 });
 

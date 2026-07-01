@@ -305,18 +305,26 @@ export class SmartSearchWidget extends ReactWidget {
   private renderDesc(hit: SearchHit): React.ReactNode {
     const ai = this.aiText.get(hit.path);
     const pending = this.aiPending.has(hit.path);
+    // While the AI description is generating, show a skeleton where it will land
+    // instead of a placeholder or the weaker static text.
+    if (pending && this.aiEnabled()) {
+      return (
+        <div className="spexr-smart-search__hit-desc">
+          <span className="spexr-smart-search__ai-icon spexr-smart-search__ai-icon--pulsing" title="L'AI sta generando una descrizione del file…">✦</span>
+          <span className="spexr-smart-search__desc-skeleton" aria-hidden="true">
+            <span className="spexr-smart-search__skeleton-line" />
+            <span className="spexr-smart-search__skeleton-line spexr-smart-search__skeleton-line--short" />
+          </span>
+        </div>
+      );
+    }
     const text = (ai && ai.length > 0 ? ai : undefined) ?? hit.description;
-    if (!text && !pending) return null;
-    const showIcon = this.aiEnabled() && (pending || ai !== undefined);
-    const iconClass =
-      "spexr-smart-search__ai-icon" + (pending ? " spexr-smart-search__ai-icon--pulsing" : "");
-    const iconTitle = pending
-      ? "L'AI sta generando una descrizione del file…"
-      : "Descrizione generata dall'AI";
+    if (!text) return null;
+    const showIcon = this.aiEnabled() && ai !== undefined;
     return (
       <div className="spexr-smart-search__hit-desc">
-        {showIcon && <span className={iconClass} title={iconTitle}>✦</span>}
-        {text}
+        {showIcon && <span className="spexr-smart-search__ai-icon" title="Descrizione generata dall'AI">✦</span>}
+        <span className="spexr-smart-search__desc-text">{text}</span>
       </div>
     );
   }

@@ -7,7 +7,6 @@
 // is large — the 1.5B grounds descriptions in the actual symbols/API instead of the
 // 0.5B's generic guesses. Model file is ~1.9GB q4 (delivery: see search-model-delivery).
 export const GEN_MODEL_ID = "onnx-community/Qwen2.5-Coder-1.5B-Instruct";
-export const MAX_DESC_CHARS = 120;
 export const MAX_NEW_TOKENS = 40;
 
 /**
@@ -201,13 +200,11 @@ export function buildPrompt(relPath: string, content: string): string {
   return `File: ${relPath}\n${summary}\n\nDescribe what this file does in one short sentence (max 15 words).`;
 }
 
+/**
+ * First non-empty line, quote-stripped. No length truncation — `max_new_tokens`
+ * already bounds the model output, and the UI shows descriptions in full.
+ */
 export function cleanGenerated(raw: string): string {
   const firstLine = raw.split("\n").map((l) => l.trim()).find((l) => l.length > 0) ?? "";
-  const stripped = firstLine.replace(/^["'`]+|["'`]+$/g, "").trim();
-  if (stripped.length <= MAX_DESC_CHARS) return stripped;
-  // Truncate on a word boundary and mark the cut, rather than slicing mid-word.
-  const cut = stripped.slice(0, MAX_DESC_CHARS - 1);
-  const lastSpace = cut.lastIndexOf(" ");
-  const body = lastSpace > 40 ? cut.slice(0, lastSpace) : cut;
-  return body.replace(/[.,;:]+$/, "") + "…";
+  return firstLine.replace(/^["'`]+|["'`]+$/g, "").trim();
 }
