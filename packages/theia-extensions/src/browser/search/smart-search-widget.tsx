@@ -372,7 +372,10 @@ export class SmartSearchWidget extends ReactWidget {
         {this.status.state === "indexing"
           ? this.renderIndexingProgress()
           : this.status.state === "ready"
-            ? <div className="spexr-smart-search__status--ready"><span className="spexr-smart-search__led" /><span>Ready</span></div>
+            ? <div className="spexr-smart-search__status--ready">
+                <span className="spexr-smart-search__signal" aria-hidden="true" />
+                <span className="spexr-smart-search__signal-label">ready</span>
+              </div>
             : <div className="spexr-smart-search__status">{statusLabel(this.status)}</div>
         }
         {this.query.trim().length > 0 && this.renderAiProgress()}
@@ -386,39 +389,36 @@ export class SmartSearchWidget extends ReactWidget {
     const { state, done, total } = this.jobStatus;
     const running = state === "running";
     const paused = state === "paused";
+    const idle = !running && !paused;
     const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+    const label = running ? "Pause" : paused ? "Resume" : "Understand the codebase";
+    const onClick = running ? this.pauseMap : paused ? this.resumeMap : () => void this.startMap(false);
+    const title = running
+      ? "Pause understanding"
+      : paused
+        ? "Resume understanding"
+        : "Generate AI descriptions for the whole codebase using the local model";
     return (
       <div className="spexr-smart-search__map">
         <div className="spexr-smart-search__map-row">
-          {running ? (
-            <button className="spexr-smart-search__map-cta" onClick={this.pauseMap} title="Pause understanding">
-              ✦ Pause
-            </button>
-          ) : paused ? (
-            <button className="spexr-smart-search__map-cta" onClick={this.resumeMap} title="Resume understanding">
-              ✦ Resume
-            </button>
-          ) : (
-            <button className="spexr-smart-search__map-cta" onClick={() => void this.startMap(false)} title="Generate AI descriptions for the whole codebase using the local model">
-              ✦ Understand the codebase
-            </button>
-          )}
-          <span
-            className="spexr-smart-search__map-info"
-            title="Pre-compute AI descriptions for every file so search is instant and agents can orient in the codebase."
-          >
-            ⓘ
-          </span>
-          {(state === "idle" || state === "complete") && (
+          <button className="spexr-smart-search__map-cta" onClick={onClick} title={title}>
+            <span className="spexr-smart-search__map-glyph" aria-hidden="true">✦</span>
+            <span className="spexr-smart-search__map-label">{label}</span>
+          </button>
+          {idle && (
             <button
               className="spexr-smart-search__map-regen"
               onClick={() => void this.startMap(true)}
               title="Regenerate all descriptions"
+              aria-label="Regenerate all descriptions"
             >
               ↻
             </button>
           )}
         </div>
+        {idle && (
+          <div className="spexr-smart-search__map-sub">Local AI map · search + agents</div>
+        )}
         {(running || paused) && (
           <div className="spexr-smart-search__map-progress">
             <span className="spexr-smart-search__map-track">

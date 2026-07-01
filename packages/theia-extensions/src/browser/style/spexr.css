@@ -1907,22 +1907,38 @@ code {
 .spexr-smart-search__status--ready {
   display: flex;
   align-items: center;
-  gap: 5px;
-  font-size: 11px;
-  opacity: 0.8;
+  gap: var(--spexr-space-2);
+  padding: 2px;
 }
-.spexr-smart-search__led {
+/* Accent "signal": a solid core with a breathing halo ring that expands and fades.
+   Matches the widget accent (was a mismatched hardcoded purple LED). */
+.spexr-smart-search__signal {
+  position: relative;
   flex-shrink: 0;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #a855f7;
-  box-shadow: 0 0 4px 1px rgba(168, 85, 247, 0.6), 0 0 8px 2px rgba(168, 85, 247, 0.25);
-  animation: spexr-led-pulse 2.4s ease-in-out infinite;
+  width: 7px;
+  height: 7px;
+  border-radius: var(--spexr-radius-pill);
+  background: var(--spexr-accent-default);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--spexr-accent-default) 55%, transparent);
 }
-@keyframes spexr-led-pulse {
-  0%, 100% { opacity: 1; box-shadow: 0 0 4px 1px rgba(168, 85, 247, 0.6), 0 0 8px 2px rgba(168, 85, 247, 0.25); }
-  50%       { opacity: 0.65; box-shadow: 0 0 2px 0px rgba(168, 85, 247, 0.3), 0 0 5px 1px rgba(168, 85, 247, 0.12); }
+.spexr-smart-search__signal::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: var(--spexr-radius-pill);
+  border: 1px solid var(--spexr-accent-default);
+  animation: spexr-signal-breathe 2.4s ease-in-out infinite;
+}
+@keyframes spexr-signal-breathe {
+  0%, 100% { transform: scale(0.65); opacity: 0.55; }
+  50%      { transform: scale(1.3); opacity: 0; }
+}
+.spexr-smart-search__signal-label {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--spexr-text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .spexr-smart-search__progress { display: flex; flex-direction: column; gap: 4px; }
@@ -2100,63 +2116,147 @@ code {
   100% { transform: translateX(250%); }
 }
 .spexr-smart-search__map {
-  padding: var(--spexr-space-1) 6px var(--spexr-space-2); /* TODO token: 6px has no --spexr-space-* equivalent */
+  padding: var(--spexr-space-1) var(--spexr-space-2) var(--spexr-space-2);
 }
 .spexr-smart-search__map-row {
   display: flex;
   align-items: center;
-  gap: 6px; /* TODO token: 6px has no --spexr-space-* equivalent */
+  gap: var(--spexr-space-1);
 }
+/* Primary action: an "aurora" gradient border that slowly sweeps, on a flat surface
+   fill. Built with padding-box/border-box layered gradients so the border animates
+   without a pseudo-element. */
 .spexr-smart-search__map-cta {
   flex: 1;
-  border: 1px solid var(--spexr-accent-default);
-  background: transparent;
-  color: var(--spexr-accent-default);
-  border-radius: var(--spexr-radius-sm);
-  padding: var(--spexr-space-1) var(--spexr-space-2);
+  display: flex;
+  align-items: center;
+  gap: var(--spexr-space-2);
+  min-width: 0;
+  border: 1px solid transparent;
+  border-radius: var(--spexr-radius-md);
+  padding: var(--spexr-space-2) var(--spexr-space-3);
+  color: var(--spexr-text-primary);
   font-size: var(--spexr-text-xs);
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  background:
+    linear-gradient(var(--spexr-bg-surface), var(--spexr-bg-surface)) padding-box,
+    linear-gradient(
+      100deg,
+      var(--spexr-accent-subtle),
+      var(--spexr-accent-default),
+      var(--spexr-accent-hover),
+      var(--spexr-accent-default),
+      var(--spexr-accent-subtle)
+    ) border-box;
+  background-size: 100% 100%, 300% 100%;
+  background-position: 0 0, 0 0;
+  animation: spexr-aurora-sweep 6s linear infinite;
+  transition:
+    transform var(--spexr-motion-fast) var(--spexr-ease),
+    box-shadow var(--spexr-motion-mid) var(--spexr-ease);
 }
 .spexr-smart-search__map-cta:hover {
-  background: var(--spexr-accent-hover);
-  color: var(--spexr-text-on-accent);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--spexr-accent-default) 22%, transparent);
 }
-.spexr-smart-search__map-info,
+.spexr-smart-search__map-cta:active {
+  transform: translateY(0);
+}
+@keyframes spexr-aurora-sweep {
+  0%   { background-position: 0 0, 0% 0; }
+  100% { background-position: 0 0, 300% 0; }
+}
+.spexr-smart-search__map-glyph {
+  flex-shrink: 0;
+  color: var(--spexr-accent-default);
+  font-size: var(--spexr-text-sm);
+  line-height: 1;
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--spexr-accent-default) 45%, transparent));
+  animation: spexr-glyph-breathe 2.4s ease-in-out infinite;
+}
+@keyframes spexr-glyph-breathe {
+  0%, 100% { opacity: 0.85; filter: drop-shadow(0 0 3px color-mix(in srgb, var(--spexr-accent-default) 30%, transparent)); }
+  50%      { opacity: 1;    filter: drop-shadow(0 0 8px color-mix(in srgb, var(--spexr-accent-default) 70%, transparent)); }
+}
+.spexr-smart-search__map-label {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Regen: a ghost icon-button that only surfaces on hover/focus, keeping the resting
+   state uncluttered. */
 .spexr-smart-search__map-regen {
-  opacity: 0.6;
-  cursor: pointer;
-  font-size: var(--spexr-text-xs);
-  background: none;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: none;
-  color: inherit;
+  border-radius: var(--spexr-radius-sm);
+  background: none;
+  color: var(--spexr-text-muted);
+  font-size: var(--spexr-text-sm);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity var(--spexr-motion-mid) var(--spexr-ease),
+    color var(--spexr-motion-fast) var(--spexr-ease),
+    background var(--spexr-motion-fast) var(--spexr-ease);
 }
-.spexr-smart-search__map-info:hover,
-.spexr-smart-search__map-regen:hover {
+.spexr-smart-search__map:hover .spexr-smart-search__map-regen,
+.spexr-smart-search__map-regen:focus-visible {
   opacity: 1;
+}
+.spexr-smart-search__map-regen:hover {
+  color: var(--spexr-accent-default);
+  background: var(--spexr-accent-subtle);
+}
+.spexr-smart-search__map-sub {
+  margin-top: var(--spexr-space-1);
+  padding-left: 2px;
+  font-size: var(--spexr-text-xs);
+  color: var(--spexr-text-muted);
+  letter-spacing: 0.02em;
 }
 .spexr-smart-search__map-progress {
   display: flex;
   align-items: center;
-  gap: 6px; /* TODO token: 6px has no --spexr-space-* equivalent */
-  margin-top: 6px; /* TODO token: 6px has no --spexr-space-* equivalent */
+  gap: var(--spexr-space-2);
+  margin-top: var(--spexr-space-2);
   font-size: var(--spexr-text-xs);
 }
 .spexr-smart-search__map-track {
   flex: 1;
   height: 3px;
-  border-radius: 2px; /* TODO token: no --spexr-radius-* for 2px */
+  border-radius: var(--spexr-radius-pill);
   background: var(--spexr-accent-subtle);
   overflow: hidden;
 }
 .spexr-smart-search__map-fill {
   display: block;
   height: 100%;
-  background: var(--spexr-accent-default);
-  transition: width 0.3s ease;
+  border-radius: var(--spexr-radius-pill);
+  background: linear-gradient(90deg, var(--spexr-accent-default), var(--spexr-accent-hover));
+  transition: width var(--spexr-motion-slow) var(--spexr-ease);
+}
+.spexr-smart-search__map-count {
+  font-variant-numeric: tabular-nums;
+  color: var(--spexr-text-muted);
 }
 .spexr-smart-search__map-error {
-  margin-top: 6px; /* TODO token: 6px has no --spexr-space-* equivalent */
+  margin-top: var(--spexr-space-2);
   font-size: var(--spexr-text-xs);
   color: var(--spexr-status-danger);
+}
+@media (prefers-reduced-motion: reduce) {
+  .spexr-smart-search__map-cta,
+  .spexr-smart-search__map-glyph,
+  .spexr-smart-search__signal::after {
+    animation: none;
+  }
 }
