@@ -12,7 +12,8 @@
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "clean": "rm -rf lib .turbo *.tsbuildinfo"
+    "clean": "rm -rf lib .turbo *.tsbuildinfo",
+    "fetch-model": "node scripts/fetch-search-model.mjs"
   },
   "theiaExtensions": [
     {
@@ -47,8 +48,10 @@
     "@theia/userstorage": "^1.71.0",
     "@theia/variable-resolver": "^1.71.0",
     "@theia/workspace": "^1.71.0",
+    "@huggingface/transformers": "^4.2.0",
     "dompurify": "^3.0.0",
     "highlight.js": "^11.11.1",
+    "ignore": "^7.0.0",
     "marked": "^14.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

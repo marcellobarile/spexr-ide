@@ -22,7 +22,7 @@ import {
   SPEXR_EXPERTS_ACTIVE_ID_PREFERENCE,
 } from "../preferences/spexr-preferences.js";
 
-const CLAUDE_TERMINAL_ID = "spexr-claude";
+export const CLAUDE_TERMINAL_ID = "spexr-claude";
 
 /** Wrap an argument in single quotes for safe inclusion in a shell command. */
 function shellQuote(arg: string): string {
@@ -434,7 +434,7 @@ export class ClaudeTerminalManager {
       return;
     }
     if (this.placement === "left") {
-      await this.shell.addWidget(term, { area: "main" });
+      await this.shell.addWidget(term, { area: "main", rank: 2 });
       await this.shell.activateWidget(term.id);
       this.placement = "main";
     } else {

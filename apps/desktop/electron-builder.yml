@@ -23,6 +23,7 @@ files:
   - "!**/*.tsbuildinfo"
   - "!node_modules/@spexr/*/src/**"
   - "!**/{.eslintrc*,.prettierrc*,tsconfig*,.editorconfig}"
+  - "node_modules/@spexr/theia-extensions/resources/models/**"
 extraMetadata:
   main: src-gen/backend/electron-main.js
 asar: true
@@ -30,6 +31,7 @@ asarUnpack:
   - "node_modules/**/*.{node,dll,dylib,so}"
   - "node_modules/node-pty/**/*"
   - "node_modules/nsfw/**/*"
+  - "node_modules/@spexr/theia-extensions/resources/models/**"
 afterSign: build/after-sign.js
 
 mac:

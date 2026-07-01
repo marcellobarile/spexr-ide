@@ -1,7 +1,6 @@
 import { injectable, inject } from "@theia/core/shared/inversify";
-import { Disposable } from "@theia/core";
 import type { Resource, ResourceResolver } from "@theia/core/lib/common/resource";
-import URI from "@theia/core/lib/common/uri";
+import type URI from "@theia/core/lib/common/uri";
 import { SpexrGitServiceProxySymbol } from "./git-service-proxy.js";
 import type { SpexrGitService } from "../../common/git-protocol.js";
 

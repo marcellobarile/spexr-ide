@@ -75,4 +75,10 @@ export interface SpexrGitService {
   getBlame(root: string, filePath: string): Promise<BlameResultDto>;
   /** Normalized https URL of the `origin` remote, or undefined if none. */
   getRemoteUrl(root: string): Promise<string | undefined>;
+  /**
+   * Workspace-relative paths ignored by git — honoring the repo `.gitignore`
+   * (including nested ones), the global `core.excludesFile`, and `.git/info/exclude`.
+   * Fully-ignored directories are collapsed to a single entry ending in `/`.
+   */
+  getIgnoredPaths(root: string): Promise<string[]>;
 }

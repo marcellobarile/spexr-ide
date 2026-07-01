@@ -60,6 +60,7 @@ import { LanguageGrammarDefinitionContribution } from "@theia/monaco/lib/browser
 import { AboutDialog } from "@theia/core/lib/browser/about-dialog.js";
 import { SpexrAboutDialog } from "./about/spexr-about-dialog.js";
 import { SpexrGitScmProvider } from "./scm/git-scm-provider.js";
+import { GitIgnoredDecorationProvider } from "./scm/git-ignored-decoration-provider.js";
 import { SpexrGitServiceProxySymbol, GIT_SERVICE_PATH } from "./scm/git-service-proxy.js";
 import { SpexrGitCommandsContribution } from "./scm/git-commands-contribution.js";
 import { SpexrGitToolbarContribution } from "./scm/git-toolbar-contribution.js";
@@ -67,6 +68,14 @@ import { GitOriginalResourceResolver } from "./scm/git-original-resource.js";
 import { ResourceResolver } from "@theia/core/lib/common/resource";
 import { SpexrGitBlameDecorator } from "./blame/blame-decorator.js";
 import { SpexrGitBlameCommandsContribution } from "./blame/blame-commands-contribution.js";
+import {
+  SpexrSmartSearchContribution,
+  bindSmartSearchWidgetFactory,
+} from "./search/smart-search-contribution.js";
+import { SmartSearchWidget } from "./search/smart-search-widget.js";
+import { SpexrSearchServiceProxy, SEARCH_SERVICE_PATH } from "./search/smart-search-service.js";
+import { SpexrSearchClientDispatcher, SpexrSearchClientToken } from "./search/smart-search-client.js";
+import { DescriptionJobStatusBarContribution } from "./search/description-job-status-bar-contribution.js";
 
 /**
  * Frontend contributions for SPEXR. Theia handles DI via Inversify and
@@ -197,6 +206,9 @@ export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
   bind(SpexrGitScmProvider).toSelf().inSingletonScope();
   bind(FrontendApplicationContribution).toService(SpexrGitScmProvider);
 
+  bind(GitIgnoredDecorationProvider).toSelf().inSingletonScope();
+  bind(FrontendApplicationContribution).toService(GitIgnoredDecorationProvider);
+
   bind(SpexrGitCommandsContribution).toSelf().inSingletonScope();
   bind(CommandContribution).toService(SpexrGitCommandsContribution);
 
@@ -213,4 +225,27 @@ export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
   bind(CommandContribution).toService(SpexrGitBlameCommandsContribution);
   bind(KeybindingContribution).toService(SpexrGitBlameCommandsContribution);
   bind(MenuContribution).toService(SpexrGitBlameCommandsContribution);
+
+  // --- Smart Search ---
+  bind(SpexrSearchClientDispatcher).toSelf().inSingletonScope();
+  bind(SpexrSearchClientToken).toService(SpexrSearchClientDispatcher);
+  bind(SpexrSearchServiceProxy)
+    .toDynamicValue((ctx) => {
+      const connection = ctx.container.get(WebSocketConnectionProvider);
+      const client = ctx.container.get(SpexrSearchClientDispatcher);
+      return connection.createProxy(SEARCH_SERVICE_PATH, client);
+    })
+    .inSingletonScope();
+  bindSmartSearchWidgetFactory(bind);
+  bind(WidgetFactory)
+    .toDynamicValue((ctx) => ({
+      id: SmartSearchWidget.ID,
+      createWidget: () => ctx.container.get(SmartSearchWidget),
+    }))
+    .inSingletonScope();
+  bind(SpexrSmartSearchContribution).toSelf().inSingletonScope();
+  bind(FrontendApplicationContribution).toService(SpexrSmartSearchContribution);
+  bind(CommandContribution).toService(SpexrSmartSearchContribution);
+  bind(DescriptionJobStatusBarContribution).toSelf().inSingletonScope();
+  bind(FrontendApplicationContribution).toService(DescriptionJobStatusBarContribution);
 });

@@ -161,7 +161,6 @@ export class SpexrSpecPreviewWidget extends ReactWidget {
       <div className="spexr-spec-preview" aria-label={`Preview: ${this.state.title}`}>
         <div
           className="spexr-spec-preview__body"
-          // eslint-disable-next-line react/no-danger
           dangerouslySetInnerHTML={{ __html: this.state.html }}
         />
       </div>

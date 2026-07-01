@@ -45,6 +45,18 @@ export const SPEXR_CLAUDE_PROFILE_ID_PREFERENCE = "spexr.claude.profileId";
  */
 export const SPEXR_EXPERTS_ACTIVE_ID_PREFERENCE = "spexr.experts.activeId";
 
+/**
+ * Toggle for locally-generated AI file descriptions in search results.
+ * On by default. Off shows heuristic descriptions only and skips the local model.
+ */
+export const SPEXR_SEARCH_AI_DESCRIPTIONS_PREFERENCE = "spexr.search.aiDescriptions.enabled";
+
+/**
+ * Whether we have already asked the user about adding `.spexr/` to their global git
+ * ignore. Set once (either answer) so the one-time consent prompt never repeats.
+ */
+export const SPEXR_SEARCH_GLOBAL_IGNORE_PROMPTED = "spexr.search.globalIgnore.prompted";
+
 const SpexrPreferencesSchema: PreferenceSchema = {
   properties: {
     [SPEXR_CLAUDE_EXECUTABLE_PREFERENCE]: {
@@ -82,6 +94,20 @@ const SpexrPreferencesSchema: PreferenceSchema = {
       description:
         "ID of the active expert persona for this workspace. Empty means no expert " +
         "(base prompt). Set when launching an expert session. Folder-scoped.",
+    },
+    [SPEXR_SEARCH_GLOBAL_IGNORE_PROMPTED]: {
+      type: "boolean",
+      default: false,
+      description:
+        "Internal: set once the user has been asked whether to add `.spexr/` to their " +
+        "global git ignore, so the consent prompt is shown only once.",
+    },
+    [SPEXR_SEARCH_AI_DESCRIPTIONS_PREFERENCE]: {
+      type: "boolean",
+      default: true,
+      description:
+        "Generate AI file descriptions locally for search results. " +
+        "Turn off to skip the local model and show heuristic descriptions only.",
     },
   },
 };

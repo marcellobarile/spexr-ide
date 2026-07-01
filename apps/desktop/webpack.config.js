@@ -15,6 +15,19 @@ configs[0].module.rules.push({
     loader: require.resolve('@theia/application-manager/lib/expose-loader')
 }); */
 
+// onnxruntime-node ships multiple platform-specific .node binaries with the
+// same filename, which causes a webpack emit conflict. Externalise it so the
+// backend requires it at runtime from node_modules instead.
+//
+// sharp is an optional dependency of @huggingface/transformers, pulled in only
+// by image pipelines we never use (we run feature-extraction + text-generation).
+// Bundling it makes webpack choke on sharp's platform-specific @img/* sub-packages.
+// Externalise it so it is resolved lazily at runtime from node_modules.
+nodeConfig.config.externals = Object.assign({}, nodeConfig.config.externals, {
+    'onnxruntime-node': 'commonjs onnxruntime-node',
+    'sharp': 'commonjs sharp',
+});
+
 module.exports = [
     ...configs,
     nodeConfig.config

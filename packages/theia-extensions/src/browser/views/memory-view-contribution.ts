@@ -1,6 +1,6 @@
 import { injectable } from "@theia/core/shared/inversify";
 import { AbstractViewContribution } from "@theia/core/lib/browser";
-import { SpexrMemoryWidget } from "./memory-widget.js";
+import type { SpexrMemoryWidget } from "./memory-widget.js";
 
 export const MEMORY_VIEW_ID = "spexr.view.memory";
 

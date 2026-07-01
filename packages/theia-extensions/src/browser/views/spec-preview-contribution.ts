@@ -4,8 +4,9 @@ import {
   ApplicationShell,
   type Widget,
 } from "@theia/core/lib/browser";
+import type {
+  CommandContribution} from "@theia/core/lib/common/command";
 import {
-  CommandContribution,
   type CommandRegistry,
   type Command,
 } from "@theia/core/lib/common/command";
