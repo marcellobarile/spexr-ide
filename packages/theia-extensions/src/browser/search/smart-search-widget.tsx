@@ -417,7 +417,7 @@ export class SmartSearchWidget extends ReactWidget {
           )}
         </div>
         {idle && (
-          <div className="spexr-smart-search__map-sub">Local AI map · search + agents</div>
+          <div className="spexr-smart-search__map-sub">Summarize every file, on-device</div>
         )}
         {(running || paused) && (
           <div className="spexr-smart-search__map-progress">
