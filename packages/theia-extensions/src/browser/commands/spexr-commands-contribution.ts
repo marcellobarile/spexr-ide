@@ -1393,7 +1393,6 @@ export class SpexrCommandsContribution implements CommandContribution, MenuContr
     try {
       const root = await this.resolveSpecTarget();
       if (!root) return;
-      console.log("[spexr] createSpec target", root.uri.toString(), "openAfter", root.openAfter);
 
       const slug = await this.quickInput.input({
         prompt: "Spec slug (lowercase, hyphens, e.g. user-onboarding)",
@@ -1417,15 +1416,12 @@ export class SpexrCommandsContribution implements CommandContribution, MenuContr
       const fileUri = specsDir(root.uri).resolve(filename);
       const today = new Date().toISOString().slice(0, 10);
       const content = SPEC_TEMPLATE(`${padded}-${slug}`, title || slug, today);
-      console.log("[spexr] createSpec writing", fileUri.toString());
 
       await this.scaffoldSpexrDir(root.uri);
-      const stat = await this.fileService.create(fileUri, content, { overwrite: false });
-      console.log("[spexr] createSpec wrote", stat.resource.toString(), "size", stat.size);
+      await this.fileService.create(fileUri, content, { overwrite: false });
       this.messages.info(`Created ${filename}`);
 
       if (root.openAfter) {
-        console.log("[spexr] createSpec opening workspace", root.uri.toString());
         this.workspace.open(root.uri);
       } else {
         await this.openSpec(fileUri);

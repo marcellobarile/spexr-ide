@@ -1,7 +1,8 @@
 import { injectable, inject } from "@theia/core/shared/inversify";
 import { Emitter, DisposableCollection } from "@theia/core";
 import type { Event } from "@theia/core";
-import { FrontendApplicationContribution, OpenerService, open } from "@theia/core/lib/browser";
+import type { FrontendApplicationContribution} from "@theia/core/lib/browser";
+import { OpenerService, open } from "@theia/core/lib/browser";
 import { DiffUris } from "@theia/core/lib/browser/diff-uris";
 import URI from "@theia/core/lib/common/uri";
 import { FileService } from "@theia/filesystem/lib/browser/file-service";

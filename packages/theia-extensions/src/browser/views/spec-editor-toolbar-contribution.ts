@@ -1,6 +1,6 @@
 import { injectable, inject } from "@theia/core/shared/inversify";
-import { Widget } from "@theia/core/shared/@lumino/widgets";
-import {
+import type { Widget } from "@theia/core/shared/@lumino/widgets";
+import type {
   TabBarToolbarContribution,
   TabBarToolbarRegistry,
 } from "@theia/core/lib/browser/shell/tab-bar-toolbar";

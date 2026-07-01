@@ -1,5 +1,5 @@
 import { injectable, inject } from "@theia/core/shared/inversify";
-import { FrontendApplicationContribution } from "@theia/core/lib/browser";
+import type { FrontendApplicationContribution } from "@theia/core/lib/browser";
 import { MessageService } from "@theia/core";
 import { FileService } from "@theia/filesystem/lib/browser/file-service";
 import { type FileOperationEvent } from "@theia/filesystem/lib/common/files";
@@ -8,7 +8,7 @@ import { type FileOperationEvent } from "@theia/filesystem/lib/common/files";
 // runtime value under `isolatedModules`. Mirror the relevant member here.
 const FILE_OPERATION_MOVE = 2;
 import { WorkspaceService } from "@theia/workspace/lib/browser";
-import URI from "@theia/core/lib/common/uri";
+import type URI from "@theia/core/lib/common/uri";
 import { allSpecsDirs, SPEC_CONTEXT_DIR } from "../workspace-paths.js";
 
 const SPEC_FILE_RE = /^(\d{4})-([a-z0-9][a-z0-9-]*)\.md$/;

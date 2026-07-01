@@ -1,6 +1,6 @@
 import { injectable } from "@theia/core/shared/inversify";
 import { AbstractViewContribution } from "@theia/core/lib/browser";
-import { SpexrWelcomeWidget } from "./welcome-widget.js";
+import type { SpexrWelcomeWidget } from "./welcome-widget.js";
 
 export const WELCOME_VIEW_ID = "spexr.view.welcome";
 

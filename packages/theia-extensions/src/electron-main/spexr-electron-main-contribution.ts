@@ -1,6 +1,7 @@
 import { injectable } from "@theia/core/shared/inversify";
 import { app, BrowserWindow, dialog, ipcMain, shell } from "@theia/core/electron-shared/electron";
-import { ElectronMainApplicationContribution } from "@theia/core/lib/electron-main/electron-main-application";
+import type * as HttpsModule from "node:https";
+import type { ElectronMainApplicationContribution } from "@theia/core/lib/electron-main/electron-main-application";
 
 const CHANNEL_SHOW_OPEN = "ShowOpenDialog";
 
@@ -51,8 +52,7 @@ export class SpexrElectronMainContribution implements ElectronMainApplicationCon
   }
 
   private checkForUpdate(): void {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const https = require("https") as typeof import("https");
+    const https = require("https") as typeof HttpsModule;
     const currentVersion = app.getVersion();
 
     const req = https.get(

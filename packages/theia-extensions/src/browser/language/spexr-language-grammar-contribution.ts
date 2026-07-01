@@ -1,7 +1,7 @@
 import { injectable } from "@theia/core/shared/inversify";
-import { FrontendApplicationContribution } from "@theia/core/lib/browser";
+import type { FrontendApplicationContribution } from "@theia/core/lib/browser";
 import * as monaco from "@theia/monaco-editor-core";
-import { LanguageGrammarDefinitionContribution } from "@theia/monaco/lib/browser/textmate/textmate-contribution.js";
+import type { LanguageGrammarDefinitionContribution } from "@theia/monaco/lib/browser/textmate/textmate-contribution.js";
 import type { TextmateRegistry } from "@theia/monaco/lib/browser/textmate/textmate-registry.js";
 
 interface LangDef {
@@ -15,7 +15,7 @@ interface LangDef {
 
 // require() avoids ESM interop wrapping — JSON is returned directly as an object.
 // Webpack statically analyzes each require("string-literal") and bundles the file.
-/* eslint-disable @typescript-eslint/no-require-imports */
+ 
 const LANGUAGES: LangDef[] = [
   {
     id: "typescript",
@@ -102,7 +102,7 @@ const LANGUAGES: LangDef[] = [
     grammarLoader: () => Promise.resolve(require("tm-grammars/grammars/go.json")),
   },
 ];
-/* eslint-enable @typescript-eslint/no-require-imports */
+ 
 
 @injectable()
 export class SpexrLanguageGrammarContribution
