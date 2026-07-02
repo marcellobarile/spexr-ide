@@ -44,6 +44,8 @@ import {
 } from "./views/welcome-view-contribution.js";
 import { SpexrWelcomeWidget } from "./views/welcome-widget.js";
 import { SpexrShellLayoutContribution } from "./shell/spexr-shell-layout-contribution.js";
+import { SpexrRevealOnRestore } from "./shell/reveal-on-restore.js";
+import { ScmContribution } from "@theia/scm/lib/browser/scm-contribution";
 import { SpexrBootstrapContribution } from "./bootstrap/spexr-bootstrap-contribution.js";
 import { SpexrThemeContribution } from "./theme/spexr-theme-contribution.js";
 import { SpexrColorContribution } from "./theme/spexr-color-contribution.js";
@@ -153,6 +155,11 @@ export default new ContainerModule((bind, _unbind, _isBound, rebind) => {
 
   bind(SpexrShellLayoutContribution).toSelf().inSingletonScope();
   bind(FrontendApplicationContribution).toService(SpexrShellLayoutContribution);
+  // Views that must stay visible across Theia's Electron-wide shell-layout cache
+  // (see reveal-on-restore.ts). Add future default-visible views here, not by
+  // special-casing SpexrShellLayoutContribution.
+  bind(SpexrRevealOnRestore).toService(SpexrExpertsViewContribution);
+  bind(SpexrRevealOnRestore).toService(ScmContribution);
   bind(FrontendApplicationContribution).to(SpexrBootstrapContribution).inSingletonScope();
   bind(FrontendApplicationContribution).to(SpexrThemeContribution).inSingletonScope();
   bind(ColorContribution).to(SpexrColorContribution).inSingletonScope();

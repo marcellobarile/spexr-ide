@@ -31,7 +31,8 @@ FrontendApplicationConfigProvider.set({
         "files.enableTrash": true,
         "editor.fontFamily": "'JetBrains Mono', 'Geist Mono', 'SF Mono', monospace",
         "editor.wordWrap": "on",
-        "editor.cursorStyle": "block"
+        "editor.cursorStyle": "block",
+        "workspace.preserveWindow": true
     }
 });
 

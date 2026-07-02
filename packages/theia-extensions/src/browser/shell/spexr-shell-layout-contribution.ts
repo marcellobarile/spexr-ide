@@ -1,4 +1,4 @@
-import { injectable, inject, optional } from "@theia/core/shared/inversify";
+import { injectable, inject, multiInject, optional } from "@theia/core/shared/inversify";
 import { ApplicationShell } from "@theia/core/lib/browser";
 import type {
   FrontendApplication,
@@ -13,6 +13,7 @@ import { SpexrWelcomeViewContribution, WELCOME_VIEW_ID } from "../views/welcome-
 import { SPEC_VIEW_ID } from "../views/spec-view-contribution.js";
 import { CLAUDE_TERMINAL_ID } from "../agent/claude-terminal-manager.js";
 import { expandLeftPanelWithMinWidth, expandRightPanelWithMinWidth } from "./side-panel.js";
+import { SpexrRevealOnRestore, type RevealOnRestoreView } from "./reveal-on-restore.js";
 
 /** IDs of tabs pinned to positions 0, 1, 2 in the main area. */
 const PINNED_IDS = [WELCOME_VIEW_ID, SPEC_VIEW_ID, CLAUDE_TERMINAL_ID] as const;
@@ -53,18 +54,47 @@ export class SpexrShellLayoutContribution implements FrontendApplicationContribu
   @optional()
   private readonly navigatorView?: FileNavigatorContribution;
 
-  async onStart(app: FrontendApplication): Promise<void> {
+  @multiInject(SpexrRevealOnRestore)
+  private readonly revealOnRestore!: RevealOnRestoreView[];
+
+  onStart(app: FrontendApplication): void {
     void app;
     this.setupTabPinning();
+  }
+
+  /**
+   * Runs after Theia's own shell-layout restore completes (`onStart` fires
+   * too early — during "Start frontend contributions", before "Restoring the
+   * layout state" — so `getLayoutData()` is always empty there and the
+   * restore branch below never actually ran; this was a pre-existing latent
+   * bug, not specific to the reveal-on-restore registry). This is the same
+   * hook `SpexrSmartSearchContribution` already uses correctly.
+   */
+  async onDidInitializeLayout(): Promise<void> {
     if (this.layoutAlreadyConfigured()) {
       this.expandLeftPanelIfNeeded();
-      // Reveal views registered after the user's layout was first saved so they
-      // appear without requiring a manual layout reset.
-      await this.expertsView.openView({ activate: false, reveal: true });
+      await this.revealRegisteredDefaults();
       expandRightPanelWithMinWidth(this.shell);
       return;
     }
     await this.applyDefaultLayout();
+  }
+
+  /**
+   * Reveal every view bound to `SpexrRevealOnRestore` — views added to the
+   * defaults after the user's layout was first saved so they appear without a
+   * manual layout reset. See reveal-on-restore.ts for why this is needed.
+   */
+  private async revealRegisteredDefaults(): Promise<void> {
+    console.warn("[spexr] revealRegisteredDefaults: entries =", this.revealOnRestore.length);
+    for (const view of this.revealOnRestore) {
+      try {
+        await view.openView({ activate: false, reveal: true });
+        console.warn("[spexr] revealRegisteredDefaults: opened", view.constructor?.name);
+      } catch (err) {
+        console.warn("[spexr] revealRegisteredDefaults failed for a registered view", view.constructor?.name, err);
+      }
+    }
   }
 
   async resetLayout(): Promise<void> {
