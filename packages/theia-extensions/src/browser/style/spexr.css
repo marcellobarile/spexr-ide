@@ -52,6 +52,18 @@ body {
   border-color: var(--spexr-accent-hover);
 }
 
+/* Theia's activity-bar/tab badge (e.g. SCM changed-file count) is a fixed
+   15.5px circle (upstream tabs.css) sized for a single digit — "99+" (3
+   chars) overflows it. Let it grow into a pill instead of clipping. */
+.theia-badge-decorator-sidebar,
+.lm-TabBar .theia-badge-decorator-horizontal {
+  width: auto;
+  min-width: var(--theia-notification-count-width);
+  padding-left: 4px;
+  padding-right: 4px;
+  white-space: nowrap;
+}
+
 /* Agent chat */
 .spexr-agent-widget {
   background: var(--spexr-agent-bg);
@@ -1904,42 +1916,6 @@ code {
 .spexr-smart-search__body { padding: 6px 8px; display: flex; flex-direction: column; gap: 6px; }
 .spexr-smart-search__input { width: 100%; box-sizing: border-box; }
 .spexr-smart-search__status { font-size: 11px; opacity: 0.7; }
-.spexr-smart-search__status--ready {
-  display: flex;
-  align-items: center;
-  gap: var(--spexr-space-2);
-  padding: 2px;
-}
-/* Accent "signal": a solid core with a breathing halo ring that expands and fades.
-   Matches the widget accent (was a mismatched hardcoded purple LED). */
-.spexr-smart-search__signal {
-  position: relative;
-  flex-shrink: 0;
-  width: 7px;
-  height: 7px;
-  border-radius: var(--spexr-radius-pill);
-  background: var(--spexr-accent-default);
-  box-shadow: 0 0 6px color-mix(in srgb, var(--spexr-accent-default) 55%, transparent);
-}
-.spexr-smart-search__signal::after {
-  content: "";
-  position: absolute;
-  inset: -3px;
-  border-radius: var(--spexr-radius-pill);
-  border: 1px solid var(--spexr-accent-default);
-  animation: spexr-signal-breathe 2.4s ease-in-out infinite;
-}
-@keyframes spexr-signal-breathe {
-  0%, 100% { transform: scale(0.65); opacity: 0.55; }
-  50%      { transform: scale(1.3); opacity: 0; }
-}
-.spexr-smart-search__signal-label {
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--spexr-text-muted);
-  font-variant-numeric: tabular-nums;
-}
 
 .spexr-smart-search__progress { display: flex; flex-direction: column; gap: 4px; }
 .spexr-smart-search__progress-track {
@@ -2217,6 +2193,10 @@ code {
   background: var(--spexr-accent-subtle);
 }
 .spexr-smart-search__map-sub {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spexr-space-2);
   margin-top: var(--spexr-space-1);
   padding-left: 2px;
   font-size: var(--spexr-text-xs);
@@ -2255,8 +2235,7 @@ code {
 }
 @media (prefers-reduced-motion: reduce) {
   .spexr-smart-search__map-cta,
-  .spexr-smart-search__map-glyph,
-  .spexr-smart-search__signal::after {
+  .spexr-smart-search__map-glyph {
     animation: none;
   }
 }

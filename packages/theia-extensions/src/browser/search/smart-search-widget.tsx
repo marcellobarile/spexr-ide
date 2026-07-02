@@ -372,10 +372,7 @@ export class SmartSearchWidget extends ReactWidget {
         {this.status.state === "indexing"
           ? this.renderIndexingProgress()
           : this.status.state === "ready"
-            ? <div className="spexr-smart-search__status--ready">
-                <span className="spexr-smart-search__signal" aria-hidden="true" />
-                <span className="spexr-smart-search__signal-label">ready</span>
-              </div>
+            ? null
             : <div className="spexr-smart-search__status">{statusLabel(this.status)}</div>
         }
         {this.query.trim().length > 0 && this.renderAiProgress()}
@@ -405,7 +402,10 @@ export class SmartSearchWidget extends ReactWidget {
             <span className="spexr-smart-search__map-glyph" aria-hidden="true">✦</span>
             <span className="spexr-smart-search__map-label">{label}</span>
           </button>
-          {idle && (
+        </div>
+        {idle && (
+          <div className="spexr-smart-search__map-sub">
+            <span>Summarize every file, on-device</span>
             <button
               className="spexr-smart-search__map-regen"
               onClick={() => void this.startMap(true)}
@@ -414,10 +414,7 @@ export class SmartSearchWidget extends ReactWidget {
             >
               ↻
             </button>
-          )}
-        </div>
-        {idle && (
-          <div className="spexr-smart-search__map-sub">Summarize every file, on-device</div>
+          </div>
         )}
         {(running || paused) && (
           <div className="spexr-smart-search__map-progress">
