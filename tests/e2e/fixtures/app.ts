@@ -126,6 +126,17 @@ export async function openSpecView(page: Page): Promise<void> {
   // the user clicked. Synthetic PointerEvents default to clientX=0,clientY=0 so
   // the hit test always misses. We read the tab's real bounding rect and embed
   // those coordinates in the event so Lumino finds the correct tab.
+  // SpexrShellLayoutContribution builds the default layout in
+  // onDidInitializeLayout (opens Welcome, Spec, Memory, Experts, Navigator,
+  // Terminal in sequence) — this can take a couple of seconds, so wait for
+  // the tab to actually exist rather than assuming it's already there.
+  await page.waitForFunction(
+    () =>
+      [...document.querySelectorAll<HTMLElement>(".lm-TabBar-tabLabel, .p-TabBar-tabLabel")].some(
+        (el) => el.textContent?.trim() === "Spec",
+      ),
+    { timeout: 15_000 },
+  );
   await page.evaluate(() => {
     const labels = [
       ...document.querySelectorAll<HTMLElement>(".lm-TabBar-tabLabel, .p-TabBar-tabLabel"),

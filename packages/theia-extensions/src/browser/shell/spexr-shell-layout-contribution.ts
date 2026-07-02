@@ -65,19 +65,32 @@ export class SpexrShellLayoutContribution implements FrontendApplicationContribu
   /**
    * Runs after Theia's own shell-layout restore completes (`onStart` fires
    * too early — during "Start frontend contributions", before "Restoring the
-   * layout state" — so `getLayoutData()` is always empty there and the
-   * restore branch below never actually ran; this was a pre-existing latent
-   * bug, not specific to the reveal-on-restore registry). This is the same
-   * hook `SpexrSmartSearchContribution` already uses correctly.
+   * layout state" — so `getLayoutData()` is always empty there; this was a
+   * pre-existing latent bug, not specific to the reveal-on-restore registry).
+   * This is the same hook `SpexrSmartSearchContribution` already uses correctly.
+   *
+   * `layoutAlreadyConfigured()` is a best-effort signal, not a reliable one:
+   * Electron's `localStorage` (backing Theia's shell-layout cache) is not
+   * workspace-scoped, so it can read "already configured" for a workspace
+   * that has never actually been opened before (e.g. sequential e2e runs
+   * against fresh temp dirs in the same Electron profile all share one
+   * cached layout). Opening Spec/Memory/Experts/Navigator must therefore
+   * NOT depend on that signal — `openView()` is idempotent, so it's safe to
+   * call every launch regardless. Only the truly one-shot actions (spawning
+   * a new terminal, auto-focusing Welcome) are gated on it.
    */
   async onDidInitializeLayout(): Promise<void> {
-    if (this.layoutAlreadyConfigured()) {
-      this.expandLeftPanelIfNeeded();
+    try {
+      const alreadyConfigured = this.layoutAlreadyConfigured();
+      if (!alreadyConfigured) await this.openWelcome();
+      await this.openSideViews();
       await this.revealRegisteredDefaults();
+      if (!alreadyConfigured) await this.openTerminal();
+      this.expandLeftPanel();
       expandRightPanelWithMinWidth(this.shell);
-      return;
+    } catch (err) {
+      console.error("[spexr] onDidInitializeLayout error", err);
     }
-    await this.applyDefaultLayout();
   }
 
   /**
@@ -86,11 +99,9 @@ export class SpexrShellLayoutContribution implements FrontendApplicationContribu
    * manual layout reset. See reveal-on-restore.ts for why this is needed.
    */
   private async revealRegisteredDefaults(): Promise<void> {
-    console.warn("[spexr] revealRegisteredDefaults: entries =", this.revealOnRestore.length);
     for (const view of this.revealOnRestore) {
       try {
         await view.openView({ activate: false, reveal: true });
-        console.warn("[spexr] revealRegisteredDefaults: opened", view.constructor?.name);
       } catch (err) {
         console.warn("[spexr] revealRegisteredDefaults failed for a registered view", view.constructor?.name, err);
       }
@@ -143,10 +154,6 @@ export class SpexrShellLayoutContribution implements FrontendApplicationContribu
     } catch (err) {
       console.error("[spexr] applyDefaultLayout error", err);
     }
-  }
-
-  private expandLeftPanelIfNeeded(): void {
-    this.expandLeftPanel();
   }
 
   private async openWelcome(): Promise<void> {
