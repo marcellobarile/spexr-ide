@@ -1,8 +1,26 @@
-# SPEXR
+<p align="center">
+  <img src="apps/desktop/build/icon.png" width="96" alt="SPEXR logo">
+</p>
 
-Agent-centric, spec-based IDE. Built on **Eclipse Theia** + **Theia AI**, fully TypeScript.
+<h1 align="center">SPEXR</h1>
+<p align="center"><strong>Agent-centric, spec-based IDE.</strong><br>Built on Eclipse Theia + Theia AI, fully TypeScript.</p>
 
-> **Status: v0.1.0 — public beta.** Packaged installers available on the [Releases page](https://github.com/marcellobarile/spexr-ide/releases). Core spec workflow complete. On-disk formats stable; minor API changes possible before 1.0.
+<p align="center">
+  <a href="https://github.com/marcellobarile/spexr-ide/releases"><img src="https://img.shields.io/github/v/release/marcellobarile/spexr-ide?label=release" alt="Latest release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
+  <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey" alt="Platforms">
+</p>
+
+> **Status: v0.1.3 — public beta.** Packaged installers available on the [Releases page](https://github.com/marcellobarile/spexr-ide/releases). Core spec workflow complete. On-disk formats stable; minor API changes possible before 1.0.
+
+## Contents
+
+- [Why](#why)
+- [Pillars](#pillars)
+- [Screenshots](#screenshots)
+- [For adopters](#for-adopters)
+- [For contributors](#for-contributors)
+- [License](#license)
 
 ## Why
 
@@ -16,6 +34,10 @@ Most editors bolt an agent into a sidebar. SPEXR inverts the layout: the Claude 
 4. **Onboarding wizard** — first session asks for internal docs (architecture, conventions, glossary, runbooks); answers become memory.
 5. **Community best-practices baseline** — language/framework guidance pre-loaded, override-able per scope.
 6. **Themeable, accessible UI** — WCAG 2.1 AA via Radix primitives + design tokens (CSS vars). Light, dark, high-contrast presets + custom JSON themes.
+7. **Smart search** — sidebar panel ranks results with hybrid BM25 + dense embeddings, expands queries, and extracts symbols across languages. A local model generates one-line file descriptions on first index — no API calls, no data leaves the machine.
+8. **Git, built in** — full SCM provider (stage/unstage/commit/push/pull/fetch/branch/checkout) plus inline blame, no external Git extension needed.
+
+> **On `main`, not yet released.** Smart search and Git support are merged but not in a tagged version yet — build from source (below) to try them before the next installer release.
 
 ## Screenshots
 
@@ -36,6 +58,10 @@ Most editors bolt an agent into a sidebar. SPEXR inverts the layout: the Claude 
 **Experts**
 
 ![Expert personas marketplace](docs/screenshots/experts.png)
+
+**Smart search**
+
+![Smart search sidebar with hybrid results, categories, and AI-generated descriptions](docs/screenshots/smart-search.png)
 
 ---
 
@@ -236,6 +262,14 @@ What it does:
 6. Creates an annotated tag `v<new-version>`.
 7. Pushes commit + tag → triggers CI.
 
+After cutting a release, sync the in-app "What's new" splash to the new changelog entry:
+
+```bash
+pnpm sync:release-notes
+```
+
+This regenerates `packages/theia-extensions/src/browser/release-notes.ts` from `CHANGELOG.md` — edit the changelog, not the generated file.
+
 #### What CI does on a `v*` tag
 
 ```
@@ -295,32 +329,6 @@ SPEXR dogfoods its own spec-driven flow:
 Conventions: TypeScript strict, no dead code or speculative abstractions, comments only for non-obvious *why*, follow the surrounding style (`.editorconfig` + `.prettierrc.json` are authoritative). `pnpm format` before pushing.
 
 ---
-
-## Roadmap
-
-Specs `0001`–`0010` are implemented and shipped in v0.1.0. Open a spec in `docs/specs/` to see its acceptance criteria and status — they are the live roadmap.
-
-**Shipped in v0.1.0** — full spec → PR loop:
-
-| Spec | What |
-|---|---|
-| `0001` | Bootstrap — Theia shell, agent terminal, memory panel |
-| `0003` | Terminal agent surface — embedded Claude session |
-| `0004` | Expert personas — built-in catalog, per-step auto-activation |
-| `0005` | Drift detector — agent evaluates AC coverage vs. code |
-| `0006` | Spec context fan-in — attached files fed to agent on handoff |
-| `0007` | Ship → PR — commit + push + `gh pr create` in one step |
-| `0008` | Plan & task artifacts — checklist from spec AC, tickable in UI |
-| `0009` | Live spec validation — lint panel, tab badge |
-| `0010` | Markdown preview — split-right live preview |
-
-**Next — net-new directions** (not yet specced):
-
-- **MCP / tool-use registration** — per-project MCP servers exposed to the spawned CLI.
-- **Custom & shareable experts** — author/import experts beyond the built-in catalog.
-- **Cost & usage tracking** — token/cost per spec and session from the local CLI.
-- **Mac notarization** — remove the "right-click → Open" first-launch step.
-- **Concurrent expert sessions** — more than one agent terminal side by side.
 
 ## License
 
