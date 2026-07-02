@@ -119,6 +119,10 @@ Rules for entries:
     const fs = require('fs');
     let raw = '';
     try { raw = fs.readFileSync(process.argv[1], 'utf8').trim(); } catch (e) {}
+    // claude --print sometimes wraps JSON in a markdown code fence despite
+    // being told not to — strip it before parsing rather than trusting the
+    // model to always comply.
+    raw = raw.replace(/^\`\`\`(?:json)?\s*/, '').replace(/\s*\`\`\`\$/, '').trim();
     try {
       const obj = JSON.parse(raw);
       if (typeof obj.tagline !== 'string' || !Array.isArray(obj.entries) || obj.entries.length === 0) {
