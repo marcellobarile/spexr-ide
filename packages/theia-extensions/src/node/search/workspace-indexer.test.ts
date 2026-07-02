@@ -139,6 +139,15 @@ describe("WorkspaceIndexer", () => {
     expect(indexer.index.getRecord(".spexr/search-index.json")).toBeUndefined();
   });
 
+  it("updateFile skips a nested node_modules path, not just a root-level one (regression: only the first path segment was checked)", async () => {
+    const indexer = new WorkspaceIndexer(root, new FakeEmbedder());
+    await mkdir(join(root, "packages", "theia-extensions", "node_modules", "vite"), { recursive: true });
+    const nested = "packages/theia-extensions/node_modules/vite/index.js";
+    await writeFile(join(root, nested), "export default {}");
+    expect(await indexer.updateFile(nested)).toBe(false);
+    expect(indexer.index.size).toBe(0);
+  });
+
   it("updateFile skips re-embedding unchanged content (dedup by hash)", async () => {
     const indexer = new WorkspaceIndexer(root, new FakeEmbedder() as FakeEmbedder);
     const embedder = (indexer as unknown as { embedder: FakeEmbedder }).embedder;

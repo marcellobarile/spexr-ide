@@ -227,7 +227,9 @@ export class WorkspaceIndexer {
   async updateFile(relPath: string): Promise<boolean> {
     // Never index our own generated dirs (esp. `.spexr/`, where saving the index would
     // change the file, invalidating its hash → re-index → re-save → infinite loop).
-    if (ALWAYS_SKIP_DIRS.has(relPath.split("/")[0] ?? "")) {
+    // Check every path segment, not just the first — a nested node_modules
+    // (e.g. packages/foo/node_modules/...) must be skipped too.
+    if (relPath.split("/").some((seg) => ALWAYS_SKIP_DIRS.has(seg))) {
       return this.index.remove(relPath);
     }
     const abs = join(this.root, relPath);
