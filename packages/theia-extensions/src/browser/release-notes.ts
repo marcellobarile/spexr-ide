@@ -10,22 +10,15 @@ export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
     version: "0.1.5",
     date: "2026-07-02",
-    tagline: "A new version is available.",
+    tagline: "Smarter search, tighter security, lazier release notes",
     changes: [
-      "fix(ci): unify default-view opening in onDidInitializeLayout, harden e2e tab wait",
-    ],
-  },
-  {
-    version: "0.1.4",
-    date: "2026-07-02",
-    tagline: "A new version is available.",
-    changes: [
-      "fix(search): skip nested node_modules (and other heavy dirs) during incremental indexing",
-      "README polish + fix Git/Search panel visibility bugs (#4)",
-      "fix(search): strip 'This file' prefix from AI-generated descriptions",
-      "Smart Search: semantic file search + local-model codebase understanding (#3)",
-      "feat(release-notes): automate sync from CHANGELOG",
-      "fix(security): harden shell.openExternal — construct release URL locally",
+      "Adds [semantic search](https://en.wikipedia.org/wiki/Semantic_search) with local-model embeddings, so the codebase finally understands intent, not just keywords.",
+      "Fixes Git and Search panel visibility bugs surfaced while polishing the README, because docs and reality had drifted apart.",
+      "Unifies default-view opening inside [`onDidInitializeLayout`](https://github.com/eclipse-theia/theia), and hardens the e2e tab-wait so flaky startup races stop failing [CI](https://en.wikipedia.org/wiki/Continuous_integration).",
+      "Skips nested [`node_modules`](https://docs.npmjs.com/cli/v10/configuring-npm/folders) directories during incremental indexing, sparing Search from cataloguing the same dependency tree twice.",
+      "Strips the redundant 'This file' prefix AI-generated descriptions kept insisting on, because yes, we already knew it was a file.",
+      "Hardens [`shell.openExternal`](https://www.electronjs.org/docs/latest/api/shell#shellopenexternalurl-options) calls by building the release URL locally instead of trusting external input.",
+      "Automates release notes generation by syncing straight from the [changelog](https://keepachangelog.com/en/1.0.0/), because manual copy-paste was nobody's favorite Friday task.",
     ],
   },
   {
