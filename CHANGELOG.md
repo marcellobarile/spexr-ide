@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.5 — 2026-07-02
+
+- fix(ci): unify default-view opening in onDidInitializeLayout, harden e2e tab wait
+
+
 ## 0.1.4 — 2026-07-02
 
 - fix(search): skip nested node_modules (and other heavy dirs) during incremental indexing

@@ -8,6 +8,14 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: readonly ReleaseNote[] = [
   {
+    version: "0.1.5",
+    date: "2026-07-02",
+    tagline: "A new version is available.",
+    changes: [
+      "fix(ci): unify default-view opening in onDidInitializeLayout, harden e2e tab wait",
+    ],
+  },
+  {
     version: "0.1.4",
     date: "2026-07-02",
     tagline: "A new version is available.",
