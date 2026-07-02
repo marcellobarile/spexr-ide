@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.4 — 2026-07-02
+
+- fix(search): skip nested node_modules (and other heavy dirs) during incremental indexing
+- README polish + fix Git/Search panel visibility bugs (#4)
+- fix(search): strip 'This file' prefix from AI-generated descriptions
+- Smart Search: semantic file search + local-model codebase understanding (#3)
+- feat(release-notes): automate sync from CHANGELOG
+- fix(security): harden shell.openExternal — construct release URL locally
+
+
 ## 0.1.3 — 2026-06-21
 
 > Updates that actually tell you about updates.
