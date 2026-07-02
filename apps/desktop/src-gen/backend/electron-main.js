@@ -55,7 +55,8 @@ process.env.LC_NUMERIC = 'C';
         "files.enableTrash": true,
         "editor.fontFamily": "'JetBrains Mono', 'Geist Mono', 'SF Mono', monospace",
         "editor.wordWrap": "on",
-        "editor.cursorStyle": "block"
+        "editor.cursorStyle": "block",
+        "workspace.preserveWindow": true
     }
 };
     const isSingleInstance = true;
